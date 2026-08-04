@@ -112,8 +112,9 @@ def ingest_file_block(
     source: str = "unknown",
     device: str = "unknown",
     kind: str = "auto",
+    file_verkle: bool = False,
 ) -> dict[str, Any]:
-    """Route remote input into queue/todo.md and/or memory/working.md."""
+    """Route remote input into queue/todo.md and/or memory/working.md; optional Verkle FILE."""
     body = (text or "").strip()
     if not body:
         return {"ok": False, "error": "empty text"}
@@ -123,11 +124,13 @@ def ingest_file_block(
     tag = f"[{_slug(device)}]"
     k = (kind or "auto").strip().lower()
     wrote: list[str] = []
+    is_file = k == "file" or (k == "auto" and _looks_like_file_block(body))
+    auto_leaf = is_file and ("file for mag" in body.lower() or file_verkle)
 
-    if k == "todo" or (k == "auto" and not _looks_like_file_block(body) and "\n" not in body):
+    if k == "todo" or (k == "auto" and not is_file and "\n" not in body):
         path = _append_todo(f"{tag} {body}")
         wrote.append(str(path.relative_to(ROOT)).replace("\\", "/"))
-        return {
+        result: dict[str, Any] = {
             "ok": True,
             "routed": "todo",
             "paths": wrote,
@@ -135,6 +138,12 @@ def ingest_file_block(
             "source": source,
             "device": device,
         }
+        if file_verkle:
+            from mag.seat_file import file_handoff
+
+            leaf = file_handoff(body, source=source, device=device, force=True)
+            result["verkle"] = leaf
+        return result
 
     wpath = _append_working(body, source=source, device=device)
     wrote.append(str(wpath.relative_to(ROOT)).replace("\\", "/"))
@@ -144,7 +153,7 @@ def ingest_file_block(
         tpath = _append_todo(f"{tag} {nxt}")
         wrote.append(str(tpath.relative_to(ROOT)).replace("\\", "/"))
 
-    return {
+    result = {
         "ok": True,
         "routed": "file+todo" if nxt else "working",
         "paths": wrote,
@@ -152,6 +161,13 @@ def ingest_file_block(
         "source": source,
         "device": device,
     }
+    if auto_leaf or file_verkle:
+        from mag.seat_file import file_handoff
+
+        leaf = file_handoff(body, source=source, device=device, force=True)
+        result["verkle"] = leaf
+        result["routed"] = (result["routed"] + "+verkle") if result.get("routed") else "verkle"
+    return result
 
 
 def _todo_open_preview(limit: int = 5) -> list[str]:

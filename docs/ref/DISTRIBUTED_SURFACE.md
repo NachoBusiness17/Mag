@@ -61,15 +61,15 @@ Cursor Cloud / web tablet agents clone **GitHub only** — they do not see your 
 |-------------|-----------|
 | `POST /api/v1/handoff/file` | accepts FILE block / goal text from any client |
 | Writes `queue/todo.md` and/or `memory/working.md` | existing scheme — governor sees `[mag]` lines |
-| `GET /api/v1/surface` | returns phase, bind hint, last inbound |
-| `mag/distributed_surface.py` | single module for ingest + status |
+| `FILE for Mag` blocks auto-Verkle | via `mag/seat_file.py` |
+| `GET /api/v1/surface` | returns phase, bind hint, paths |
 | Tests | `tests/test_distributed_surface.py` green |
 
 **Body example:**
 
 ```json
 {
-  "text": "FILE for Mag residual:\n- turned: …\n- open loops: …\n- next move: wire G2 auth",
+  "text": "FILE for Mag residual:\n- turned: …\n- open loops: …\n- next move: wire next slice",
   "source": "tablet",
   "device": "ipad-safari"
 }
@@ -107,6 +107,20 @@ Cursor Cloud / web tablet agents clone **GitHub only** — they do not see your 
 | Conflict rule | **newest FILE wins** for handoff; residual = human merge |
 | Not required for G1–G3 | home machine can be sole canonical |
 
+### E — Seat FILE → Verkle (shipped)
+
+**Commitment:** `seat-file-all-seats-001` · **`memory/handoff/SEAT_FILE.md`**
+
+| Deliverable | Done when |
+|-------------|-----------|
+| `mag/seat_file.py` | materialize `agent_sessions` + `summarize_session` |
+| `POST /api/v1/seat/file` | full transcript from any seat |
+| `python main.py seat-file` | CLI FILE for cloud/Slack blocks |
+| Handoff auto-leaf | `FILE for Mag` in handoff/file |
+| Cursor IDE | `cursor_hook.py` sessionEnd (existing) |
+
+**Law:** Decoder files code to git; **home machine FILEs meaning to Verkle.**
+
 ---
 
 ## REST surface (target)
@@ -114,7 +128,8 @@ Cursor Cloud / web tablet agents clone **GitHub only** — they do not see your 
 | Method | Path | Phase | Role |
 |--------|------|-------|------|
 | GET | `/api/v1/surface` | G1 | Plan phase, bind URL, inbound count |
-| POST | `/api/v1/handoff/file` | G1 | Ingest FILE block from any device |
+| POST | `/api/v1/handoff/file` | G1 | Ingest FILE → todo/working + optional Verkle |
+| POST | `/api/v1/seat/file` | E | Full seat transcript → Verkle workday |
 | GET | `/api/v1/coordination` | done | Shared activity feed |
 | POST | `/api/v1/coordination` | done | Heartbeat from any seat |
 | POST | `/api/v1/seat/task` | done | Unified tasking (cursor_bridge) |

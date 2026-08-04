@@ -74,6 +74,7 @@ memory/handoff/**
 !memory/handoff/ACTIVATION.md
 !memory/handoff/DEEPSEEK_START.md
 !memory/handoff/HOME_MACHINE.md
+!memory/handoff/SEAT_FILE.md
 memory/remedies/**
 !memory/remedies/.gitkeep
 memory/working/**

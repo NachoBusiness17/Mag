@@ -3,7 +3,7 @@
 # Law: docs/ref/DISTRIBUTED_SURFACE.md
 
 schema: mag.distributed_surface.v1
-phase: G2
+phase: E   # G0 plan | G1 handoff | G2 auth | G3 reach | G4 soil | E seat-file
 
 # Existing Mag scheme — remote POST routes here, no parallel inbox
 paths:

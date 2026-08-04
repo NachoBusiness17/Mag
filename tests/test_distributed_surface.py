@@ -40,7 +40,8 @@ def test_ingest_file_block_to_working_and_next_move_todo(tmp_path):
     )
     res = ds.ingest_file_block(body, source="tablet", device="ipad")
     assert res["ok"] is True
-    assert res["routed"] == "file+todo"
+    assert res["routed"] == "file+todo+verkle"
+    assert res.get("verkle", {}).get("ok")
     working = (tmp_path / "memory" / "working.md").read_text(encoding="utf-8")
     assert "FILE for Mag" in working
     todo = (tmp_path / "queue" / "todo.md").read_text(encoding="utf-8")
