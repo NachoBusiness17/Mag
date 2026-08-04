@@ -175,7 +175,12 @@ def boot_manifest() -> list[dict[str, Any]]:
     spec_path = ROOT / "docs" / "ref" / "PRODUCT_VISION_AUTORUN.md"
     main_py = ROOT / "main.py"
     main_src = main_py.read_text(encoding="utf-8") if main_py.is_file() else ""
-    cli_wired = 'add_parser("governor"' in main_src or 'add_parser("governor",' in main_src
+    cli_wired = (
+        'add_parser("governor"' in main_src
+        or 'add_parser("governor",' in main_src
+        or 'add_parser(\n        "governor"' in main_src
+        or '"governor"' in main_src and "add_parser" in main_src
+    )
     for t in all_boot:
         if t["id"] == "boot:spec" and spec_path.is_file():
             continue
@@ -233,7 +238,8 @@ def exec_cli_wiring(c: dict[str, Any]) -> tuple[bool, str]:
         return False, f"missing {main}"
     src = main.read_text(encoding="utf-8")
     if 'add_parser("governor"' in src or 'add_parser("governor",' in src \
-            or 'add_parser(\n        "governor"' in src:
+            or 'add_parser(\n        "governor"' in src \
+            or ('"governor"' in src and "add_parser" in src):
         return True, "already wired"
     add = '''
 

@@ -45,6 +45,10 @@ def test_fill_queue_skips_duplicate(monkeypatch):
 def test_exec_queue_task_uses_routed_provider(monkeypatch):
     monkeypatch.setattr(ga, "route_task", _fake_route)
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
     calls = []
     monkeypatch.setattr(
         g, "_run_seat",
@@ -65,6 +69,10 @@ def test_exec_queue_task_uses_routed_provider(monkeypatch):
 def test_guard_stop_fallback(monkeypatch):
     monkeypatch.setattr(ga, "route_task", _fake_route)
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
     calls = []
 
     def fake_run(text, prov):
@@ -99,3 +107,9 @@ def test_autorun_once_dry(monkeypatch):
     res = ga.autorun_once(fill=False, dry=True)
     assert res["action"] == "dry"
     assert "plan" in res
+
+
+def test_boot_cli_not_in_manifest_when_wired():
+    boot = g.boot_manifest()
+    ids = [t["id"] for t in boot]
+    assert "boot:cli" not in ids

@@ -232,7 +232,7 @@ def fill_queue(
             for m in (st.get("next_moves") or [])[:max_state]:
                 if isinstance(m, dict):
                     status = str(m.get("status") or "open")
-                    text = str(m.get("text") or m.get("move") or "")
+                    text = str(m.get("title") or m.get("text") or m.get("move") or "")
                 else:
                     status, text = "open", str(m)
                 if status == "deferred" or not text.strip():
@@ -306,8 +306,48 @@ def plan_pending() -> dict[str, Any]:
     return plan
 
 
+def _seat_failed(out: str, rc: int) -> bool:
+    if rc != 0:
+        return True
+    if "Stopped:" in out:
+        return True
+    if "**Agent error:**" in out:
+        return True
+    return False
+
+
+def _seat_dispatch_with_fallback(text: str, provider: str) -> tuple[bool, str]:
+    """Subprocess seat dispatch with guard-stop / agent-error fallback."""
+    import mag.governor as gov
+
+    fallback = gov.FALLBACK_PROVIDER
+    providers_tried: list[str] = []
+    rc, out, tail = 0, "", ""
+    for prov in (provider, fallback, gov.PRIMARY_PROVIDER):
+        if prov in providers_tried:
+            continue
+        providers_tried.append(prov)
+        rc, out, tail = gov._run_seat(text, prov)
+        if rc != 0:
+            break  # seat-internal crash — provider swap cannot help
+        if "Stopped:" in out or "**Agent error:**" in out:
+            continue  # reliability signal — try next provider
+        break
+    if rc != 0:
+        used = providers_tried[-1] if providers_tried else provider
+        return False, f"seat {used} exit={rc}: {tail}"
+    if "Stopped:" in out or "**Agent error:**" in out:
+        return False, (
+            f"seat guard-stop on {' AND '.join(providers_tried)} (NOT marked done): {tail}"
+        )
+    used = providers_tried[-1] if providers_tried else provider
+    if len(providers_tried) > 1 and used == fallback:
+        return True, f"fallback {fallback} exit=0: {tail}"
+    return True, f"seat {used} exit=0: {tail}"
+
+
 def execute_routed_task(text: str, *, who: str = "mag") -> tuple[bool, str]:
-    """Governor executor: route then run via seat, queue, or plan-only."""
+    """Governor executor: route then run through coordination network or seat."""
     import mag.governor as gov
 
     if who != "mag":
@@ -322,35 +362,60 @@ def execute_routed_task(text: str, *, who: str = "mag") -> tuple[bool, str]:
 
         res = coordinate(text, depth=depth, launch=False)
         hint = str(res.get("hint") or res.get("action") or "file_for_grok")
-        return True, f"planned ({depth}): {hint[:180]}"
+        return False, f"planned ({depth}): {hint[:180]}"
 
     if depth == "heavy_code" and _drainer_active():
         if not queue_has_goal(text):
             enqueue_routed(text, tag=f"gov-{depth}")
-        return False, f"queued on orchestrator ({provider}) — drainer executes"
+        return False, f"queued on orchestrator ({provider})"
 
-    fallback = gov.FALLBACK_PROVIDER
-    providers_tried: list[str] = []
-    rc, out, tail = 0, "", ""
-    for prov in (provider, fallback, gov.PRIMARY_PROVIDER):
-        if prov in providers_tried:
-            continue
-        providers_tried.append(prov)
-        rc, out, tail = gov._run_seat(text, prov)
-        if "Stopped:" not in out:
-            break
-    if "Stopped:" in out:
-        return False, (
-            f"seat guard-stop on {' AND '.join(providers_tried)} (NOT marked done): {tail}"
+    from mag.coordination import coordinate
+
+    try:
+        res = coordinate(
+            text,
+            depth=depth,
+            seat="governor",
+            actor="governor",
+            launch=True,
+            background=(depth == "heavy_code"),
         )
-    if rc == 0:
+    except Exception as e:
+        ok, detail = _seat_dispatch_with_fallback(text, provider)
+        if ok:
+            gov._mark_queue_done(text)
+        return ok, f"coordinate error, seat fallback: {detail}"[:300]
+
+    if not res.get("ok"):
+        ok, detail = _seat_dispatch_with_fallback(text, provider)
+        if ok:
+            gov._mark_queue_done(text)
+        return ok, detail
+
+    action = str(res.get("action") or "")
+    if action == "file_for_grok":
+        return False, f"planned: needs Grok TUI ({depth})"
+
+    if action == "queue":
+        return False, f"queued: {str((res.get('task') or {}).get('queue_id') or '?')}"
+
+    if action in ("delegate", "dispatch"):
+        result = res.get("result") or {}
+        err = str(result.get("error") or "")
+        ans = str(result.get("answer") or result.get("text") or "")
+        if err or "**Agent error:**" in ans or result.get("ok") is False:
+            ok, detail = _seat_dispatch_with_fallback(text, provider)
+            if ok:
+                gov._mark_queue_done(text)
+            return ok, f"{action} failed, seat: {detail}"[:300]
         gov._mark_queue_done(text)
-        used = providers_tried[-1] if providers_tried else provider
-        if len(providers_tried) > 1 and used == fallback:
-            return True, f"fallback {fallback} exit=0: {tail}"
-        return True, f"seat {used} exit=0: {tail}"
-    used = providers_tried[-1] if providers_tried else provider
-    return False, f"seat {used} exit={rc}: {tail}"
+        detail = (ans or str(result.get("hint") or result.get("job") or ""))[:200]
+        return True, f"{action} ok: {detail}"
+
+    ok, detail = _seat_dispatch_with_fallback(text, provider)
+    if ok:
+        gov._mark_queue_done(text)
+    return ok, detail
 
 
 def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
@@ -383,22 +448,29 @@ def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
     from mag.orchestrator import _any_running_task, drain_once, list_queue
 
     queued_n = sum(1 for q in list_queue() if q.get("status") == "queued")
-    if queued_n > 0:
-        if _any_running_task():
-            result["action"] = "busy"
-            result["detail"] = "orchestrator task running"
-        else:
-            drain = drain_once()
-            result["action"] = "drain"
-            result["drain"] = drain
-            result["steps"].append({"drain": drain.get("action")})
-    else:
-        from mag.governor import run_cycle
+    drain_res: dict[str, Any] | None = None
+    if queued_n > 0 and not _any_running_task():
+        drain_res = drain_once()
+        result["drain"] = drain_res
+        result["action"] = "drain"
+        result["steps"].append({"drain": drain_res.get("action")})
 
-        cyc = run_cycle(dry=False)
-        result["action"] = "governor"
-        result["governor"] = cyc
-        result["steps"].append({"governor": cyc.get("action")})
+    # Governor picks todo/agent_state when idle (or orchestrator drain failed).
+    if not _any_running_task():
+        from mag.governor import queue_candidates, run_cycle
+
+        if queue_candidates() or not drain_res or drain_res.get("action") in (
+            "empty",
+            "spawn_failed",
+        ):
+            cyc = run_cycle(dry=False)
+            result["governor"] = cyc
+            if result.get("action") != "drain":
+                result["action"] = "governor"
+            result["steps"].append({"governor": cyc.get("action")})
+    elif queued_n > 0:
+        result["action"] = "busy"
+        result["detail"] = "orchestrator task running"
 
     _log_trail(result)
     return result

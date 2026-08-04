@@ -25,6 +25,10 @@ def test_clean_primary_marks_done(monkeypatch):
 
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
     monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
+    monkeypatch.setattr(
         ga,
         "route_task",
         lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
@@ -48,6 +52,10 @@ def test_guard_stop_then_fallback_marks_done(monkeypatch):
     import mag.governor_autorun as ga
 
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
     monkeypatch.setattr(
         ga,
         "route_task",
@@ -79,6 +87,10 @@ def test_both_guard_stop_not_marked(monkeypatch):
 
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
     monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
+    monkeypatch.setattr(
         ga,
         "route_task",
         lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
@@ -101,6 +113,10 @@ def test_nonzero_exit_no_fallback(monkeypatch):
     import mag.governor_autorun as ga
 
     monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        "mag.coordination.coordinate",
+        lambda *a, **k: {"ok": False, "error": "mock-fail-to-seat"},
+    )
     monkeypatch.setattr(
         ga,
         "route_task",

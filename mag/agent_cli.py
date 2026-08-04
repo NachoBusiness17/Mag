@@ -1760,12 +1760,11 @@ def run_agent(
     if one_shot:
         try:
             do_turn(one_shot)
-            # Orchestrator-spawned seats (MAG_TASK_ID set) skip the LLM-polished
-            # workday bio: it blocks up to the provider timeout AFTER the answer
-            # and stalls orchestrator/gpipes fan/collect. Heuristic persist in
-            # do_turn already filed the workday bead.
             _persist_cli(use_llm=not bool(_TASK_ID))
             _mail(phase="done", exit_code=0)
+            if "**Agent error:**" in (last_answer or ""):
+                _mail(phase="agent_error", detail=(last_answer or "")[:200])
+                return 1
             return 0
         except Exception as exc:  # one-shot crash -> nonzero exit + log
             _log_seat_crash("one_shot", exc)

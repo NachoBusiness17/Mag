@@ -41,6 +41,20 @@ if %ERRORLEVEL% equ 0 (
   ping -n 8 127.0.0.1 >nul
 )
 
+echo [2b] Governor autorun...
+"%PY%" -c "from models.env_load import load_dotenv; load_dotenv(); from mag.preferences import drainer_enabled; import sys; sys.exit(0 if drainer_enabled() else 1)" >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+  "%PY%" -c "from mag.runtime import read_heartbeat; import sys; h=read_heartbeat(); sys.exit(0 if h.get('autorun_on') else 1)" >nul 2>&1
+  if %ERRORLEVEL% equ 0 (
+    echo       Already running inside Mag lab.
+  ) else (
+    start "Mag autorun" /min cmd /k "cd /d "%~dp0" && mag.cmd autorun"
+    echo       Started minimized window "Mag autorun" — governor fill/plan/execute loop.
+  )
+) else (
+  echo       Off — set MAG_DRAINER=1 in .env to enable.
+)
+
 echo [3/3] DeepSeek agent seat...
 set "MAG_INTEGRAL_LAB=1"
 call "%~dp0launch_agent.cmd" %*
