@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -750,6 +751,51 @@ def scout(*, dry: bool = False) -> dict[str, Any]:
     }
 
 
+def _mirror_lens_gate_enabled() -> bool:
+    raw = os.environ.get("MAG_MIRROR_LENS_GATE", "").strip().lower()
+    if not raw:
+        return True
+    return raw in ("1", "true", "yes", "on")
+
+
+def _mirror_lens_verdict(candidate: dict[str, Any]) -> tuple[str, str]:
+    if not _mirror_lens_gate_enabled():
+        return "pass", "mirror lens gate disabled"
+    claim = str(candidate.get("claim") or "")
+    detail = str(candidate.get("detail") or "")
+    tags = {str(t).lower() for t in (candidate.get("tags") or [])}
+    blob = f"{claim} {detail}".lower()
+    for pat in (r"single oracle", r"remote-only", r"remote only", r"hide(s)? (the )?cost", r"greenwash"):
+        if re.search(pat, blob):
+            return "reject", f"mirror lens: blocked ({pat})"
+    if re.search(r"route all.*(through|via).*(oracle|cloud|api)", blob):
+        return "reject", "mirror lens: single-oracle dependency"
+    if any(re.search(p, blob) for p in (r"cloud-only", r"cloud only", r"hosted saas")):
+        if not any(t in blob for t in ("local-first", "local first", "ollama", "fork")):
+            return "hold", "mirror lens: cloud without local fork"
+    if tags & {"verkle", "sovereign_mirror", "refusal", "rope"}:
+        return "pass", "mirror lens: starved theme tags; no block"
+    if any(t in blob for t in ("local-first", "conflict-scan", "verkle", "vigilance")):
+        return "pass", "mirror lens: aligns with operator rules; no block"
+    return "pass", "mirror lens: no block"
+
+
+def _log_mirror_lens_event(candidate: dict[str, Any], verdict: str, reason: str) -> None:
+    if verdict == "pass":
+        return
+    log_path = ROOT / "memory" / "improve" / "mirror_lens.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "ts": _utc_now().isoformat(),
+        "id": candidate.get("id"),
+        "verdict": verdict,
+        "reason": reason,
+        "claim": (candidate.get("claim") or "")[:200],
+    }
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def _append_practices_to_playbook(paths: dict[str, Path], practices: list[dict[str, Any]]) -> None:
     if not practices:
         return
@@ -759,6 +805,10 @@ def _append_practices_to_playbook(paths: dict[str, Path], practices: list[dict[s
     for r in practices[:10]:
         claim = r.get("claim") or ""
         if claim in existing:
+            continue
+        verdict, reason = _mirror_lens_verdict(r)
+        if verdict in ("reject", "hold"):
+            _log_mirror_lens_event(r, verdict, reason)
             continue
         urls = ", ".join(r.get("source_urls") or [])
         lines.append(f"- [{r.get('id')}] {claim}  \n  sources: {urls}\n")
@@ -996,6 +1046,15 @@ def _score_candidate(r: dict[str, Any]) -> float:
     # Truncated page-title dumps
     if claim.count("Skip to content") or "Toggle navigation" in claim:
         score -= 5.0
+
+    verdict, reason = _mirror_lens_verdict(r)
+    if verdict == "reject":
+        return -100.0
+    if verdict == "hold":
+        score -= 6.0
+        _log_mirror_lens_event(r, verdict, reason)
+    elif any(t in blob for t in ("local-first", "conflict-scan", "verkle", "vigilance")):
+        score += 2.0
 
     return score
 
@@ -1776,6 +1835,10 @@ def promote_apply(cid: str, *, force_model: bool = False) -> dict[str, Any]:
     row = rows.get(cid)
     if not row:
         return {"ok": False, "error": f"unknown candidate {cid}"}
+    verdict, reason = _mirror_lens_verdict(row)
+    if verdict in ("reject", "hold"):
+        _log_mirror_lens_event(row, verdict, reason)
+        return {"ok": False, "error": reason, "id": cid, "mirror_lens": verdict}
     kind = row.get("kind")
     promo = cfg.get("promote") or {}
 

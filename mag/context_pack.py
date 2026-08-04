@@ -2,11 +2,95 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from config import ROOT
+
+
+def _env_on(name: str, *, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes", "on")
+
+
+def _republic_root() -> Path:
+    env = os.environ.get("MAG_REPUBLIC_ROOT", "").strip()
+    if env:
+        return Path(env)
+    return ROOT.parent / "mycelial-republic"
+
+
+def _mirror_voice_excerpt(goal: str, *, max_chars: int = 600) -> str:
+    """Compact mirror voice rows from republic mirror_train.jsonl."""
+    if not _env_on("MAG_INJECT_MIRROR_VOICE", default=False):
+        return ""
+    path = _republic_root() / "data" / "annotated" / "mirror_train.jsonl"
+    if not path.is_file():
+        return ""
+    goal_tokens = {t for t in re.findall(r"[a-z0-9]+", goal.lower()) if len(t) > 2}
+    priority_tags = {"sovereign_mirror", "refusal", "rope", "chord", "meta", "mycelial"}
+    rows: list[tuple[int, dict[str, Any]]] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        row = json.loads(line)
+        body = str(row.get("text") or row.get("response") or "").strip()
+        if not body:
+            continue
+        tags = set(row.get("knot_tags") or row.get("tags") or [])
+        signal = str(row.get("signal") or "").lower()
+        product = str(row.get("product_dna") or "").lower()
+        score = 0
+        if signal == "high":
+            score += 4
+        elif signal == "medium":
+            score += 2
+        if tags & priority_tags:
+            score += 3
+        if "sovereign_mirror" in product or "verkle" in product:
+            score += 2
+        if goal_tokens:
+            score += len(goal_tokens & set(re.findall(r"[a-z0-9]+", body.lower())))
+        if score > 0:
+            rows.append((score, row))
+    if not rows:
+        return ""
+    rows.sort(key=lambda x: x[0], reverse=True)
+    lines = ["[MIRROR VOICE — operator corpus excerpt (presented, not interpreted)]"]
+    used = 0
+    for _, row in rows[:3]:
+        rid = row.get("id") or "?"
+        body = str(row.get("text") or row.get("response") or "").strip()
+        snippet = body[:220] + ("…" if len(body) > 220 else "")
+        block = f"- {rid}: {snippet}"
+        if used + len(block) + 1 > max_chars:
+            break
+        lines.append(block)
+        used += len(block) + 1
+    return "\n".join(lines)[:max_chars]
+
+
+def _clue_chain_excerpt(*, max_chars: int = 500) -> str:
+    """Latest decoded clue bead from memory/improve/pins/clues/."""
+    if not _env_on("MAG_INJECT_CLUE_CHAIN", default=False):
+        return ""
+    clues_dir = ROOT / "memory" / "improve" / "pins" / "clues"
+    if not clues_dir.is_dir():
+        return ""
+    beads = sorted(clues_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not beads:
+        return ""
+    body = beads[0].read_text(encoding="utf-8", errors="replace").strip()
+    if not body:
+        return ""
+    header = f"[CLUE CHAIN — latest bead: {beads[0].name}]"
+    return f"{header}\n{body[: max_chars - len(header) - 2]}"
 
 
 def _clip(path: Path, n: int) -> str:
@@ -186,6 +270,23 @@ def build_context_pack(
     except Exception:
         pass
 
+    coordination_excerpt = ""
+    try:
+        from mag.coordination import format_activity_excerpt
+
+        coordination_excerpt = format_activity_excerpt(limit=6, max_chars=900)
+    except Exception:
+        coordination_excerpt = ""
+
+    soft_goal = " ".join(
+        [
+            " ".join(loops[:3]) if loops else "",
+            (brief or "")[:200],
+        ]
+    ).strip() or "general harness dig"
+    mirror_voice_excerpt = _mirror_voice_excerpt(soft_goal, max_chars=600)
+    clue_chain_excerpt = _clue_chain_excerpt(max_chars=500)
+
     pack = {
         "schema": "mag_context_pack.v1",
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -215,8 +316,11 @@ def build_context_pack(
         "run_trail": trail_excerpt,
         "skills_excerpt": skills_excerpt,
         "ijl_skills": ijl_skills,
+        "mirror_voice_excerpt": mirror_voice_excerpt,
+        "clue_chain_excerpt": clue_chain_excerpt,
         "behavioral_excerpt": behavioral_excerpt,
         "compass_framework": compass_framework,
+        "coordination_excerpt": coordination_excerpt,
         "live_tail": live or "(no live board)",
         "attention_tail": att[:400] if att else "",
         "directives": directives or "",
@@ -312,6 +416,8 @@ def format_context_pack_text(
         policy.extend(["", "### L0d Compass framework (steering + autonomous continue)", p.get("compass_framework")])
     if p.get("behavioral_excerpt"):
         policy.extend(["", p.get("behavioral_excerpt")])
+    if p.get("coordination_excerpt"):
+        policy.extend(["", p.get("coordination_excerpt")])
     bonds = [
         "",
         "## L1 Bonds (next-session / residual edges)",
@@ -325,6 +431,10 @@ def format_context_pack_text(
         "### L1b IJL skill beads (episode distill)",
         p.get("ijl_skills") or "(none yet — successful runs FILE beads under memory/improve/pins/skills/)",
     ]
+    if p.get("mirror_voice_excerpt"):
+        skills.extend(["", "### L1c Mirror voice (operator corpus)", p.get("mirror_voice_excerpt")])
+    if p.get("clue_chain_excerpt"):
+        skills.extend(["", "### L1c Clue chain", p.get("clue_chain_excerpt")])
     trail = [
         "",
         "## L2 Trail cores (mid-run continuity — re-inject)",
