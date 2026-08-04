@@ -44,6 +44,13 @@ Optional: `MAG_BRIDGE_TIMEOUT=300` for long delegate turns.
 
 Template: `configs/cloud_steering.env.example`
 
+**Home verify (prints secrets to paste):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify_cloud_steering.ps1
+# or: mag.cmd cloud-steering-verify
+```
+
 ### 3. Verify from any machine
 
 ```bash

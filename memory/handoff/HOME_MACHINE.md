@@ -117,3 +117,16 @@ mag.cmd bonds
 ```
 
 **Law:** FILE outcomes to disk. Chat is heat.
+
+---
+
+## Cloud steering + autorun (G3)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify_cloud_steering.ps1
+powershell -ExecutionPolicy Bypass -File scripts\register_autorun_home.ps1
+```
+
+After cloud PR: `scripts\file_cloud_run.ps1 -Seat cursor-cloud-<id> -PrUrl <url> -NextMove "git pull"`
+
+Runbook: `memory/handoff/CLOUD_STEERING.md`
