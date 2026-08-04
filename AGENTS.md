@@ -52,3 +52,42 @@ mag.cmd research-pack …       # public URL → local pack
 ## Constitution
 
 See `CONSTITUTION.md` → mycelial-republic `docs/CONSTITUTION.md`.
+
+## Cloud / remote seat — steer Mag (do not bypass)
+
+**You are L2-Cursor steering seat, not Mag HQ.** Home disk (`memory/`, `queue/`, Ollama, DeepSeek tool loop) lives on the operator's machine. Your job is to **route work there**, not pretend those agents do not exist.
+
+### Every cloud or remote run — in order
+
+1. **Probe HQ**
+   ```bash
+   python watch/cursor_bridge.py status
+   ```
+2. **If `reachable: true`** — you MUST steer home Mag before editing this GitHub clone:
+   ```bash
+   python watch/cursor_bridge.py steer "<operator goal>" --mode delegate --provider deepseek --seat cursor-cloud --pack
+   ```
+   - Tool-heavy / coding → `--mode delegate` (DeepSeek + Mag tools on home)
+   - Fire-and-forget / autorun → `--mode queue` or `--mode handoff`
+   - Classify + route → `--mode dispatch`
+3. **If `reachable: false`** — say so explicitly. Enqueue for home (`handoff` when URL returns), or minimal clone-only PR. Never silently substitute your own loop for Mag's.
+
+### Required Cursor Cloud secrets (operator sets once)
+
+| Secret | Example |
+|--------|---------|
+| `MAG_PUBLIC_URL` | `http://100.x.x.x:8765` (Tailscale / LAN home IP) |
+| `MAG_REMOTE_TOKEN` | same as home `MAG_REMOTE_TOKEN` |
+
+See `memory/handoff/CLOUD_STEERING.md` and `configs/cloud_steering.env.example`.
+
+### Seat matrix (use as designed)
+
+| Work | Seat | How from cloud |
+|------|------|----------------|
+| Context / bonds / brief | L0 janitor | `pack` via bridge |
+| Tool loop + edits on home repo | L2-agent-cli | `steer --mode delegate --provider deepseek` |
+| Background autorun | Governor + drainer | `steer --mode handoff` or `queue` |
+| Multi-file IDE on clone | L2-Cursor | only when HQ unreachable or operator asks for GitHub PR |
+
+**Law:** FILE outcomes to disk on home. Chat is heat. DeepSeek and local Mag agents are the execution layer — you steer them.

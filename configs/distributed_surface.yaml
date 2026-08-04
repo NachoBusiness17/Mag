@@ -29,3 +29,5 @@ reach:
   lan_launcher: launch_dashboard_lan.cmd
   bridge_client: watch/cursor_bridge.py
   bridge_env: MAG_URL
+  public_env: MAG_PUBLIC_URL
+  cloud_steering_doc: memory/handoff/CLOUD_STEERING.md
