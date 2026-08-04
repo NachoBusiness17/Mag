@@ -1066,6 +1066,42 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
     return 200, {"ok": True, "activity": row}
 
 
+def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Unified routing decision — classify + seat + provider + honest failure."""
+    from mag.router import route
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal:
+        return _err(400, "goal required")
+    depth = str(data.get("depth") or "").strip() or None
+    force_seat = str(data.get("force_seat") or "").strip() or None
+    force_provider = str(data.get("force_provider") or "").strip() or None
+    res = route(
+        goal,
+        depth=depth,
+        force_seat=force_seat,
+        force_provider=force_provider,
+    )
+    launch = data.get("launch", False)
+    if isinstance(launch, str):
+        launch = launch.lower() not in ("0", "false", "no")
+    if launch:
+        from mag.coordination import coordinate
+
+        exec_res = coordinate(
+            goal,
+            depth=depth,
+            seat=str(data.get("caller_seat") or data.get("seat") or "api"),
+            actor=str(data.get("actor") or "api"),
+            launch=True,
+            background=bool(data.get("background")),
+            session_id=str(data.get("session_id") or "").strip() or None,
+        )
+        return (200 if exec_res.get("ok") else 500), {"route": res, "execution": exec_res}
+    return 200, res
+
+
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Classify depth + optionally launch the appropriate seat."""
     from mag.coordination import coordinate
@@ -2118,6 +2154,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
     ("POST", "/api/v1/coordinate", h_coordinate),
+    ("POST", "/api/v1/route", h_route),
+    ("GET", "/api/v1/route", h_route),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),

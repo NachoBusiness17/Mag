@@ -634,6 +634,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Queue heavy_code on orchestrator instead of inline delegate",
     )
     p_coord.add_argument("--session", default="", help="Agent session id for delegate mode")
+    p_route = sub.add_parser(
+        "route",
+        help="Unified routing decision (seat, provider, mode) — honest failures",
+    )
+    p_route.add_argument("goal", nargs="+", help="What to route")
+    p_route.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth (else auto-classify)",
+    )
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -1636,6 +1647,13 @@ def main(argv: list[str] | None = None) -> int:
             background=bool(args.background),
             session_id=(args.session or "").strip() or None,
         )
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "route":
+        from mag.router import route
+
+        goal = " ".join(args.goal)
+        res = route(goal, depth=(args.depth or None))
         print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
     if args.cmd == "orchestrator":
