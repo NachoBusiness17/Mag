@@ -52,7 +52,8 @@ curl -s -X POST http://<HOME-IP>:8765/api/v1/handoff/file \
   -d '{"text":"FILE for Mag:\n- turned: …\n- open loops: …\n- next move: …","source":"tablet","device":"ipad"}'
 ```
 
-Files land in `memory/handoff/inbound/` and update `memory/handoff/latest_inbound.md`.
+Files land in **`queue/todo.md`** (short goals) or **`memory/working.md`** (FILE blocks).  
+If the FILE has `- next move:`, that line also becomes a `[mag]` todo for the governor.
 
 Check surface status:
 

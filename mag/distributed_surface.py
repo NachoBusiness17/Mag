@@ -2,10 +2,13 @@
 
 Commitment: distributed-surface-glue-001
 Plan: docs/ref/DISTRIBUTED_SURFACE.md
+
+Writes use the existing Mag scheme — no parallel todo throne:
+  - goals/tasks  → queue/todo.md  ([mag] lines, governor-visible)
+  - FILE blocks  → memory/working.md append (open loops / residual heat)
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +17,7 @@ from typing import Any
 from config import ROOT, bind_host
 
 CONFIG_PATH = ROOT / "configs" / "distributed_surface.yaml"
-DEFAULT_INBOUND = ROOT / "memory" / "handoff" / "inbound"
+TODO_PATH = ROOT / "queue" / "todo.md"
 
 
 def _load_yaml() -> dict[str, Any]:
@@ -32,9 +35,15 @@ def phase() -> str:
     return str(_load_yaml().get("phase") or "G0")
 
 
-def inbound_dir() -> Path:
+def todo_path() -> Path:
     cfg = _load_yaml()
-    rel = ((cfg.get("handoff") or {}).get("inbound_dir") or "memory/handoff/inbound")
+    rel = ((cfg.get("paths") or {}).get("todo") or "queue/todo.md")
+    return ROOT / rel
+
+
+def working_path() -> Path:
+    cfg = _load_yaml()
+    rel = ((cfg.get("paths") or {}).get("working") or "memory/working.md")
     return ROOT / rel
 
 
@@ -46,9 +55,55 @@ def max_handoff_chars() -> int:
         return 24000
 
 
-def _slug(s: str, n: int = 32) -> str:
+def _slug(s: str, n: int = 24) -> str:
     out = re.sub(r"[^a-zA-Z0-9]+", "-", (s or "device").strip().lower()).strip("-")
     return (out[:n] or "device").rstrip("-")
+
+
+def _extract_next_move(body: str) -> str | None:
+    """Pull 'next move' from a FILE block if present."""
+    for line in body.splitlines():
+        low = line.strip().lower()
+        if low.startswith("- next move:") or low.startswith("next move:"):
+            return line.split(":", 1)[-1].strip()[:240]
+    return None
+
+
+def _looks_like_file_block(body: str) -> bool:
+    low = body.lower()
+    if "file for mag" in low:
+        return True
+    if body.count("\n") >= 2 and any(
+        ln.strip().startswith("- ") for ln in body.splitlines() if ln.strip()
+    ):
+        return True
+    return False
+
+
+def _append_todo(line: str, *, marker: str = "mag") -> Path:
+    path = todo_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entry = f"- [ ] [{marker}] {line.strip()}\n"
+    if path.is_file():
+        existing = path.read_text(encoding="utf-8")
+        if entry.strip() in existing:
+            return path
+        path.write_text(existing.rstrip() + "\n" + entry, encoding="utf-8")
+    else:
+        path.write_text(f"# Todo\n\n{entry}", encoding="utf-8")
+    return path
+
+
+def _append_working(body: str, *, source: str, device: str) -> Path:
+    path = working_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    block = f"\n\n## Remote FILE · {ts} · {source}/{device}\n\n{body.strip()}\n"
+    if path.is_file():
+        path.write_text(path.read_text(encoding="utf-8").rstrip() + block, encoding="utf-8")
+    else:
+        path.write_text(f"# Working\n{block}", encoding="utf-8")
+    return path
 
 
 def ingest_file_block(
@@ -56,62 +111,62 @@ def ingest_file_block(
     *,
     source: str = "unknown",
     device: str = "unknown",
+    kind: str = "auto",
 ) -> dict[str, Any]:
-    """Append a FILE block or goal note to memory/handoff/inbound/."""
+    """Route remote input into queue/todo.md and/or memory/working.md."""
     body = (text or "").strip()
     if not body:
         return {"ok": False, "error": "empty text"}
     if len(body) > max_handoff_chars():
         return {"ok": False, "error": f"text exceeds {max_handoff_chars()} chars"}
 
-    dest = inbound_dir()
-    dest.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    fname = f"{ts}_{_slug(source)}_{_slug(device)}.md"
-    path = dest / fname
-    header = (
-        f"<!-- mag handoff inbound · {ts} · source={source} · device={device} -->\n\n"
-    )
-    path.write_text(header + body + "\n", encoding="utf-8")
+    tag = f"[{_slug(device)}]"
+    k = (kind or "auto").strip().lower()
+    wrote: list[str] = []
 
-    # Pointer for context-pack / operator glance
-    latest = ROOT / "memory" / "handoff" / "latest_inbound.md"
-    try:
-        latest.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
-    except OSError:
-        pass
+    if k == "todo" or (k == "auto" and not _looks_like_file_block(body) and "\n" not in body):
+        path = _append_todo(f"{tag} {body}")
+        wrote.append(str(path.relative_to(ROOT)).replace("\\", "/"))
+        return {
+            "ok": True,
+            "routed": "todo",
+            "paths": wrote,
+            "bytes": len(body),
+            "source": source,
+            "device": device,
+        }
+
+    wpath = _append_working(body, source=source, device=device)
+    wrote.append(str(wpath.relative_to(ROOT)).replace("\\", "/"))
+
+    nxt = _extract_next_move(body)
+    if nxt:
+        tpath = _append_todo(f"{tag} {nxt}")
+        wrote.append(str(tpath.relative_to(ROOT)).replace("\\", "/"))
 
     return {
         "ok": True,
-        "path": str(path.relative_to(ROOT)).replace("\\", "/"),
+        "routed": "file+todo" if nxt else "working",
+        "paths": wrote,
         "bytes": len(body),
         "source": source,
         "device": device,
     }
 
 
-def list_inbound(limit: int = 10) -> list[dict[str, Any]]:
-    d = inbound_dir()
-    if not d.is_dir():
+def _todo_open_preview(limit: int = 5) -> list[str]:
+    path = todo_path()
+    if not path.is_file():
         return []
-    rows: list[dict[str, Any]] = []
-    for p in sorted(d.glob("*.md"), reverse=True)[: max(1, limit)]:
-        try:
-            st = p.stat()
-            rows.append(
-                {
-                    "path": str(p.relative_to(ROOT)).replace("\\", "/"),
-                    "bytes": st.st_size,
-                    "mtime": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
-                }
-            )
-        except OSError:
-            continue
-    return rows
+    return [
+        ln.strip()
+        for ln in path.read_text(encoding="utf-8", errors="replace").splitlines()
+        if ln.strip().startswith("- [ ]")
+    ][:limit]
 
 
 def surface_status() -> dict[str, Any]:
-    """Status for GET /api/v1/surface — plan phase + reach hints."""
+    """Status for GET /api/v1/surface — phase, bind hints, canonical paths."""
     import os
 
     cfg = _load_yaml()
@@ -119,7 +174,6 @@ def surface_status() -> dict[str, Any]:
     port = int(remote.get("port") or 8765)
     host = bind_host(str(remote.get("bind_host") or "127.0.0.1"))
     public = (os.environ.get("MAG_PUBLIC_URL") or remote.get("public_url") or "").strip()
-    inbound = list_inbound(limit=3)
     return {
         "ok": True,
         "commitment": "distributed-surface-glue-001",
@@ -128,9 +182,11 @@ def surface_status() -> dict[str, Any]:
         "runbook": "memory/handoff/HOME_MACHINE.md",
         "bind": {"host": host, "port": port},
         "public_url": public or None,
-        "inbound_dir": str(inbound_dir().relative_to(ROOT)).replace("\\", "/"),
-        "inbound_count": len(list(inbound_dir().glob("*.md"))) if inbound_dir().is_dir() else 0,
-        "recent_inbound": inbound,
+        "paths": {
+            "todo": str(todo_path().relative_to(ROOT)).replace("\\", "/"),
+            "working": str(working_path().relative_to(ROOT)).replace("\\", "/"),
+        },
+        "todo_open_preview": _todo_open_preview(),
         "auth": {
             "token_env": ((cfg.get("auth") or {}).get("token_env") or "MAG_REMOTE_TOKEN"),
             "required_on_remote_bind": bool((cfg.get("auth") or {}).get("require_token_on_remote_bind")),

@@ -1074,7 +1074,7 @@ def h_surface(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]
 
 
 def h_handoff_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
-    """Ingest a FILE block or goal note from tablet / remote seat."""
+    """Ingest remote goal/FILE into queue/todo.md and memory/working.md."""
     from mag.distributed_surface import ingest_file_block
 
     data = dict(body or {})
@@ -1082,6 +1082,7 @@ def h_handoff_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int
         str(data.get("text") or data.get("body") or data.get("goal") or ""),
         source=str(data.get("source") or "api").strip() or "api",
         device=str(data.get("device") or data.get("client") or "unknown").strip() or "unknown",
+        kind=str(data.get("kind") or "auto").strip() or "auto",
     )
     code = 200 if res.get("ok") else 400
     return code, res

@@ -60,7 +60,7 @@ Cursor Cloud / web tablet agents clone **GitHub only** — they do not see your 
 | Deliverable | Done when |
 |-------------|-----------|
 | `POST /api/v1/handoff/file` | accepts FILE block / goal text from any client |
-| Writes `memory/handoff/inbound/{ts}_{device}.md` | append-only inbox |
+| Writes `queue/todo.md` and/or `memory/working.md` | existing scheme — governor sees `[mag]` lines |
 | `GET /api/v1/surface` | returns phase, bind hint, last inbound |
 | `mag/distributed_surface.py` | single module for ingest + status |
 | Tests | `tests/test_distributed_surface.py` green |

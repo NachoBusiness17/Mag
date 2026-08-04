@@ -1,4 +1,4 @@
-"""Tests for distributed surface glue (G1)."""
+"""Tests for distributed surface glue (G1) — canonical todo/working paths."""
 
 from __future__ import annotations
 
@@ -11,26 +11,40 @@ import mag.distributed_surface as ds
 def _isolate(tmp_path, monkeypatch):
     monkeypatch.setattr(ds, "ROOT", tmp_path)
     monkeypatch.setattr(ds, "CONFIG_PATH", tmp_path / "configs" / "distributed_surface.yaml")
+    monkeypatch.setattr(ds, "TODO_PATH", tmp_path / "queue" / "todo.md")
     (tmp_path / "configs").mkdir(parents=True, exist_ok=True)
     (tmp_path / "configs" / "distributed_surface.yaml").write_text(
         "schema: mag.distributed_surface.v1\nphase: G1\n"
-        "handoff:\n  inbound_dir: memory/handoff/inbound\n  max_chars: 1000\n",
+        "paths:\n  todo: queue/todo.md\n  working: memory/working.md\n"
+        "handoff:\n  max_chars: 1000\n",
         encoding="utf-8",
     )
     yield tmp_path
 
 
-def test_ingest_file_block_writes_inbound(tmp_path):
-    res = ds.ingest_file_block(
-        "FILE for Mag:\n- turned: wired plan\n- next: G2 auth",
-        source="tablet",
-        device="ipad",
-    )
+def test_ingest_short_goal_to_todo(tmp_path):
+    res = ds.ingest_file_block("wire G2 auth on LAN", source="tablet", device="ipad")
     assert res["ok"] is True
-    p = tmp_path / res["path"]
-    assert p.is_file()
-    assert "wired plan" in p.read_text(encoding="utf-8")
-    assert (tmp_path / "memory" / "handoff" / "latest_inbound.md").is_file()
+    assert res["routed"] == "todo"
+    todo = (tmp_path / "queue" / "todo.md").read_text(encoding="utf-8")
+    assert "[mag]" in todo
+    assert "wire G2 auth" in todo
+
+
+def test_ingest_file_block_to_working_and_next_move_todo(tmp_path):
+    body = (
+        "FILE for Mag:\n"
+        "- turned: planned glue\n"
+        "- open loops: auth\n"
+        "- next move: add MAG_REMOTE_TOKEN middleware\n"
+    )
+    res = ds.ingest_file_block(body, source="tablet", device="ipad")
+    assert res["ok"] is True
+    assert res["routed"] == "file+todo"
+    working = (tmp_path / "memory" / "working.md").read_text(encoding="utf-8")
+    assert "FILE for Mag" in working
+    todo = (tmp_path / "queue" / "todo.md").read_text(encoding="utf-8")
+    assert "MAG_REMOTE_TOKEN" in todo
 
 
 def test_ingest_rejects_empty():
@@ -38,16 +52,8 @@ def test_ingest_rejects_empty():
     assert res["ok"] is False
 
 
-def test_surface_status_reports_phase(tmp_path):
+def test_surface_status_reports_canonical_paths(tmp_path):
     st = ds.surface_status()
     assert st["ok"] is True
-    assert st["phase"] == "G1"
-    assert "HOME_MACHINE" in st["runbook"]
-
-
-def test_list_inbound_newest_first(tmp_path):
-    ds.ingest_file_block("first", source="a", device="x")
-    ds.ingest_file_block("second", source="b", device="y")
-    rows = ds.list_inbound(limit=2)
-    assert len(rows) == 2
-    assert rows[0]["bytes"] >= rows[1]["bytes"] or True  # ordering by mtime desc
+    assert st["paths"]["todo"] == "queue/todo.md"
+    assert st["paths"]["working"] == "memory/working.md"
