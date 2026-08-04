@@ -21,6 +21,14 @@ def _task(title="some task", who="mag"):
 
 
 def test_clean_primary_marks_done(monkeypatch):
+    import mag.governor_autorun as ga
+
+    monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        ga,
+        "route_task",
+        lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
+    )
     calls = []
     monkeypatch.setattr(
         g, "_run_seat",
@@ -32,11 +40,19 @@ def test_clean_primary_marks_done(monkeypatch):
     ok, detail = g.exec_queue_task(_task())
 
     assert ok and "exit=0" in detail
-    assert len(calls) == 1 and calls[0][1] == g.PRIMARY_PROVIDER
+    assert len(calls) == 1 and calls[0][1] == "deepseek"
     assert marked == ["some task"]
 
 
 def test_guard_stop_then_fallback_marks_done(monkeypatch):
+    import mag.governor_autorun as ga
+
+    monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        ga,
+        "route_task",
+        lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
+    )
     calls = []
 
     def fake_run(text, prov):
@@ -54,11 +70,20 @@ def test_guard_stop_then_fallback_marks_done(monkeypatch):
 
     assert ok and "fallback" in detail and g.FALLBACK_PROVIDER in detail
     assert len(calls) == 2
-    assert calls[0] == g.PRIMARY_PROVIDER and calls[1] == g.FALLBACK_PROVIDER
+    assert calls[0] == "deepseek" and calls[1] == g.FALLBACK_PROVIDER
     assert marked == ["some task"]
 
 
 def test_both_guard_stop_not_marked(monkeypatch):
+    import mag.governor_autorun as ga
+
+    monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        ga,
+        "route_task",
+        lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
+    )
+
     def fake_run(text, prov):
         return 0, "Stopped: context budget exhausted", "Stopped: context budget exhausted"
 
@@ -73,6 +98,14 @@ def test_both_guard_stop_not_marked(monkeypatch):
 
 
 def test_nonzero_exit_no_fallback(monkeypatch):
+    import mag.governor_autorun as ga
+
+    monkeypatch.setattr(ga, "_drainer_active", lambda: False)
+    monkeypatch.setattr(
+        ga,
+        "route_task",
+        lambda goal, depth=None: {"depth": "simple_code", "provider": "deepseek", "mode": "dispatch"},
+    )
     calls = []
     monkeypatch.setattr(
         g, "_run_seat",

@@ -142,13 +142,16 @@ def agent_state_candidates() -> list[dict[str, Any]]:
         out.append({
             "id": f"state:{m.group(2)}", "title": m.group(3),
             "value": 2, "blocked": m.group(1) == "deferred",
-            "who": "mag", "exec": None,
+            "who": "mag", "exec": exec_agent_state_move,
         })
     return out
 
 def boot_manifest() -> list[dict[str, Any]]:
-    """First cycles: the framework building itself. One-time, idempotent."""
-    return [
+    """First cycles: the framework building itself. One-time, idempotent.
+
+    Boot tasks are omitted once their artifacts exist so real queue work wins.
+    """
+    all_boot = [
         {
             "id": "boot:spec",
             "title": "write docs/ref/PRODUCT_VISION_AUTORUN.md (doc)",
@@ -168,6 +171,18 @@ def boot_manifest() -> list[dict[str, Any]]:
             "exec": exec_selftest,
         },
     ]
+    out: list[dict[str, Any]] = []
+    spec_path = ROOT / "docs" / "ref" / "PRODUCT_VISION_AUTORUN.md"
+    main_py = ROOT / "main.py"
+    main_src = main_py.read_text(encoding="utf-8") if main_py.is_file() else ""
+    cli_wired = 'add_parser("governor"' in main_src or 'add_parser("governor",' in main_src
+    for t in all_boot:
+        if t["id"] == "boot:spec" and spec_path.is_file():
+            continue
+        if t["id"] == "boot:cli" and cli_wired:
+            continue
+        out.append(t)
+    return out
 
 
 def all_candidates() -> list[dict[str, Any]]:
@@ -247,41 +262,23 @@ def _run_seat(text: str, provider: str) -> tuple[int, str, str]:
     return r.returncode, out, tail
 
 
+def exec_agent_state_move(c: dict[str, Any]) -> tuple[bool, str]:
+    """Run an agent_state next_move through intelligent routing."""
+    from mag.governor_autorun import execute_routed_task
+
+    return execute_routed_task(c["title"], who=c.get("who") or "mag")
+
+
 def exec_queue_task(c: dict[str, Any]) -> tuple[bool, str]:
-    """Dispatch a [mag] queue task to the coding seat (one-shot agent).
+    """Dispatch a [mag] queue task via governor_autorun (depth + cost routing).
 
-    THE missing link for "coding sessions happen naturally": the operator
-    sensed real work in queue/todo.md but had exec=None (report-only). This
-    executor hands the task text to the seat (main.py agent -q ...) and marks
-    the todo line done ONLY on a clean finish: seat exit 0 AND no "Stopped:"
-    guard phrase in output (anti-greenwash, proven live 2026-08-03).
-
-    Provider policy (2026-08-03): primary = API provider (deepseek). If the
-    seat guard-stops ("Stopped: 3 consecutive empty model responses" /
-    "Stopped: context budget exhausted") — a provider-reliability signal, NOT
-    a task failure — retry ONCE on FALLBACK_PROVIDER (local ollama, T0-safe)
-    before giving up. Guard-stop on both -> todo stays unchecked, governor
-    retries next cycle. Nonzero seat exits (seat-internal bugs) do NOT fall
-    back — a provider change cannot fix a tool/serialization bug.
+    Routes by task depth, projected cost, connected skills, and rental APIs
+    (vast when configured). Marks todo done only on clean seat finish
+    (anti-greenwash). Guard-stop retries once on FALLBACK_PROVIDER.
     """
-    text = c["title"]
-    if c.get("who") != "mag":
-        return False, "not assigned to mag - skipping"
-    rc, out, tail = _run_seat(text, PRIMARY_PROVIDER)
-    if "Stopped:" in out:
-        # Anti-greenwash (proven live 2026-08-03 14:06): the seat exits 0 even
-        # on guard-stops with NO work done. Only a clean finish -- exit 0 AND
-        # no "Stopped:" guard phrase -- may mark done.
-        rc2, out2, tail2 = _run_seat(text, FALLBACK_PROVIDER)
-        if rc2 == 0 and "Stopped:" not in out2:
-            _mark_queue_done(text)
-            return True, "fallback %s exit=0: %s" % (FALLBACK_PROVIDER, tail2)
-        return False, ("seat guard-stop on %s AND %s (NOT marked done): %s"
-                       % (PRIMARY_PROVIDER, FALLBACK_PROVIDER, tail2 or tail))
-    if rc == 0:
-        _mark_queue_done(text)
-        return True, "seat exit=0: " + tail
-    return False, "seat exit=%d: %s" % (rc, tail)
+    from mag.governor_autorun import execute_routed_task
+
+    return execute_routed_task(c["title"], who=c.get("who") or "mag")
 
 
 def _mark_queue_done(title: str) -> None:
