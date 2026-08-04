@@ -37,6 +37,14 @@ Publish checklist: [docs/GITHUB_PUBLISH.md](docs/GITHUB_PUBLISH.md)
 
 ## Setup
 
+**One command (home PC, keys already in `.env`):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\go.ps1
+# tablet/cloud reach home:
+powershell -ExecutionPolicy Bypass -File scripts\go.ps1 -Lan
+```
+
 ```powershell
 cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
 python -m venv .venv
