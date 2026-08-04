@@ -59,6 +59,8 @@ memory/improve/**
 !memory/improve/HABIT.md
 !memory/improve/SEATS.md
 !memory/improve/MIRROR.md
+!memory/improve/deepseek_api/
+!memory/improve/deepseek_api/clawcodex_steal_analysis.md
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
