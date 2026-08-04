@@ -15,6 +15,8 @@ Usage (from Cursor terminal or a hook):
   python watch/cursor_bridge.py delegate "tool-heavy goal"
   python watch/cursor_bridge.py queue "background goal"
   python watch/cursor_bridge.py task "goal" --mode delegate|queue|agent|dispatch
+  python watch/cursor_bridge.py activity [--limit 20]
+  python watch/cursor_bridge.py coordinate "goal" [--dry] [--background] [--depth heavy_code]
   python watch/cursor_bridge.py autopilot [--drain]
   python watch/cursor_bridge.py health
   python watch/cursor_bridge.py routes
@@ -150,6 +152,41 @@ def cmd_task(
     return 0
 
 
+def cmd_activity(limit: int = 20) -> int:
+    """Shared activity feed — what all seats are doing."""
+    status, data = _req("GET", f"/api/v1/coordination?limit={max(1, min(limit, 80))}")
+    if status != 200:
+        print(f"[cursor_bridge] coordination failed ({status}): {data}", file=sys.stderr)
+        return 1
+    print(json.dumps(data, indent=2, default=str)[:8000])
+    return 0
+
+
+def cmd_coordinate(
+    goal: str,
+    *,
+    depth: str | None,
+    seat: str,
+    dry: bool,
+    background: bool,
+) -> int:
+    """Depth classify + launch (token-aware routing)."""
+    body: dict = {
+        "goal": goal,
+        "seat": seat,
+        "launch": not dry,
+        "background": background,
+    }
+    if depth:
+        body["depth"] = depth
+    status, data = _req("POST", "/api/v1/coordinate", body)
+    if status != 200 or not data.get("ok", True):
+        print(f"[cursor_bridge] coordinate failed ({status}): {data}", file=sys.stderr)
+        return 1
+    print(json.dumps(data, indent=2, default=str)[:8000])
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Cursor <-> Mag REST bridge")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -202,6 +239,22 @@ def main() -> int:
     p_task.add_argument("--drain", action="store_true", help="autopilot: drain queue after")
     p_task.set_defaults(cmd="task")
 
+    p_act = sub.add_parser("activity", help="shared seat activity feed")
+    p_act.add_argument("--limit", type=int, default=20)
+    p_act.set_defaults(cmd="activity")
+
+    p_coord = sub.add_parser("coordinate", help="depth classify + launch (token-aware)")
+    p_coord.add_argument("goal", help="goal text")
+    p_coord.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+    )
+    p_coord.add_argument("--seat", default="cursor")
+    p_coord.add_argument("--dry", action="store_true", help="classify only")
+    p_coord.add_argument("--background", action="store_true", help="queue heavy work")
+    p_coord.set_defaults(cmd="coordinate")
+
     args = ap.parse_args()
     if args.cmd == "ask":
         return cmd_ask(args.goal, args.session, args.provider, args.model, args.reset)
@@ -225,6 +278,16 @@ def main() -> int:
             args.provider,
             tag,
             args.drain,
+        )
+    if args.cmd == "activity":
+        return cmd_activity(args.limit)
+    if args.cmd == "coordinate":
+        return cmd_coordinate(
+            args.goal,
+            depth=(args.depth or None),
+            seat=args.seat,
+            dry=bool(args.dry),
+            background=bool(args.background),
         )
     return args.fn()
 

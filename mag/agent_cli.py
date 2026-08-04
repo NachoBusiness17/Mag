@@ -1898,6 +1898,22 @@ def api_agent_turn(
     if not goal:
         return {"ok": False, "error": "empty goal"}
 
+    depth = "heavy_code" if provider == "deepseek" else "simple_code"
+    act_id: str | None = None
+    try:
+        from mag.coordination import log_activity
+
+        row = log_activity(
+            seat=provider,
+            depth=depth,
+            goal=goal,
+            status="running",
+            actor=f"agent:{session_id}",
+        )
+        act_id = str(row.get("id") or "")
+    except Exception:
+        pass
+
     if reset:
         api_agent_reset(session_id)
 
@@ -1957,6 +1973,21 @@ def api_agent_turn(
         }
     except Exception:
         filed = {"workday": "unknown"}
+    if act_id:
+        try:
+            from mag.coordination import log_activity
+
+            log_activity(
+                seat=provider,
+                depth=depth,
+                goal=goal,
+                status="done",
+                actor=f"agent:{session_id}",
+                detail=(ans or "")[:200],
+                activity_id=act_id,
+            )
+        except Exception:
+            pass
     return {
         "ok": True,
         "answer": ans,
