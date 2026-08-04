@@ -76,4 +76,16 @@ POST /api/v1/coordination  { "seat", "depth", "goal", "status" }
 
 Works inside Docker — activity file lives on mounted `state/` volume.
 
+## Multi-device (tablet / remote seat)
+
+Home machine owns soil. Other devices are viewports or decoders.
+
+| Action | How |
+|--------|-----|
+| Plan + phases | `docs/ref/DISTRIBUTED_SURFACE.md` |
+| Pull directions on home PC | `memory/handoff/HOME_MACHINE.md` |
+| Surface status | `GET /api/v1/surface` |
+| FILE from tablet | `POST /api/v1/handoff/file` |
+| LAN dashboard | `launch_dashboard_lan.cmd` |
+
 See also: `memory/improve/SEATS.md`, `docs/ref/SOVEREIGN_STACK.md`, `watch/cursor_bridge.py`.

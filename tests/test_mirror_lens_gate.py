@@ -46,6 +46,18 @@ def test_lens_hold_cloud_without_local():
     assert "cloud" in reason
 
 
+def test_mentions_local_fork_without_fork_is_false():
+    assert imp._mentions_local_fork("cloud-only analytics without fork steps") is False
+
+
+def test_mentions_local_fork_with_local_first():
+    assert imp._mentions_local_fork("cloud path with local-first fallback") is True
+
+
+def test_mentions_local_fork_with_fork_word():
+    assert imp._mentions_local_fork("hosted saas with public fork on github") is True
+
+
 def test_lens_gate_disabled(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("MAG_MIRROR_LENS_GATE", "0")
     assert imp._mirror_lens_gate_enabled() is False

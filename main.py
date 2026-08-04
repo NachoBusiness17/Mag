@@ -198,6 +198,37 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="FILE every Mag agent seat under memory/agent_sessions/",
     )
+    p_seat_file = sub.add_parser(
+        "seat-file",
+        help="FILE any seat transcript or FILE block → residual + Verkle leaf",
+    )
+    p_seat_file.add_argument("--seat", required=True, help="Seat id (e.g. cursor-cloud-bc123)")
+    p_seat_file.add_argument("--source", default="external", help="Seat source label")
+    p_seat_file.add_argument("--provider", default="", help="Provider (default=source)")
+    p_seat_file.add_argument("--goal", default="", help="Goal line for FILE-block mode")
+    p_seat_file.add_argument(
+        "--file-block",
+        default="",
+        help="FILE block text (or pass via stdin)",
+    )
+    p_seat_file.add_argument("--no-llm", action="store_true", help="Heuristic only")
+    p_seat_file.add_argument("--force", action="store_true", help="Re-FILE even if unchanged")
+
+    p_csv = sub.add_parser(
+        "cloud-steering-verify",
+        help="Verify home Mag ready for Cursor Cloud steering (prints secrets block)",
+    )
+    p_csv.add_argument("--port", type=int, default=8765)
+    p_csv.add_argument("--json", action="store_true")
+    p_csv.add_argument("--no-public-probe", action="store_true")
+    p_csv.add_argument(
+        "--write",
+        nargs="?",
+        const="state/cloud_steering_report.json",
+        default="",
+        help="write report JSON (default state/cloud_steering_report.json)",
+    )
+
     p_sum.add_argument(
         "--no-pdf",
         action="store_true",
@@ -967,6 +998,26 @@ def main(argv: list[str] | None = None) -> int:
             force=args.force,
             pdf=bool(getattr(args, "pdf", False)),
             visual=bool(getattr(args, "visual", False)),
+        )
+        print(json.dumps(res, indent=2))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "seat-file":
+        import sys
+
+        from mag.seat_file import file_seat
+
+        block = (getattr(args, "file_block", None) or "").strip()
+        if not block and not sys.stdin.isatty():
+            block = sys.stdin.read().strip()
+        provider = (getattr(args, "provider", None) or "").strip() or args.source
+        res = file_seat(
+            args.seat,
+            file_block=block,
+            goal=getattr(args, "goal", "") or "",
+            provider=provider,
+            source=args.source,
+            use_llm=not args.no_llm,
+            force=bool(args.force) or True,
         )
         print(json.dumps(res, indent=2))
         return 0 if res.get("ok") else 1
@@ -1918,6 +1969,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)
+    if args.cmd == "cloud-steering-verify":
+        from mag.cloud_steering_verify import main as csv_main
+
+        argv = []
+        if args.port != 8765:
+            argv.extend(["--port", str(args.port)])
+        if args.json:
+            argv.append("--json")
+        if args.no_public_probe:
+            argv.append("--no-public-probe")
+        if args.write:
+            argv.extend(["--write", str(args.write)])
+        return csv_main(argv)
     parser.print_help()
     return 2
 

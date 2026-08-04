@@ -1,0 +1,33 @@
+# Mag distributed surface — phase tracker (canonical paths)
+# Commitment: distributed-surface-glue-001
+# Law: docs/ref/DISTRIBUTED_SURFACE.md
+
+schema: mag.distributed_surface.v1
+phase: E   # G0 plan | G1 handoff | G2 auth | G3 reach | G4 soil | E seat-file
+
+# Existing Mag scheme — remote POST routes here, no parallel inbox
+paths:
+  todo: queue/todo.md          # governor + mag cycles ([mag] / [assign])
+  working: memory/working.md   # FILE blocks, open loops, remote heat
+
+remote:
+  bind_host: 127.0.0.1
+  port: 8765
+  public_url: ""
+
+handoff:
+  max_chars: 24000
+  # kind=todo → queue/todo.md only
+  # kind=file → working.md (+ todo if "next move:" in FILE)
+  # kind=auto → infer
+
+auth:
+  token_env: MAG_REMOTE_TOKEN
+  require_token_on_remote_bind: true
+
+reach:
+  lan_launcher: launch_dashboard_lan.cmd
+  bridge_client: watch/cursor_bridge.py
+  bridge_env: MAG_URL
+  public_env: MAG_PUBLIC_URL
+  cloud_steering_doc: memory/handoff/CLOUD_STEERING.md

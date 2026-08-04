@@ -96,6 +96,7 @@ python main.py refresh-session-cards    # blurb+bullets only
 # POST /api/v1/catch-up  /api/v1/ask  /api/v1/brief
 # Audit: docs/AUDIT.md
 # DNA: docs/DNA.md  ·  Zeitgeist: docs/ZEITGEIST.md  ·  Roadmap: docs/ORG_ROADMAP.md
+# Multi-device glue: docs/ref/DISTRIBUTED_SURFACE.md  ·  home runbook: memory/handoff/HOME_MACHINE.md
 # Operate tab (dashboard home): forest walk + AI feed templates + DNA
 # CLI:  python main.py org-review
 # API:  GET /api/v1/operator-os
