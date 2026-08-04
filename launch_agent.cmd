@@ -16,7 +16,11 @@ set "ARGS=main.py agent --provider %PROVIDER% %*"
 echo.
 echo   Mag agent ^| %PROVIDER% + local tools
 echo  Ensuring backend + dashboard are up...
-call "%~dp0ensure_services.cmd"
+if /I "%MAG_INTEGRAL_LAB%"=="1" (
+  call "%~dp0ensure_backend.cmd"
+) else (
+  call "%~dp0ensure_services.cmd"
+)
 if %ERRORLEVEL% neq 0 (
   echo [ERROR] Could not ensure services. See messages above.
   pause

@@ -40,8 +40,13 @@ Publish checklist: [docs/GITHUB_PUBLISH.md](docs/GITHUB_PUBLISH.md)
 **One command (home PC, keys already in `.env`):**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\go.ps1
-# tablet/cloud reach home:
+# Double-click or:
+launch_desk.cmd
+```
+
+Starts backend + `mag.cmd lab` + DeepSeek agent (same as your two-window setup).
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts\go.ps1 -Lan
 ```
 
