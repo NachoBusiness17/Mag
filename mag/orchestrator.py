@@ -518,39 +518,14 @@ def drain_once() -> dict[str, Any]:
 
 
 def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
-    """Run drain_once repeatedly so the queue auto-advances.
+    """Run intelligent autorun loop (fill → plan → drain/governor).
 
-    `once=True` runs a single drain pass and returns (for smoke tests / CLI).
-    Otherwise loops forever (Ctrl-C to stop), spawning the next queued goal
-    whenever the current one finishes.
-
-    Set MAG_AUTOPILOT_EVERY=N to run autopilot_once every N drain cycles
-    (e.g. 60 ≈ 5 min at 5s interval) when drainer is on.
+    Replaces blind queue drain: MAG_DRAINER=1 supervisors call this via
+    `main.py orchestrator drain` or `main.py autorun`.
     """
-    autopilot_every = int(os.environ.get("MAG_AUTOPILOT_EVERY", "0") or "0")
-    tick = 0
-    while True:
-        try:
-            res = drain_once()
-            if res.get("action") in ("started", "spawn_failed"):
-                print(dim("  [queue] %s %s" % (res.get("action"), res.get("detail", ""))), flush=True)
-        except Exception as e:
-            print(dim("  [queue] drain error: %s" % e), flush=True)
-        tick += 1
-        if autopilot_every > 0 and tick % autopilot_every == 0:
-            try:
-                from mag.autopilot import autopilot_once
+    from mag.governor_autorun import autorun_loop
 
-                ap = autopilot_once(queue_improve=True, governor=True, drain=False, max_queue=1)
-                print(dim("  [autopilot] seed=%s steps=%s" % (
-                    ap.get("seed_mirror", {}).get("hint", "?")[:60],
-                    len(ap.get("steps") or []),
-                )), flush=True)
-            except Exception as e:
-                print(dim("  [autopilot] error: %s" % e), flush=True)
-        if once:
-            return
-        time.sleep(interval_s)
+    autorun_loop(interval_s=interval_s, once=once)
 
 
 def queue_status() -> dict[str, Any]:

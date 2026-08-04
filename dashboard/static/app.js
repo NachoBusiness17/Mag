@@ -386,6 +386,8 @@ function setTab(name) {
     refreshEconomy();
     startOperatorInboxPoll();
     setTimeout(() => $("#chatInput")?.focus(), 50);
+  } else {
+    stopOperatorInboxPoll();
   }
   if (name === "operate") loadOperate();
   if (name === "orchestrate") loadOrchestrate();
@@ -397,7 +399,12 @@ function setTab(name) {
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
   if (name === "ideas") loadIdeas();
-  if (name === "status") loadStatus();
+  if (name === "status") {
+    loadStatus();
+    startStatusRefresh();
+  } else {
+    stopStatusRefresh();
+  }
   if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
@@ -876,9 +883,13 @@ async function loadHome() {
 
 /* --- Chat-first home --- */
 const CHAT_KEY = "mag_chat_v1";
+const CHAT_DOM_LIMIT = 40;
+const CHAT_SAVE_THROTTLE_MS = 900;
 let chatMode = "agent"; // agent | ask | dispatch | tangent
 let chatBusy = false;
 const AGENT_SESSION = "dashboard";
+let _chatStreamSaveTimer = null;
+let _pendingStreamText = "";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
 
@@ -1098,33 +1109,84 @@ function lightMd(s) {
   return parts.join("");
 }
 
+function renderChatMessageHtml(m) {
+  const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
+  const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
+  let toolsHtml = "";
+  if (m.tools && m.tools.length) {
+    toolsHtml =
+      `<div class="tool-trace">` +
+      m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
+      `</div>`;
+  }
+  const body =
+    role === "mag" || role === "sys"
+      ? lightMd(m.text || "")
+      : esc(m.text || "").replace(/\n/g, "<br/>");
+  const pendingCls = m.meta === "pending" ? " pending" : "";
+  return `<div class="chat-msg ${role}${pendingCls}" data-chat-pending="${m.meta === "pending" ? "1" : "0"}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
+}
+
 function renderChat() {
   const log = $("#chatLog");
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> = DeepSeek + Mag tools (Grok-like hands, no Grok tokens) · <b>Ask/Dispatch</b> = talk only · <b>Copy pack</b> for DeepSeek web · paste multi-line in the box.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> runs with tools · <b>Talk</b> is Q&A only · drop <b>breadcrumbs</b> while it works.</div>`;
     return;
   }
-  log.innerHTML = msgs
-    .map((m) => {
-      const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
-      const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
-      let toolsHtml = "";
-      if (m.tools && m.tools.length) {
-        toolsHtml =
-          `<div class="tool-trace">` +
-          m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
-          `</div>`;
-      }
-      const body =
-        role === "mag" || role === "sys"
-          ? lightMd(m.text || "")
-          : esc(m.text || "").replace(/\n/g, "<br/>");
-      return `<div class="chat-msg ${role}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
-    })
-    .join("");
+  const slice = msgs.length > CHAT_DOM_LIMIT ? msgs.slice(-CHAT_DOM_LIMIT) : msgs;
+  const hidden = msgs.length - slice.length;
+  const head =
+    hidden > 0
+      ? `<div class="chat-msg sys muted sm">${hidden} older message(s) hidden — clear chat to reset</div>`
+      : "";
+  log.innerHTML = head + slice.map(renderChatMessageHtml).join("");
   log.scrollTop = log.scrollHeight;
+}
+
+function updateStreamBubble(text) {
+  const log = $("#chatLog");
+  if (!log) return;
+  let bubble = log.querySelector('.chat-msg[data-chat-pending="1"]');
+  if (!bubble) {
+    bubble = document.createElement("div");
+    bubble.className = "chat-msg mag pending";
+    bubble.dataset.chatPending = "1";
+    bubble.innerHTML = `<span class="meta">pending</span><div class="chat-body"></div>`;
+    log.appendChild(bubble);
+  }
+  const body = bubble.querySelector(".chat-body");
+  if (body) body.innerHTML = lightMd(text || "…");
+  log.scrollTop = log.scrollHeight;
+}
+
+function throttledSavePendingStream(text) {
+  _pendingStreamText = text;
+  if (_chatStreamSaveTimer) return;
+  _chatStreamSaveTimer = setTimeout(() => {
+    _chatStreamSaveTimer = null;
+    const msgs = loadChatHistory();
+    const p = msgs.find((m) => m.meta === "pending");
+    if (p) {
+      p.text = _pendingStreamText || "…";
+      saveChatHistory(msgs);
+    }
+  }, CHAT_SAVE_THROTTLE_MS);
+}
+
+function flushPendingStreamSave() {
+  if (_chatStreamSaveTimer) {
+    clearTimeout(_chatStreamSaveTimer);
+    _chatStreamSaveTimer = null;
+  }
+  const msgs = loadChatHistory();
+  const p = msgs.find((m) => m.meta === "pending");
+  if (p && _pendingStreamText) {
+    p.text = _pendingStreamText;
+    saveChatHistory(msgs);
+  }
+  _pendingStreamText = "";
 }
 
 function pushChat(role, text, meta, tools) {
@@ -1347,35 +1409,74 @@ async function sendGovernanceSteer(cmd) {
 
 let _inboxPollTimer = null;
 
+function renderBreadcrumbTrail(pending) {
+  const trail = $("#breadcrumbTrail");
+  if (!trail) return;
+  const rows = Array.isArray(pending) ? pending : [];
+  if (!rows.length) {
+    trail.innerHTML = `<li class="muted sm">No crumbs on the path — drop a note while the agent works.</li>`;
+    return;
+  }
+  trail.innerHTML = rows
+    .slice(-8)
+    .map((item) => {
+      const text = String(item.text || "").replace(/\s+/g, " ").trim();
+      const short = text.length > 120 ? text.slice(0, 117) + "…" : text;
+      const kind = item.kind === "breadcrumb" ? "crumb" : "note";
+      const refine = item.refine ? " · refine" : "";
+      const path = item.path ? ` · @${esc(String(item.path))}` : "";
+      const ts = item.ts ? `<span class="muted sm">${esc(String(item.ts).slice(11, 19))}</span>` : "";
+      return `<li class="breadcrumb-item ${kind}"><span class="crumb-text">${esc(short)}</span>${path}${refine} ${ts}</li>`;
+    })
+    .join("");
+}
+
 async function loadOperatorInboxStatus() {
   const el = $("#operatorInboxStatus");
   if (!el) return;
   try {
     const s = await getJSON("/api/v1/operator-inbox");
     const n = s.pending_n || 0;
-    el.textContent = n ? `${n} queued for next checkpoint` : "0 queued";
+    el.textContent = n ? `${n} on path` : "0 on path";
     el.classList.toggle("warn", n > 0);
+    renderBreadcrumbTrail(s.pending);
   } catch {
-    el.textContent = "inbox offline";
+    el.textContent = "offline";
+    renderBreadcrumbTrail([]);
   }
 }
 
 function startOperatorInboxPoll() {
   loadOperatorInboxStatus();
   if (_inboxPollTimer) clearInterval(_inboxPollTimer);
-  _inboxPollTimer = setInterval(loadOperatorInboxStatus, 4000);
+  _inboxPollTimer = setInterval(loadOperatorInboxStatus, 5000);
+}
+
+function stopOperatorInboxPoll() {
+  if (_inboxPollTimer) {
+    clearInterval(_inboxPollTimer);
+    _inboxPollTimer = null;
+  }
 }
 
 async function commitOperatorGuidance() {
   const input = $("#operatorInboxInput");
   const text = (input?.value || "").trim();
   if (!text) return;
+  const refine = !!$("#breadcrumbRefine")?.checked;
   try {
-    const r = await postJSON("/api/v1/operator-inbox", { text, source: "dashboard" });
+    const r = await postJSON("/api/v1/operator-inbox", {
+      text,
+      source: "dashboard",
+      refine,
+    });
     if (input) input.value = "";
+    if ($("#breadcrumbRefine")?.checked && refine) $("#breadcrumbRefine").checked = false;
     await loadOperatorInboxStatus();
     toast(
-      r.pending_n ? `Queued · ${r.pending_n} waiting at checkpoint` : "Queued",
+      r.pending_n
+        ? `Dropped · ${r.pending_n} on path${refine ? " · refine queued at checkpoint" : ""}`
+        : "Dropped",
       !!r.ok
     );
   } catch (e) {
@@ -1482,18 +1583,14 @@ async function sendChat() {
       let acc = "";
       const updatePending = (delta) => {
         acc += delta;
-        const msgs = loadChatHistory();
-        const p = msgs.find((m) => m.meta === "pending");
-        if (p) {
-          p.text = acc || "…";
-          saveChatHistory(msgs);
-          renderChat();
-        }
+        updateStreamBubble(acc || "…");
+        throttledSavePendingStream(acc || "…");
       };
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
         updatePending
       );
+      flushPendingStreamSave();
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
       meta = `agent · ${done.provider || provider} · tools=${(tools || []).length} · live`;
@@ -1553,6 +1650,7 @@ async function sendChat() {
     refreshEconomy();
     refreshChatQuota();
   } catch (e) {
+    flushPendingStreamSave();
     const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
     msgs.push({
       role: "mag",
@@ -1563,6 +1661,7 @@ async function sendChat() {
     saveChatHistory(msgs);
     renderChat();
   } finally {
+    flushPendingStreamSave();
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
     setChatMode(chatMode);
@@ -3672,6 +3771,22 @@ async function loadSeatsPanel() {
 }
 
 let chronicleTimer = null;
+let statusRefreshTimer = null;
+
+function startStatusRefresh() {
+  if (statusRefreshTimer) clearInterval(statusRefreshTimer);
+  statusRefreshTimer = setInterval(() => {
+    const panel = document.getElementById("panel-status");
+    if (panel?.classList.contains("active")) loadStatus();
+  }, 60_000);
+}
+
+function stopStatusRefresh() {
+  if (statusRefreshTimer) {
+    clearInterval(statusRefreshTimer);
+    statusRefreshTimer = null;
+  }
+}
 async function loadChronicle() {
   const meta = $("#chronicle-meta");
   const content = $("#chronicle-content");
@@ -3802,6 +3917,109 @@ async function onAutopilotOnce() {
     toast("Autopilot failed: " + (e.message || e));
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+async function loadAutorunPanel() {
+  const layman = $("#autorunLayman");
+  const pill = $("#autorunStatePill");
+  const legacy = $("#autorunLegacyPill");
+  const openTodo = $("#autorunOpenTodo");
+  const lastCycle = $("#autorunLastCycle");
+  const qList = $("#autorunQueueList");
+  const routing = $("#autorunRouting");
+  const recent = $("#autorunGovRecent");
+  try {
+    const ar = await getJSON("/api/v1/autorun");
+    const gov = ar.governor || {};
+    const alive = !!gov.autorun_alive;
+    const enabled = !!gov.drainer_enabled;
+    if (pill) {
+      pill.textContent = alive
+        ? "GOVERNOR AUTORUN: ON"
+        : enabled
+          ? "GOVERNOR: enabled but not running"
+          : "GOVERNOR AUTORUN: OFF";
+      pill.className = `pill ${alive ? "ok" : enabled ? "warn" : "muted"}`;
+    }
+    if (legacy) {
+      legacy.textContent = gov.legacy_daemon
+        ? "Companion loop: ON (sense/judge/act)"
+        : "Companion loop: —";
+      legacy.className = "pill muted";
+    }
+    if (openTodo) {
+      openTodo.textContent = `${gov.open_todo_mag ?? 0} open [mag] todo · queue ${
+        (ar.queue?.counts || {}).queued ?? 0
+      } queued`;
+    }
+    if (layman && ar.hints) {
+      layman.textContent = alive
+        ? "Autorun loop is active — fill → plan → route → execute."
+        : `Autorun idle. ${ar.hints.enable || ""}`;
+    }
+    const lc = gov.last_cycle || {};
+    const auto = (ar.autorun || {}).last_tick || {};
+    kvRows(lastCycle, [
+      ["Governor last", lc.ts ? `${lc.action || "?"} · ok=${lc.ok}` : "—", lc.ok ? "ok" : lc.ts ? "warn" : ""],
+      ["Task", (lc.title || "—").slice(0, 90)],
+      ["Detail", (lc.detail || "—").slice(0, 120)],
+      ["Autorun tick", auto.ts ? `${auto.action || "?"} · drain=${auto.drain || "—"}` : "—"],
+    ]);
+    if (qList) {
+      const items = ar.queue_items || [];
+      qList.innerHTML = items.length
+        ? items
+            .map((q) => {
+              const st = q.status || "?";
+              const tone = st === "running" ? "warn" : st === "queued" ? "" : st === "done" ? "ok" : "muted";
+              return `<li class="${tone}"><strong>${esc(st)}</strong> · ${esc(
+                q.provider || "?"
+              )} · ${esc((q.goal || "").slice(0, 70))}</li>`;
+            })
+            .join("")
+        : `<li class="muted">Queue empty — add via todo.md or Autopilot once</li>`;
+    }
+    if (routing) {
+      const rows = (ar.routing || []).map((r) => [
+        r.depth,
+        `${r.seat} / ${r.mode}`,
+        r.provider || r.tier || "",
+      ]);
+      kvRows(routing, rows.length ? rows : [["—", "—", "—"]]);
+    }
+    if (recent) {
+      const rows = gov.recent || [];
+      recent.innerHTML = rows.length
+        ? rows
+            .map(
+              (r) =>
+                `<li class="${r.ok ? "ok" : "warn"}">${esc(r.ts || "")} · ${esc(
+                  r.action || "?"
+                )} · ${esc((r.title || "").slice(0, 55))}</li>`
+            )
+            .join("")
+        : `<li class="muted">No governor cycles yet</li>`;
+    }
+    return ar;
+  } catch (e) {
+    if (pill) {
+      pill.textContent = "Autorun status unavailable";
+      pill.className = "pill warn";
+    }
+    if (qList) qList.innerHTML = `<li class="muted">${esc(e.message || e)}</li>`;
+    return null;
+  }
+}
+
+async function runAutorunDry() {
+  try {
+    const j = await postJSON("/api/v1/autorun", { dry: true, fill: true });
+    toast("Plan saved to governor_autorun_trail.jsonl", !!j.ok);
+    await loadAutorunPanel();
+    return j;
+  } catch (e) {
+    toast(String(e.message || e), false);
   }
 }
 
@@ -3999,14 +4217,17 @@ const recent = ingest.recent_urls || [];
     await syncDrainerToggle(router);
     await loadSeatFeed();
     await loadGovernance();
+    await loadAutorunPanel();
 
-    // --- Ops overview (supervisor + fleet) ---
+    // --- Ops overview (supervisor + fleet) — data from router-status ---
     const opsSup = $("#opsSupervisor");
     const opsFleet = $("#opsFleet");
     const opsList = $("#opsFleetList");
     const opsSum = $("#opsFleetSummary");
+    const sup = router.supervisor || {};
+    const f = router.fleet || {};
+    const q = router.queue || {};
     if (opsSup) {
-      const sup = h.supervisor || {};
       const supRunning = sup.running ? "RUNNING" : "stopped";
       const pids = sup.pids || {};
       const wanted = sup.wanted || {};
@@ -4020,8 +4241,6 @@ const recent = ingest.recent_urls || [];
       ]);
     }
     if (opsFleet) {
-      const f = h.fleet || {};
-      const q = h.queue || {};
       const qc = q.counts || {};
       const qRows = [
         ["Fleet total", f.total ?? "—"],
@@ -5012,16 +5231,8 @@ async function bind() {
     const sid = e.detail?.session_id;
     if (sid) selectDayOnDesk(sid);
   });
-  // Office + Days CTAs
+  // Office CTAs (home chat/days/diary/story wired in wireDaysDesk)
   $("#btnHomeRefresh")?.addEventListener("click", () => loadHome());
-  $("#btnHomeChat")?.addEventListener("click", () => {
-    setTab("chat");
-    if ($("#chatInput") && !$("#chatInput").value.trim()) {
-      $("#chatInput").value = "what was I doing?";
-    }
-  });
-  $("#btnHomeDays")?.addEventListener("click", () => setTab("sessions"));
-  $("#btnHomeIdeas")?.addEventListener("click", () => setTab("ideas"));
   $("#btnHomePack")?.addEventListener("click", async () => {
     const t = "python main.py context-pack";
     try {
@@ -5061,6 +5272,8 @@ async function bind() {
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
+  $("#btnAutorunRefresh")?.addEventListener("click", () => loadAutorunPanel());
+  $("#btnAutorunDry")?.addEventListener("click", () => runAutorunDry());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
   $("#govDrainerToggle")?.addEventListener("change", () => onGovDrainerChange());
   $("#govBehavioralToggle")?.addEventListener("change", () => onGovBehavioralChange());
@@ -5119,10 +5332,6 @@ async function bind() {
   setChatMode("agent");
   renderChat();
   $("#btnChatSend")?.addEventListener("click", () => sendChat());
-  $("#btnSteer")?.addEventListener("click", () => sendSteer());
-  $("#steerInput")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); sendSteer(); }
-  });
   $("#btnInboxQueue")?.addEventListener("click", () => commitOperatorGuidance());
   $("#operatorInboxInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -5163,8 +5372,18 @@ async function bind() {
   });
   $("#chatModeAgent")?.addEventListener("click", () => setChatMode("agent"));
   $("#chatModeAsk")?.addEventListener("click", () => setChatMode("ask"));
-  $("#chatModeDispatch")?.addEventListener("click", () => setChatMode("dispatch"));
-  $("#chatModeTangent")?.addEventListener("click", () => setChatMode("tangent"));
+  document.querySelectorAll("[data-chat-more]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.chatMore;
+      if (mode) setChatMode(mode);
+      btn.closest("details")?.removeAttribute("open");
+    });
+  });
+  document.querySelectorAll(".dock-more-menu .dock-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelector(".dock-more")?.removeAttribute("open");
+    });
+  });
   document.querySelectorAll("#chatChips .chip").forEach((b) => {
     b.addEventListener("click", () => {
       if ($("#chatInput")) $("#chatInput").value = b.dataset.q || "";

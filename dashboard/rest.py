@@ -186,17 +186,23 @@ def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
 
 
 def h_operator_inbox(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
-    from mag.operator_inbox import clear_pending, commit_guidance, status as inbox_status
+    from mag.breadcrumbs import drop_breadcrumb, status as breadcrumb_status
+    from mag.operator_inbox import clear_pending
 
     if body is None or not body:
-        return 200, inbox_status()
+        return 200, breadcrumb_status()
     action = str(body.get("action") or "commit").strip().lower()
     if action == "clear":
         return 200, clear_pending()
     text = str(body.get("text") or "").strip()
     if not text:
         return _err(400, "text required")
-    return 200, commit_guidance(text, source=str(body.get("source") or "dashboard"))
+    return 200, drop_breadcrumb(
+        text,
+        source=str(body.get("source") or "dashboard"),
+        refine=bool(body.get("refine")),
+        path=str(body.get("path") or "").strip() or None,
+    )
 
 
 def h_mag_os(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -204,6 +210,22 @@ def h_mag_os(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     from mag.os_v2 import live_status
 
     return 200, live_status()
+
+
+def h_autorun_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.autorun_status import autorun_dashboard_status
+
+    return 200, autorun_dashboard_status()
+
+
+def h_autorun_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.governor_autorun import autorun_once
+
+    data = body or {}
+    dry = bool(data.get("dry"))
+    fill = data.get("fill", True) is not False
+    res = autorun_once(fill=fill, dry=dry)
+    return 200, {"ok": True, "result": res}
 
 
 def h_home_summary(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -964,8 +986,8 @@ def h_router_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
                     "goal": (t.get("goal") or "")[:80],
                     "status": t.get("status"),
                     "provider": t.get("provider"),
-                    "created": t.get("created"),
-                    "finished": t.get("finished"),
+                    "created": t.get("created_at") or t.get("created"),
+                    "finished": t.get("ended_at") or t.get("finished"),
                     "exit_code": t.get("exit_code"),
                 })
         tasks.sort(key=lambda t: t.get("created") or "", reverse=True)
@@ -979,8 +1001,20 @@ def h_router_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
         }
         # --- orchestrator task queue (auto-advance) ---
         try:
-            from mag.orchestrator import queue_status as _qs
+            from mag.orchestrator import queue_status as _qs, list_queue as _lq
+
             out["queue"] = _qs()
+            out["queue_items"] = [
+                {
+                    "queue_id": q.get("queue_id"),
+                    "status": q.get("status"),
+                    "goal": (q.get("goal") or "")[:120],
+                    "provider": q.get("provider"),
+                    "tag": q.get("tag"),
+                    "task_id": q.get("task_id"),
+                }
+                for q in _lq(limit=15)
+            ]
         except Exception as qe:
             out["queue_error"] = str(qe)[:120]
     except Exception as e:
@@ -1064,6 +1098,59 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
         task_id=str(data.get("task_id") or "").strip() or None,
     )
     return 200, {"ok": True, "activity": row}
+
+
+def h_surface(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Distributed surface plan status — phase, bind hints, recent inbound."""
+    from mag.distributed_surface import surface_status
+
+    return 200, surface_status()
+
+
+def h_handoff_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Ingest remote goal/FILE into queue/todo.md, working.md, optional Verkle leaf."""
+    from mag.distributed_surface import ingest_file_block
+
+    data = dict(body or {})
+    res = ingest_file_block(
+        str(data.get("text") or data.get("body") or data.get("goal") or ""),
+        source=str(data.get("source") or "api").strip() or "api",
+        device=str(data.get("device") or data.get("client") or "unknown").strip() or "unknown",
+        kind=str(data.get("kind") or "auto").strip() or "auto",
+        file_verkle=bool(data.get("file_verkle") or data.get("verkle")),
+    )
+    code = 200 if res.get("ok") else 400
+    return code, res
+
+
+def h_seat_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """FILE a full seat transcript → agent_sessions + Verkle workday bead."""
+    from mag.seat_file import file_seat
+
+    data = dict(body or {})
+    seat = str(data.get("seat") or data.get("session_id") or "external").strip() or "external"
+    source = str(data.get("source") or data.get("seat_source") or "external").strip()
+    provider = str(data.get("provider") or source).strip()
+    messages = data.get("messages")
+    if messages is not None and not isinstance(messages, list):
+        return 400, {"ok": False, "error": "messages must be a list"}
+    file_block = str(data.get("file_block") or data.get("text") or "")
+    goal = str(data.get("goal") or "")
+    res = file_seat(
+        seat,
+        messages=messages,
+        file_block=file_block,
+        goal=goal,
+        provider=provider,
+        source=source,
+        model=str(data.get("model") or "") or None,
+        use_llm=bool(data.get("use_llm")),
+        force=bool(data.get("force", True)),
+        amend=bool(data.get("amend", True)),
+        extra=data.get("meta") if isinstance(data.get("meta"), dict) else None,
+    )
+    code = 200 if res.get("ok") else 400
+    return code, res
 
 
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2070,6 +2157,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/quota", h_quota),
     ("GET", "/api/v1/router-status", h_router_status),
     ("GET", "/api/v1/status", h_router_status),
+    ("GET", "/api/v1/autorun", h_autorun_status),
+    ("POST", "/api/v1/autorun", h_autorun_post),
     ("GET", "/api/v1/diary", h_diary),
     ("GET", "/api/v1/story", h_story),
     ("GET", "/api/v1/story/file", h_story_file),
@@ -2117,6 +2206,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/seat-feed", h_seat_feed),
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
+    ("GET", "/api/v1/surface", h_surface),
+    ("POST", "/api/v1/handoff/file", h_handoff_file),
+    ("POST", "/api/v1/seat/file", h_seat_file),
     ("POST", "/api/v1/coordinate", h_coordinate),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
@@ -2183,6 +2275,8 @@ LEGACY: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/workspace/file", h_workspace_file_get),
     ("POST", "/api/workspace/file", h_workspace_file_post),
     ("POST", "/api/autopilot", h_autopilot),
+    ("GET", "/api/autorun", h_autorun_status),
+    ("POST", "/api/autorun", h_autorun_post),
     ("POST", "/api/orchestrator/queue", h_orchestrator_queue_post),
     ("POST", "/api/seat/task", h_seat_task),
 ]

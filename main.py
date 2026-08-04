@@ -198,6 +198,37 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="FILE every Mag agent seat under memory/agent_sessions/",
     )
+    p_seat_file = sub.add_parser(
+        "seat-file",
+        help="FILE any seat transcript or FILE block → residual + Verkle leaf",
+    )
+    p_seat_file.add_argument("--seat", required=True, help="Seat id (e.g. cursor-cloud-bc123)")
+    p_seat_file.add_argument("--source", default="external", help="Seat source label")
+    p_seat_file.add_argument("--provider", default="", help="Provider (default=source)")
+    p_seat_file.add_argument("--goal", default="", help="Goal line for FILE-block mode")
+    p_seat_file.add_argument(
+        "--file-block",
+        default="",
+        help="FILE block text (or pass via stdin)",
+    )
+    p_seat_file.add_argument("--no-llm", action="store_true", help="Heuristic only")
+    p_seat_file.add_argument("--force", action="store_true", help="Re-FILE even if unchanged")
+
+    p_csv = sub.add_parser(
+        "cloud-steering-verify",
+        help="Verify home Mag ready for Cursor Cloud steering (prints secrets block)",
+    )
+    p_csv.add_argument("--port", type=int, default=8765)
+    p_csv.add_argument("--json", action="store_true")
+    p_csv.add_argument("--no-public-probe", action="store_true")
+    p_csv.add_argument(
+        "--write",
+        nargs="?",
+        const="state/cloud_steering_report.json",
+        default="",
+        help="write report JSON (default state/cloud_steering_report.json)",
+    )
+
     p_sum.add_argument(
         "--no-pdf",
         action="store_true",
@@ -361,6 +392,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_governor.add_argument("--run", type=int, default=1, help="cycles to autorun")
     p_governor.add_argument("--dry", type=int, default=0, help="decide + report only")
+    p_autorun = sub.add_parser(
+        "autorun",
+        help="Intelligent drainer cycle: fill queue, plan, route, execute",
+    )
+    p_autorun.add_argument("--once", action="store_true", help="single tick then exit")
+    p_autorun.add_argument("--dry", action="store_true", help="plan only, no execute")
+    p_autorun.add_argument("--no-fill", action="store_true", help="skip intelligent queue fill")
+    p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
+    p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval (seconds)")
     p_auto = sub.add_parser(
         "autopilot",
         help="Brain+loop pass: improve queue + governor + seed-mirror status",
@@ -967,6 +1007,26 @@ def main(argv: list[str] | None = None) -> int:
             force=args.force,
             pdf=bool(getattr(args, "pdf", False)),
             visual=bool(getattr(args, "visual", False)),
+        )
+        print(json.dumps(res, indent=2))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "seat-file":
+        import sys
+
+        from mag.seat_file import file_seat
+
+        block = (getattr(args, "file_block", None) or "").strip()
+        if not block and not sys.stdin.isatty():
+            block = sys.stdin.read().strip()
+        provider = (getattr(args, "provider", None) or "").strip() or args.source
+        res = file_seat(
+            args.seat,
+            file_block=block,
+            goal=getattr(args, "goal", "") or "",
+            provider=provider,
+            source=args.source,
+            use_llm=not args.no_llm,
+            force=bool(args.force) or True,
         )
         print(json.dumps(res, indent=2))
         return 0 if res.get("ok") else 1
@@ -1900,6 +1960,20 @@ def main(argv: list[str] | None = None) -> int:
             no_dashboard=args.no_dashboard,
             with_instrument=args.with_instrument,
         )
+    if args.cmd == "autorun":
+        from mag.governor_autorun import autorun_loop, autorun_once, fill_queue, plan_pending
+        import json as _json
+
+        if args.fill_only:
+            fill_queue()
+            print(_json.dumps(plan_pending(), indent=2, default=str))
+            return 0
+        if args.once or args.dry:
+            res = autorun_once(fill=not args.no_fill, dry=bool(args.dry))
+            print(_json.dumps(res, indent=2, default=str))
+            return 0
+        autorun_loop(interval_s=float(args.interval))
+        return 0
     if args.cmd == "governor":
         from mag.governor import main as governor_main
         return governor_main(["--dry", str(args.dry)] if args.dry else ["--run", str(args.run)])
@@ -1918,6 +1992,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)
+    if args.cmd == "cloud-steering-verify":
+        from mag.cloud_steering_verify import main as csv_main
+
+        argv = []
+        if args.port != 8765:
+            argv.extend(["--port", str(args.port)])
+        if args.json:
+            argv.append("--json")
+        if args.no_public_probe:
+            argv.append("--no-public-probe")
+        if args.write:
+            argv.extend(["--write", str(args.write)])
+        return csv_main(argv)
     parser.print_help()
     return 2
 

@@ -59,6 +59,8 @@ memory/improve/**
 !memory/improve/HABIT.md
 !memory/improve/SEATS.md
 !memory/improve/MIRROR.md
+!memory/improve/deepseek_api/
+!memory/improve/deepseek_api/clawcodex_steal_analysis.md
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -73,6 +75,9 @@ memory/handoff/**
 !memory/handoff/.gitkeep
 !memory/handoff/ACTIVATION.md
 !memory/handoff/DEEPSEEK_START.md
+!memory/handoff/HOME_MACHINE.md
+!memory/handoff/SEAT_FILE.md
+!memory/handoff/CLOUD_STEERING.md
 memory/remedies/**
 !memory/remedies/.gitkeep
 memory/working/**

@@ -37,6 +37,19 @@ Publish checklist: [docs/GITHUB_PUBLISH.md](docs/GITHUB_PUBLISH.md)
 
 ## Setup
 
+**One command (home PC, keys already in `.env`):**
+
+```powershell
+# Double-click or:
+launch_desk.cmd
+```
+
+Starts backend + `mag.cmd lab` + DeepSeek agent (same as your two-window setup).
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\go.ps1 -Lan
+```
+
 ```powershell
 cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
 python -m venv .venv
@@ -96,6 +109,7 @@ python main.py refresh-session-cards    # blurb+bullets only
 # POST /api/v1/catch-up  /api/v1/ask  /api/v1/brief
 # Audit: docs/AUDIT.md
 # DNA: docs/DNA.md  ·  Zeitgeist: docs/ZEITGEIST.md  ·  Roadmap: docs/ORG_ROADMAP.md
+# Multi-device glue: docs/ref/DISTRIBUTED_SURFACE.md  ·  home runbook: memory/handoff/HOME_MACHINE.md
 # Operate tab (dashboard home): forest walk + AI feed templates + DNA
 # CLI:  python main.py org-review
 # API:  GET /api/v1/operator-os

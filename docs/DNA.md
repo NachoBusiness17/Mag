@@ -5,6 +5,7 @@
 
 ## Daily path (start here)
 
+**→ [`docs/OPERATOR_MAP.md`](OPERATOR_MAP.md)** — canonical how governor/routing/dashboard fit together.  
 **→ [`docs/HOW_TO_MAG_DASHBOARD.md`](HOW_TO_MAG_DASHBOARD.md)** — layman how-to for Mag + dashboard.  
 **→ [`docs/ref/OPERATOR_CARD.md`](ref/OPERATOR_CARD.md)** — FIND · FILE · LOAD · tip badge · presented law.  
 **→ [`memory/agent_state/LATEST.md`](../memory/agent_state/LATEST.md)** — versioned agent/Mag self (LOAD before redesign; agent tip ≠ session tip).  
