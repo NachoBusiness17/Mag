@@ -758,6 +758,14 @@ def _mirror_lens_gate_enabled() -> bool:
     return raw in ("1", "true", "yes", "on")
 
 
+def _mentions_local_fork(blob: str) -> bool:
+    if any(t in blob for t in ("local-first", "local first", "ollama")):
+        return True
+    if re.search(r"without\s+fork", blob):
+        return False
+    return bool(re.search(r"\bfork\b", blob))
+
+
 def _mirror_lens_verdict(candidate: dict[str, Any]) -> tuple[str, str]:
     if not _mirror_lens_gate_enabled():
         return "pass", "mirror lens gate disabled"
@@ -771,7 +779,7 @@ def _mirror_lens_verdict(candidate: dict[str, Any]) -> tuple[str, str]:
     if re.search(r"route all.*(through|via).*(oracle|cloud|api)", blob):
         return "reject", "mirror lens: single-oracle dependency"
     if any(re.search(p, blob) for p in (r"cloud-only", r"cloud only", r"hosted saas")):
-        if not any(t in blob for t in ("local-first", "local first", "ollama", "fork")):
+        if not _mentions_local_fork(blob):
             return "hold", "mirror lens: cloud without local fork"
     if tags & {"verkle", "sovereign_mirror", "refusal", "rope"}:
         return "pass", "mirror lens: starved theme tags; no block"

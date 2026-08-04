@@ -1292,6 +1292,36 @@ def _mail(**kw: Any) -> None:
         pass
 
 
+def _sync_current(
+    *,
+    goal: str = "",
+    plan: list[str] | None = None,
+    last_result: str = "",
+    status: str = "running",
+    **extra: Any,
+) -> None:
+    """Mirror live seat state into state/CURRENT.md (same contract as router)."""
+    try:
+        from audit import sync_current
+
+        sync_current(
+            {
+                "status": status,
+                "tier": extra.get("tier", "-"),
+                "route": extra.get("route", "agent_cli"),
+                "step_i": _activity.get("step", 0),
+                "handoff_id": extra.get("handoff_id", "-"),
+                "goal": goal or str(_activity.get("goal") or ""),
+                "plan": plan or [],
+                "last_result": last_result,
+                "critique": extra.get("critique", ""),
+                "tool_trace": extra.get("tool_trace", []),
+            }
+        )
+    except Exception:
+        pass
+
+
 def _inbox_drain() -> list[str]:
     if not _TASK_ID:
         return []
