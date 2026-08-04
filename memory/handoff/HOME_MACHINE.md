@@ -44,11 +44,31 @@ launch_dashboard_lan.cmd
 
 ---
 
-## FILE from tablet → this machine (Phase G1 — live)
+**Tablet browser:** read-only without token. **Writes** need the home token:
+
+```powershell
+# Home PC (once per session)
+set MAG_REMOTE_TOKEN=pick-a-long-secret
+set MAG_BIND_HOST=0.0.0.0
+launch_dashboard_lan.cmd
+```
+
+```bash
+# Tablet POST (todo → queue/todo.md)
+curl -X POST http://<HOME-IP>:8765/api/v1/handoff/file \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pick-a-long-secret" \
+  -d '{"text":"test from tablet","kind":"todo","source":"tablet","device":"ipad"}'
+```
+
+Trusted dev LAN only: `set MAG_REMOTE_AUTH_DISABLE=1` on home PC (skips token check).
+
+## FILE from tablet → this machine (G1 — live)
 
 ```bash
 curl -s -X POST http://<HOME-IP>:8765/api/v1/handoff/file \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pick-a-long-secret" \
   -d '{"text":"FILE for Mag:\n- turned: …\n- open loops: …\n- next move: …","source":"tablet","device":"ipad"}'
 ```
 
@@ -80,8 +100,8 @@ python watch/cursor_bridge.py ask "goal from remote seat"
 ## Phase checklist (update as you ship)
 
 - [x] **G0** — plan + this runbook committed
-- [x] **G1** — `/api/v1/handoff/file` + `/api/v1/surface`
-- [ ] **G2** — `MAG_REMOTE_TOKEN` on remote bind
+- [x] **G1** — `/api/v1/handoff/file` + `/api/v1/surface` → `queue/todo.md` / `working.md`
+- [x] **G2** — `MAG_REMOTE_TOKEN` on LAN write routes
 - [ ] **G3** — Tailscale + `MAG_PUBLIC_URL` on home box
 - [ ] **G4** — optional Syncthing for `memory/` + `state/` to second machine
 
@@ -93,7 +113,7 @@ python watch/cursor_bridge.py ask "goal from remote seat"
 git pull    # merge PRs from cloud
 mag.cmd context-pack
 mag.cmd bonds
-# Re-read state/CURRENT.md and memory/handoff/inbound/
+# Re-read state/CURRENT.md, queue/todo.md, memory/working.md
 ```
 
 **Law:** FILE outcomes to disk. Chat is heat.

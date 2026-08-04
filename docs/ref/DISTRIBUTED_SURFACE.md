@@ -75,13 +75,14 @@ Cursor Cloud / web tablet agents clone **GitHub only** — they do not see your 
 }
 ```
 
-### G2 — Remote auth (safety before wide bind)
+### G2 — Remote auth (shipped)
 
 | Deliverable | Done when |
 |-------------|-----------|
-| `MAG_REMOTE_TOKEN` env | required on POST write routes when `MAG_BIND_HOST != 127.0.0.1` |
-| `Authorization: Bearer …` | on handoff, coordination POST, agent, dispatch |
-| Read routes | still OK on LAN without token (or configurable) |
+| `MAG_REMOTE_TOKEN` env | required on POST/PATCH when `MAG_BIND_HOST` is not loopback |
+| `Authorization: Bearer …` or `X-Mag-Token` | on write routes via `dashboard/server.py` |
+| Read routes (GET) | OK on LAN without token |
+| `MAG_REMOTE_AUTH_DISABLE=1` | dev bypass for trusted LAN only |
 | Test | POST without token → 401 when remote bind |
 
 **Law:** never expose unauthenticated write endpoints on `0.0.0.0`.

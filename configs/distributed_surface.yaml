@@ -3,7 +3,7 @@
 # Law: docs/ref/DISTRIBUTED_SURFACE.md
 
 schema: mag.distributed_surface.v1
-phase: G1
+phase: G2
 
 # Existing Mag scheme — remote POST routes here, no parallel inbox
 paths:

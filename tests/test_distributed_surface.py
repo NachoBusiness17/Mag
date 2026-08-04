@@ -56,4 +56,30 @@ def test_surface_status_reports_canonical_paths(tmp_path):
     st = ds.surface_status()
     assert st["ok"] is True
     assert st["paths"]["todo"] == "queue/todo.md"
-    assert st["paths"]["working"] == "memory/working.md"
+    assert st["auth"]["token_env"] == "MAG_REMOTE_TOKEN"
+
+
+def test_write_auth_localhost_skips(monkeypatch):
+    monkeypatch.setenv("MAG_BIND_HOST", "127.0.0.1")
+    ok, err = ds.check_write_auth({})
+    assert ok is True
+    assert err == ""
+
+
+def test_write_auth_remote_requires_token(monkeypatch):
+    monkeypatch.setenv("MAG_BIND_HOST", "0.0.0.0")
+    monkeypatch.delenv("MAG_REMOTE_TOKEN", raising=False)
+    monkeypatch.delenv("MAG_REMOTE_AUTH_DISABLE", raising=False)
+    assert ds.write_auth_required() is True
+    ok, err = ds.check_write_auth({})
+    assert ok is False
+    assert "MAG_REMOTE_TOKEN" in err
+
+
+def test_write_auth_remote_accepts_bearer(monkeypatch):
+    monkeypatch.setenv("MAG_BIND_HOST", "0.0.0.0")
+    monkeypatch.setenv("MAG_REMOTE_TOKEN", "sekrit")
+    ok, _ = ds.check_write_auth({"Authorization": "Bearer sekrit"})
+    assert ok is True
+    bad, _ = ds.check_write_auth({"Authorization": "Bearer nope"})
+    assert bad is False

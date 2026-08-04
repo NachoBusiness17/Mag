@@ -180,15 +180,75 @@ def surface_status() -> dict[str, Any]:
         "phase": phase(),
         "plan": "docs/ref/DISTRIBUTED_SURFACE.md",
         "runbook": "memory/handoff/HOME_MACHINE.md",
-        "bind": {"host": host, "port": port},
+        "bind": {"host": host, "port": port, "remote": is_remote_bind()},
         "public_url": public or None,
         "paths": {
             "todo": str(todo_path().relative_to(ROOT)).replace("\\", "/"),
             "working": str(working_path().relative_to(ROOT)).replace("\\", "/"),
         },
         "todo_open_preview": _todo_open_preview(),
-        "auth": {
-            "token_env": ((cfg.get("auth") or {}).get("token_env") or "MAG_REMOTE_TOKEN"),
-            "required_on_remote_bind": bool((cfg.get("auth") or {}).get("require_token_on_remote_bind")),
-        },
+        "auth": auth_status(),
     }
+
+
+_LOCAL_BIND_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def is_remote_bind() -> bool:
+    """True when dashboard listens beyond loopback (LAN / 0.0.0.0)."""
+    h = bind_host().strip().lower()
+    return h not in _LOCAL_BIND_HOSTS
+
+
+def _token_env_name() -> str:
+    cfg = _load_yaml()
+    return str((cfg.get("auth") or {}).get("token_env") or "MAG_REMOTE_TOKEN")
+
+
+def remote_token() -> str:
+    import os
+
+    return os.environ.get(_token_env_name(), "").strip()
+
+
+def write_auth_required() -> bool:
+    """POST/PATCH need a token when bound for remote/LAN access."""
+    import os
+
+    if not is_remote_bind():
+        return False
+    if os.environ.get("MAG_REMOTE_AUTH_DISABLE", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return False
+    cfg = _load_yaml()
+    return bool((cfg.get("auth") or {}).get("require_token_on_remote_bind", True))
+
+
+def auth_status() -> dict[str, Any]:
+    return {
+        "token_env": _token_env_name(),
+        "required_on_remote_bind": write_auth_required(),
+        "remote_bind": is_remote_bind(),
+        "token_configured": bool(remote_token()),
+    }
+
+
+def check_write_auth(headers: dict[str, str] | None) -> tuple[bool, str]:
+    """Return (ok, error_message). GET routes skip this."""
+    if not write_auth_required():
+        return True, ""
+    token = remote_token()
+    if not token:
+        return False, f"remote bind active; set {_token_env_name()} on the home machine"
+    hdrs = {k.lower(): v for k, v in (headers or {}).items()}
+    auth = hdrs.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        if auth[7:].strip() == token:
+            return True, ""
+    xtok = hdrs.get("x-mag-token", "")
+    if xtok.strip() == token:
+        return True, ""
+    return False, "missing or invalid remote token (Authorization: Bearer …)"
