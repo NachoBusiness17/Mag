@@ -1,0 +1,33 @@
+# Mag distributed surface — phase tracker + soil paths
+# Commitment: distributed-surface-glue-001
+# Law: docs/ref/DISTRIBUTED_SURFACE.md
+
+schema: mag.distributed_surface.v1
+phase: G1   # G0=plan | G1=handoff | G2=auth | G3=reach | G4=soil_sync
+
+# Canonical boundary dirs (home machine). G4 sync targets these only.
+soil_paths:
+  - memory/
+  - state/
+  - queue/
+
+remote:
+  # Default safe bind. LAN: launch_dashboard_lan.cmd or MAG_BIND_HOST=0.0.0.0
+  bind_host: 127.0.0.1
+  port: 8765
+  # Set on home machine when using Tailscale Funnel / named host (G3)
+  public_url: ""   # or env MAG_PUBLIC_URL
+
+handoff:
+  inbound_dir: memory/handoff/inbound
+  max_chars: 24000
+
+auth:
+  # G2: set MAG_REMOTE_TOKEN on home machine; required for POST when not localhost-only
+  token_env: MAG_REMOTE_TOKEN
+  require_token_on_remote_bind: true
+
+reach:
+  lan_launcher: launch_dashboard_lan.cmd
+  bridge_client: watch/cursor_bridge.py
+  bridge_env: MAG_URL

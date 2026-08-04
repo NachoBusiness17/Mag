@@ -1066,6 +1066,27 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
     return 200, {"ok": True, "activity": row}
 
 
+def h_surface(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Distributed surface plan status — phase, bind hints, recent inbound."""
+    from mag.distributed_surface import surface_status
+
+    return 200, surface_status()
+
+
+def h_handoff_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Ingest a FILE block or goal note from tablet / remote seat."""
+    from mag.distributed_surface import ingest_file_block
+
+    data = dict(body or {})
+    res = ingest_file_block(
+        str(data.get("text") or data.get("body") or data.get("goal") or ""),
+        source=str(data.get("source") or "api").strip() or "api",
+        device=str(data.get("device") or data.get("client") or "unknown").strip() or "unknown",
+    )
+    code = 200 if res.get("ok") else 400
+    return code, res
+
+
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Classify depth + optionally launch the appropriate seat."""
     from mag.coordination import coordinate
@@ -2117,6 +2138,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/seat-feed", h_seat_feed),
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
+    ("GET", "/api/v1/surface", h_surface),
+    ("POST", "/api/v1/handoff/file", h_handoff_file),
     ("POST", "/api/v1/coordinate", h_coordinate),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),

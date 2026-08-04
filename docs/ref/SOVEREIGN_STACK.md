@@ -90,6 +90,20 @@ curl -s -X POST http://127.0.0.1:8765/api/v1/seat/task ^
 
 **Env:** `MAG_URL` (default `http://127.0.0.1:8765`), `MAG_BRIDGE_TIMEOUT` (default 120s).
 
+## Track D — Distributed surface (multi-device glue)
+
+| Piece | Location |
+|-------|----------|
+| Plan + phases | `docs/ref/DISTRIBUTED_SURFACE.md` |
+| Home machine runbook | `memory/handoff/HOME_MACHINE.md` |
+| Phase config | `configs/distributed_surface.yaml` |
+| Ingest module | `mag/distributed_surface.py` |
+| REST | `GET /api/v1/surface` · `POST /api/v1/handoff/file` |
+| LAN launch | `launch_dashboard_lan.cmd` |
+
+Tablet/phone/cloud decoders viewport **home soil** via `:8765` — not GitHub-as-boundary.  
+Cloud agents (Cursor web) remain L2 code workers; FILE handoff lands in `memory/handoff/inbound/`.
+
 ## Track C — Brain (autopilot + seed-mirror)
 
 | Piece | Location |

@@ -73,6 +73,7 @@ memory/handoff/**
 !memory/handoff/.gitkeep
 !memory/handoff/ACTIVATION.md
 !memory/handoff/DEEPSEEK_START.md
+!memory/handoff/HOME_MACHINE.md
 memory/remedies/**
 !memory/remedies/.gitkeep
 memory/working/**
