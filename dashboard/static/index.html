@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MAG · マグ · 勾玉</title>
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=lattice-graph-v1" />
+  <link rel="stylesheet" href="/static/cli.css?v=canvas-viewports-v1" />
   <script type="importmap">
   {
     "imports": {
@@ -68,6 +68,7 @@
     <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
     <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
     <button type="button" class="dock-btn" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
+    <button type="button" class="dock-btn" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
   </nav>
   <div class="desk" id="desk">
 
@@ -689,6 +690,32 @@
       <div class="win-resize" title="resize"></div>
     </div>
 
+    <div class="win" data-win="viewports" id="win-viewports">
+      <div class="win-titlebar">
+        <span class="win-title">&#9654; VIEWPORTS // CANVAS</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">&#9633;</button>
+          <button type="button" class="win-close" title="close">&#215;</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-viewports" class="panel">
+          <p class="help-bar">
+            <strong>Cursor Canvas → Mag.</strong>
+            Synced from external *.canvas.tsx into memory/viewports/ — tables, todos, stats for the desk.
+          </p>
+          <div class="row" style="margin-bottom:0.75rem">
+            <button type="button" class="btn ghost" id="btnViewportsRefresh">Refresh</button>
+            <button type="button" class="btn ghost" id="btnViewportsSync">Sync canvases</button>
+            <span class="meta" id="viewportsMeta">—</span>
+          </div>
+          <div id="viewportsHost" class="viewport-stack"></div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
     <div class="win" data-win="ingest" id="win-ingest">
       <div class="win-titlebar">
         <span class="win-title">â–¶ INGEST // CAT</span>
@@ -894,6 +921,11 @@
               <p class="muted sm" id="workersLayman">Orchestrator tasks — running + recent only.</p>
               <ul id="workersList" class="signal-list"></ul>
             </article>
+            <article class="card">
+              <h2>Coordination</h2>
+              <p class="muted sm">Shared activity — what each seat is doing (DeepSeek, Cursor, Grok, local).</p>
+              <ul id="coordinationLive" class="signal-list"></ul>
+            </article>
           </div>
           <article class="card full governance-card" id="governanceCard">
             <h2>Governance — steer without re-approving every step</h2>
@@ -1069,6 +1101,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=tesuji33"></script>
-  <script src="/static/app.js?v=lattice-graph-v1"></script>
+  <script src="/static/app.js?v=canvas-viewports-v1"></script>
 </body>
 </html>

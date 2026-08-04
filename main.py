@@ -615,6 +615,25 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Force seat: local|remote|grok_tui|hermes",
     )
+    p_coord = sub.add_parser(
+        "coordinate",
+        help="Classify depth + route to Grok plan / DeepSeek heavy / local simple (shared activity)",
+    )
+    p_coord.add_argument("goal", nargs="+", help="What to do")
+    p_coord.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth (else auto-classify)",
+    )
+    p_coord.add_argument("--seat", default="cli", help="Calling seat id")
+    p_coord.add_argument("--dry", action="store_true", help="Classify only — do not launch")
+    p_coord.add_argument(
+        "--background",
+        action="store_true",
+        help="Queue heavy_code on orchestrator instead of inline delegate",
+    )
+    p_coord.add_argument("--session", default="", help="Agent session id for delegate mode")
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -725,6 +744,35 @@ def main(argv: list[str] | None = None) -> int:
         default=0,
         help="0 = unlimited until --stop",
     )
+
+    p_csync = sub.add_parser(
+        "canvas-sync",
+        help="Sync Cursor Canvas *.tsx → memory/viewports/ manifests",
+    )
+    p_csync.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report counts only; do not write files",
+    )
+
+    sub.add_parser(
+        "canvas-list",
+        help="List synced canvas viewport manifests",
+    )
+
+    p_lq = sub.add_parser(
+        "lattice-query",
+        help="Query memory/lattice store (nodes/edges from lattice-backfill)",
+    )
+    p_lq.add_argument("--summary", action="store_true", help="Node/edge counts + themes")
+    p_lq.add_argument("--theme", default="", help="Filter nodes by dominant theme")
+    p_lq.add_argument("--neighbors", default="", help="Edges adjacent to node id")
+
+    p_lbf = sub.add_parser(
+        "lattice-backfill",
+        help="Rebuild instrument verkle chain + seed memory/lattice store",
+    )
+    p_lbf.add_argument("--dry-run", action="store_true", help="Report counts only")
 
     p_blast = sub.add_parser(
         "blast",
@@ -1143,6 +1191,33 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps(build_lattice_summary(), indent=2, default=str))
         return 0
+    if args.cmd == "canvas-sync":
+        from mag.canvas_bridge import sync_canvases
+
+        print(json.dumps(sync_canvases(dry_run=bool(args.dry_run)), indent=2, default=str))
+        return 0
+    if args.cmd == "canvas-list":
+        from mag.canvas_bridge import list_viewports
+
+        print(json.dumps(list_viewports(), indent=2, default=str))
+        return 0
+    if args.cmd == "lattice-query":
+        from mag.lattice_query import neighbors, query_by_theme, summary
+
+        if getattr(args, "neighbors", ""):
+            print(json.dumps(neighbors(args.neighbors), indent=2, default=str))
+            return 0
+        if getattr(args, "theme", ""):
+            print(json.dumps(query_by_theme(args.theme), indent=2, default=str))
+            return 0
+        print(json.dumps(summary(), indent=2, default=str))
+        return 0
+    if args.cmd == "lattice-backfill":
+        from mag.lattice_backfill import run_backfill
+
+        res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok") else 1
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
@@ -1547,6 +1622,21 @@ def main(argv: list[str] | None = None) -> int:
             force_seat=args.seat or None,
         )
         print(json.dumps(res, indent=2, default=str)[:5000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "coordinate":
+        from mag.coordination import coordinate
+
+        goal = " ".join(args.goal)
+        res = coordinate(
+            goal,
+            depth=(args.depth or None),
+            seat=(args.seat or "cli").strip() or "cli",
+            actor="cli",
+            launch=not args.dry,
+            background=bool(args.background),
+            session_id=(args.session or "").strip() or None,
+        )
+        print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
     if args.cmd == "orchestrator":
         from mag.orchestrator import main as orc_main

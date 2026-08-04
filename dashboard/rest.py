@@ -1035,6 +1035,64 @@ def h_seat_feed(p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict
     return 200, unified_seat_feed(limit=max(5, min(n, 80)))
 
 
+def h_coordination(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Shared activity feed — all seats see who is doing what."""
+    from mag.coordination import activity_summary, read_activity
+
+    try:
+        limit = int(_p.get("limit") or 20)
+    except ValueError:
+        limit = 20
+    summary = activity_summary(limit=max(1, min(limit, 80)))
+    summary["entries"] = read_activity(limit=summary.get("recent") and limit or limit)
+    return 200, summary
+
+
+def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Log heartbeat / status from any seat (DeepSeek, Cursor, etc.)."""
+    from mag.coordination import log_activity
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("detail") or "heartbeat").strip()
+    row = log_activity(
+        seat=str(data.get("seat") or "unknown").strip() or "unknown",
+        depth=str(data.get("depth") or "scut").strip(),
+        goal=goal,
+        status=str(data.get("status") or "running").strip(),
+        actor=str(data.get("actor") or data.get("seat") or "").strip() or None,
+        detail=str(data.get("detail") or "")[:300],
+        task_id=str(data.get("task_id") or "").strip() or None,
+    )
+    return 200, {"ok": True, "activity": row}
+
+
+def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Classify depth + optionally launch the appropriate seat."""
+    from mag.coordination import coordinate
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal:
+        return _err(400, "goal required")
+    depth = str(data.get("depth") or "").strip() or None
+    seat = str(data.get("seat") or "api").strip() or "api"
+    launch = data.get("launch", True)
+    if isinstance(launch, str):
+        launch = launch.lower() not in ("0", "false", "no")
+    background = bool(data.get("background"))
+    res = coordinate(
+        goal,
+        depth=depth,
+        seat=seat,
+        actor=str(data.get("actor") or seat),
+        launch=bool(launch),
+        background=background,
+        session_id=str(data.get("session_id") or "").strip() or None,
+    )
+    code = 200 if res.get("ok") else 500
+    return code, res
+
+
 def h_drainer_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     from mag.preferences import drainer_status
 
@@ -1249,6 +1307,33 @@ def h_lattice_history(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[in
     from mag.lattice_dashboard import build_lattice_summary
 
     return 200, build_lattice_summary()
+
+
+def h_viewports(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """List synced Cursor Canvas viewports."""
+    from mag.canvas_bridge import list_viewports
+
+    rows = list_viewports()
+    return _ok({"viewports": rows, "count": len(rows)}, schema="viewports_list.v1")
+
+
+def h_viewport_one(p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """One canvas viewport manifest."""
+    from mag.canvas_bridge import load_viewport
+
+    vid = unquote(p.get("id") or "")
+    res = load_viewport(vid)
+    if not res.get("ok"):
+        return _err(404, str(res.get("error") or "not found"))
+    return _ok({"viewport": res["viewport"]}, schema="canvas_viewport.v1")
+
+
+def h_viewports_sync(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Run canvas sync from external *.canvas.tsx sources."""
+    from mag.canvas_bridge import sync_canvases
+
+    dry = bool((_b or {}).get("dry_run"))
+    return _ok(sync_canvases(dry_run=dry), schema="canvas_sync.v1")
 
 
 def h_models(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1927,6 +2012,9 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "GET /api/v1/seat-feed": "Unified activity feed (Grok/Cursor/agent/orchestrator)",
             "GET /api/v1/chronicle": "File-backed pulse (attention + fleet + sources)",
             "POST /api/v1/seat/task": "Cursor→Mag task {goal?, seat?, mode: delegate|queue|autopilot|agent|dispatch}",
+            "GET /api/v1/viewports": "Cursor Canvas manifests (synced viewports)",
+            "GET /api/v1/viewports/{id}": "One canvas viewport manifest",
+            "POST /api/v1/viewports/sync": "Sync *.canvas.tsx → memory/viewports/",
         },
         "conventions": {
             "envelope": "{ ok: true|false, ... } — errors use real HTTP 4xx/5xx",
@@ -1964,6 +2052,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/nervous", h_nervous),
     ("GET", "/api/v1/lattice-history", h_lattice_history),
     ("GET", "/api/lattice-history", h_lattice_history),
+    ("GET", "/api/v1/viewports", h_viewports),
+    ("GET", "/api/v1/viewports/{id}", h_viewport_one),
+    ("POST", "/api/v1/viewports/sync", h_viewports_sync),
 
     ("GET", "/api/v1/home", h_home_summary),
     ("GET", "/api/v1/summary", h_home_summary),
@@ -2024,6 +2115,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),
     ("POST", "/api/v1/operator-inbox", h_operator_inbox),
     ("GET", "/api/v1/seat-feed", h_seat_feed),
+    ("GET", "/api/v1/coordination", h_coordination),
+    ("POST", "/api/v1/coordination", h_coordination_post),
+    ("POST", "/api/v1/coordinate", h_coordinate),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),

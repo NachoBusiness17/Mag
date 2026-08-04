@@ -392,6 +392,7 @@ function setTab(name) {
   if (name === "blast") loadBlast();
   if (name === "flow") loadFlow();
   if (name === "verkle") loadVerkle();
+  if (name === "viewports") loadViewports();
   if (name === "ingest") loadIngest();
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
@@ -3636,6 +3637,33 @@ async function loadSeatsPanel() {
         workersList.innerHTML += `<li class="muted">${w.archived_hidden} older soak tests hidden</li>`;
       }
     }
+    const coordLive = $("#coordinationLive");
+    if (coordLive) {
+      try {
+        const coord = await getJSON("/api/v1/coordination?limit=12");
+        const running = coord.running || [];
+        const recent = coord.recent || [];
+        const lines = [
+          ...running.map(
+            (r) =>
+              `<li class="warn"><strong>${esc(r.seat || "?")}</strong> · ${esc(
+                r.depth || ""
+              )} · ${esc((r.goal || "").slice(0, 55))}</li>`
+          ),
+          ...recent.slice(0, 8).map(
+            (r) =>
+              `<li class="muted"><strong>${esc(r.seat || "?")}</strong> · ${esc(
+                r.status || ""
+              )} · ${esc((r.goal || "").slice(0, 50))}</li>`
+          ),
+        ];
+        coordLive.innerHTML = lines.length
+          ? lines.join("")
+          : `<li class="muted">No cross-seat activity yet — use coordinate CLI</li>`;
+      } catch {
+        coordLive.innerHTML = `<li class="muted">Coordination feed unavailable</li>`;
+      }
+    }
     return reg;
   } catch (e) {
     if (inHost) inHost.innerHTML = `<p class="muted">Seats unavailable: ${esc(e.message || e)}</p>`;
@@ -4716,6 +4744,111 @@ async function loadVerkle() {
   }
 }
 
+function _renderViewportSection(sec) {
+  const title = esc(sec.title || sec.kind || "Section");
+  if (sec.kind === "stats") {
+    const items = sec.items || [];
+    return `<article class="card viewport-section viewport-stats">
+      <h3>${title}</h3>
+      <div class="viewport-stat-grid">${items
+        .map(
+          (it) =>
+            `<div class="viewport-stat"><span class="k">${esc(it.label)}</span><span class="v">${esc(it.value)}</span></div>`
+        )
+        .join("")}</div>
+    </article>`;
+  }
+  if (sec.kind === "todos") {
+    const items = sec.items || [];
+    return `<article class="card viewport-section viewport-todos">
+      <h3>${title}</h3>
+      <ul class="viewport-todo-list">${items
+        .map(
+          (it) =>
+            `<li class="todo-${esc(it.status || "pending")}"><span class="todo-status">${esc(it.status || "pending")}</span> ${esc(it.content || "")}</li>`
+        )
+        .join("")}</ul>
+    </article>`;
+  }
+  if (sec.kind === "table") {
+    const cols = sec.columns || [];
+    const rows = sec.rows || [];
+    return `<article class="card viewport-section viewport-table">
+      <h3>${title}</h3>
+      <div class="viewport-table-wrap">
+        <table class="viewport-table">
+          <thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+          <tbody>${rows
+            .map(
+              (row) =>
+                `<tr>${(row || [])
+                  .map((cell) => `<td>${esc(cell)}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}</tbody>
+        </table>
+      </div>
+    </article>`;
+  }
+  return "";
+}
+
+function _renderViewport(vp) {
+  const sections = (vp.sections || []).map(_renderViewportSection).join("");
+  return `<article class="card viewport-card" data-viewport-id="${esc(vp.id || "")}">
+    <header class="viewport-head">
+      <h2>${esc(vp.title || vp.id || "Viewport")}</h2>
+      <p class="meta">${esc(vp.id || "")} · synced ${esc(vp.synced_at || "—")}</p>
+    </header>
+    <div class="viewport-sections">${sections || "<p class='muted'>No sections</p>"}</div>
+  </article>`;
+}
+
+async function loadViewports() {
+  const host = $("#viewportsHost");
+  const meta = $("#viewportsMeta");
+  if (!host) return;
+  host.innerHTML = `<p class="muted">Loading viewports…</p>`;
+  try {
+    const data = await getJSON("/api/v1/viewports");
+    const list = data.viewports || [];
+    if (meta) meta.textContent = `${list.length} viewport(s)`;
+    if (!list.length) {
+      host.innerHTML = `<p class="muted">No viewports synced yet. Run <code>python main.py canvas-sync</code>.</p>`;
+      return;
+    }
+    const parts = [];
+    for (const row of list) {
+      const one = await getJSON(`/api/v1/viewports/${encodeURIComponent(row.id)}`);
+      const vp = one.viewport || one;
+      parts.push(_renderViewport(vp));
+    }
+    host.innerHTML = parts.join("");
+  } catch (e) {
+    host.innerHTML = `<p class="muted" style="color:var(--warn)">${esc(e.message || e)}</p>`;
+    if (meta) meta.textContent = "error";
+  }
+}
+
+async function syncViewportsFromDesk() {
+  const meta = $("#viewportsMeta");
+  if (meta) meta.textContent = "syncing…";
+  try {
+    const r = await fetch("/api/v1/viewports/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await r.json();
+    if (meta) meta.textContent = `synced ${data.written_n ?? 0}`;
+    await loadViewports();
+    toast(`Canvas sync: ${data.written_n ?? 0} viewport(s)`, 2200);
+  } catch (e) {
+    if (meta) meta.textContent = "sync failed";
+    toast("Sync error: " + (e.message || e));
+  }
+}
+
 async function loadIngest() {
   try {
     const data = await getJSON("/api/ingest");
@@ -4774,6 +4907,7 @@ async function refresh() {
       renderChat();
       await refreshEconomy();
     } else if (active === "verkle") await loadVerkle();
+    else if (active === "viewports") await loadViewports();
     else if (active === "flow") await loadFlow();
     else if (active === "orchestrate") await loadOrchestrate();
     else if (active === "visual") await loadVisual();
@@ -4862,6 +4996,7 @@ async function bind() {
     const id = e.detail?.id;
     if (id === "chronicle") startChroniclePoll();
     if (id === "status") loadStatus();
+    if (id === "viewports") loadViewports();
     if (id === "tapestry" || id === "sessions") {
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 80);
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 300);
@@ -5201,6 +5336,8 @@ setInterval(refreshEconomy, 20000);
 
 // Lattice history panel
 document.getElementById("btnLatticeRefresh")?.addEventListener("click", () => loadVerkle());
+document.getElementById("btnViewportsRefresh")?.addEventListener("click", () => loadViewports());
+document.getElementById("btnViewportsSync")?.addEventListener("click", () => syncViewportsFromDesk());
 document.getElementById("btnLatticePack")?.addEventListener("click", () => {
   const t = "memory/biography/verkle_tip.json � topic_evolution.json � knot_timeline.jsonl � working.md";
   if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t);

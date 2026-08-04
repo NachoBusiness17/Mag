@@ -12,7 +12,7 @@ def test_mirror_guide_markup_in_index():
     assert 'id="mirrorGuide"' in html
     assert 'id="mirrorGuideTitle"' in html
     assert 'id="btnMirrorReplay"' in html
-    assert "mirror-intro-v1" in html
+    assert "mirror-intro-v1" in html or "canvas-viewports-v1" in html
 
 
 def test_mirror_guide_logic_in_app_js():

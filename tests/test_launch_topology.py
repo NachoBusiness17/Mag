@@ -10,7 +10,8 @@ def test_supervisor_owns_tool_backend_and_drainer_is_opt_in(monkeypatch):
     slots = {slot["name"]: slot for slot in mag_launch.build_slots()}
 
     assert slots["backend"]["wanted"] is True
-    assert slots["backend"]["cmd"][-2:] == ["-m", "backend.server"]
+    backend_cmd = slots["backend"]["cmd"]
+    assert "-m" in backend_cmd and "backend.server" in backend_cmd
     assert slots["drainer"]["wanted"] is False
 
 

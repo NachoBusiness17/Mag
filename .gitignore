@@ -81,6 +81,9 @@ memory/portable_bags/**
 memory/interaction_logs/**
 memory/ledger/**
 memory/lattice/**
+!memory/lattice/.gitkeep
+memory/viewports/**
+!memory/viewports/.gitkeep
 memory/mail/**
 memory/plans/**
 

@@ -17,6 +17,8 @@ After clone:
 | `operator_directives.md` | Autonomy contract (context pack L0c) |
 | `improve/GOAL.md`, `HABIT.md`, `SEATS.md`, `MIRROR.md` | Improve loop framework |
 | `boot/REPUBLIC_LAUNCH.md` | Fresh-clone entry → Mycelial Republic |
+| `viewports/.gitkeep` | Cursor Canvas manifests land here (`canvas-sync`) |
+| `lattice/.gitkeep` | Queryable lattice store (`lattice-backfill`) |
 | `runs/README.md` | Run trail convention |
 
 Everything else under `memory/` is gitignored and created at runtime.

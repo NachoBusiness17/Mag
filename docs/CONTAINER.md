@@ -103,6 +103,18 @@ python watch/cursor_bridge.py health
 python watch/cursor_bridge.py task "…" --mode delegate --seat cursor
 ```
 
+## Cursor Canvas viewports
+
+Set canvas source dirs (host paths with `*.canvas.tsx`), then sync:
+
+```powershell
+$env:CANVAS_SOURCES = "$env:USERPROFILE\.cursor\projects\<your-workspace>\canvases"
+python main.py canvas-sync
+# Dashboard → Canvas tab, or POST /api/v1/viewports/sync
+```
+
+Manifests land in `memory/viewports/` (gitignored runtime; `.gitkeep` only in repo).
+
 ## Mycelial Republic (sibling project)
 
 Mag is the **private office**; [Mycelial Republic](../mycelial-republic) is the **public fork** — constitution, practice data, honest self-tests.
@@ -129,3 +141,15 @@ Rebuild after code changes:
 ```powershell
 docker compose up -d --build
 ```
+
+## Cross-seat coordination
+
+Shared activity lives on the mounted `state/` volume (`state/shared_activity.jsonl`). DeepSeek agents and Cursor poll the same feed:
+
+```powershell
+curl -s http://127.0.0.1:8765/api/v1/coordination
+python watch/cursor_bridge.py activity
+python main.py coordinate "implement feature X" --background
+```
+
+See **[COORDINATION.md](COORDINATION.md)** for depth routing (local / Grok / DeepSeek) and token rules.
