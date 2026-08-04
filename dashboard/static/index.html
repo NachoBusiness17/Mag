@@ -60,15 +60,20 @@
   <nav class="cli-dock sticky-chrome" aria-label="primary doors">
     <button type="button" class="dock-btn on" data-win="home" title="Where you were, are, and go next">Office</button>
     <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
-    <button type="button" class="dock-btn" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
-    <button type="button" class="dock-btn" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
-    <button type="button" class="dock-btn" data-win="ideas" title="What you still hold — primary board for Mag as OS">Ideas</button>
-    <button type="button" class="dock-btn" data-win="chat" title="Ask Mag from filed memory">Chat</button>
-    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Body</button>
-    <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
-    <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
-    <button type="button" class="dock-btn" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
-    <button type="button" class="dock-btn" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
+    <button type="button" class="dock-btn" data-win="ideas" title="What you still hold">Ideas</button>
+    <button type="button" class="dock-btn" data-win="chat" title="Talk to Mag · drop breadcrumbs">Chat</button>
+    <button type="button" class="dock-btn" data-win="status" title="Governor, routes, workers">Body</button>
+    <details class="dock-more">
+      <summary class="dock-btn dock-more-btn" title="More views">More</summary>
+      <div class="dock-more-menu">
+        <button type="button" class="dock-btn" data-win="diary">Diary</button>
+        <button type="button" class="dock-btn" data-win="story">Story</button>
+        <button type="button" class="dock-btn" data-win="chronicle">Pulse</button>
+        <button type="button" class="dock-btn" data-win="viewports">Canvas</button>
+        <a class="dock-btn" href="/static/agents.html">Workers</a>
+        <a class="dock-btn" href="/shell">Shell</a>
+      </div>
+    </details>
   </nav>
   <div class="desk" id="desk">
 
@@ -208,79 +213,80 @@
 <div class="chat-shell">
           <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
             <div>
-              <strong>Chat with Mag</strong>
-              <span class="muted" style="font-size:0.95rem"> · one desk · pack stays local · brain = seat below</span>
+              <strong>Chat</strong>
+              <span class="muted" style="font-size:0.95rem"> · agent seat below · breadcrumbs above compose</span>
             </div>
-            <div class="row" style="margin:0;align-items:center;gap:0.4rem">
+            <div class="row chat-toolbar" style="margin:0;align-items:center;gap:0.35rem">
               <label class="muted" for="chatProvider" style="font-size:0.85rem">Seat</label>
               <select id="chatProvider" title="Where compute runs" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem">
-                <option value="deepseek" selected>DeepSeek (API)</option>
-                <option value="local">Local (Ollama)</option>
+                <option value="deepseek" selected>DeepSeek</option>
+                <option value="local">Ollama</option>
                 <option value="openrouter">OpenRouter</option>
-                <option value="gemini">Gemini</option>
-                <option value="xai">xAI API</option>
-                <option value="auto">Auto dispatch</option>
+                <option value="auto">Auto</option>
               </select>
-              <button type="button" class="btn chat-mode-btn on" data-mode="agent" id="chatModeAgent" title="DeepSeek + Mag tools — when Grok is empty">Agent</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="ask" id="chatModeAsk">Ask</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
-              <button type="button" class="btn ghost" id="btnCopyPack" title="Copy Mag pack for DeepSeek web">Copy pack</button>
-              <button type="button" class="btn ghost" id="btnAgentReset" title="Reset agent tool session + pack">Reset agent</button>
-              <button type="button" class="btn ghost" id="btnChatClear">Clear</button>
+              <button type="button" class="btn chat-mode-btn on" data-mode="agent" id="chatModeAgent" title="Tools on disk">Agent</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="ask" id="chatModeAsk" title="Talk only, no tools">Talk</button>
+              <details class="chat-more-menu">
+                <summary class="btn ghost btn-sm" title="More chat actions">⋯</summary>
+                <div class="chat-more-panel">
+                  <button type="button" class="btn ghost btn-sm" data-chat-more="dispatch" id="chatModeDispatch">Dispatch</button>
+                  <button type="button" class="btn ghost btn-sm" data-chat-more="tangent" id="chatModeTangent">Tangent</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnCopyPack">Copy pack</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnAgentReset">Reset agent</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnChatClear">Clear chat</button>
+                </div>
+              </details>
             </div>
           </div>
-          <p class="help-bar" style="margin:0;border-radius:0;border-left:0;border-right:0">
-            <strong>Agent</strong> = Grok-like tools on Mag disk (DeepSeek brain, multi-line paste in box).
-            <strong>Ask/Dispatch</strong> = talk only. <strong>Copy pack</strong> = DeepSeek web. No Grok tokens.
+          <p class="help-bar chat-help-bar" style="margin:0;border-radius:0;border-left:0;border-right:0">
+            <strong>Agent</strong> runs with tools. <strong>Talk</strong> is Q&A only. Drop <strong>breadcrumbs</strong> while it works — picked up at the next checkpoint.
+            Emergency <code>!pause</code> / <code>!steer</code> → Body tab Governance.
           </p>
 
-          <div class="economy-bar" id="economyBar" style="padding:0.45rem 1rem;font-size:0.95rem;color:var(--muted);border-bottom:1px solid var(--line)">
-            <span id="economyGoal">Local spend vs full Grok dump</span>
-            Â· <b id="econLocal">0</b> local Â· <b id="econSaved">0</b> saved Â· <span id="econTurns">0 turns</span>
-            <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
-          </div>
-          <div class="chat-chips" id="chatChips" style="padding:0.5rem 1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
-            <button type="button" class="btn ghost chip" data-q="what was I doing?">What was I doing?</button>
-            <button type="button" class="btn ghost chip" data-q="what should I do next?">What next?</button>
-            <button type="button" class="btn ghost chip" data-q="Is the office healthy?">Office healthy?</button>
-          </div>
-          <div class="chat-log" id="chatLog" aria-live="polite"></div>
-          <div class="operator-inbox-dock" id="operatorInboxDock">
-            <div class="inbox-head">
-              <strong>Guidance queue</strong>
-              <span class="muted sm">Type while the agent runs · Enter queues · read at next checkpoint</span>
-              <span class="muted sm" id="operatorInboxStatus">0 queued</span>
+          <details class="home-adv chat-chips-wrap" style="margin:0;border-radius:0">
+            <summary class="muted sm" style="padding:0.35rem 1rem;cursor:pointer">Quick asks</summary>
+            <div class="chat-chips" id="chatChips" style="padding:0.35rem 1rem 0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem">
+              <button type="button" class="btn ghost chip" data-q="what was I doing?">What was I doing?</button>
+              <button type="button" class="btn ghost chip" data-q="what should I do next?">What next?</button>
+              <button type="button" class="btn ghost chip" data-q="Is the office healthy?">Office healthy?</button>
             </div>
-            <textarea id="operatorInboxInput" rows="2" placeholder="Steer direction, corrections, priorities…  Enter = queue for next stop · Shift+Enter = newline"></textarea>
+          </details>
+          <div class="chat-log" id="chatLog" aria-live="off"></div>
+          <div class="operator-inbox-dock breadcrumb-dock" id="operatorInboxDock">
+            <div class="inbox-head">
+              <strong>Breadcrumbs</strong>
+              <span class="muted sm">Drop on the agent's path · Enter to leave · read at next checkpoint</span>
+              <span class="muted sm" id="operatorInboxStatus">0 on path</span>
+            </div>
+            <ul id="breadcrumbTrail" class="breadcrumb-trail signal-list"></ul>
+            <textarea id="operatorInboxInput" rows="2" placeholder="Short note, @memory/path.md, or idea to riff on…  Enter = drop · Shift+Enter = newline"></textarea>
             <div class="row inbox-actions">
-              <button type="button" class="btn primary btn-sm" id="btnInboxQueue">Queue ↵</button>
+              <button type="button" class="btn primary btn-sm" id="btnInboxQueue">Drop ↵</button>
               <button type="button" class="btn ghost btn-sm" id="btnInboxClear">Clear draft</button>
-              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Focus on dashboard Body tab and operator inbox only">Dashboard focus</button>
-              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Stop tool loops — change approach per behavioral T3">Stop looping</button>
-              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Switch to writing the report — file artifacts first">Write report</button>
-              <button type="button" class="btn ghost btn-sm" data-gov-steer="!pause" title="Immediate hold">!pause now</button>
-              <button type="button" class="btn ghost btn-sm" data-gov-steer="!continue" title="Immediate resume">!continue now</button>
+              <label class="toggle-row muted sm" title="Queue a refine sub-agent after checkpoint">
+                <input type="checkbox" id="breadcrumbRefine" />
+                <span>Refine agent</span>
+              </label>
+              <details class="inbox-presets">
+                <summary class="btn ghost btn-sm">Presets</summary>
+                <div class="row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem">
+                  <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Focus on dashboard Body tab only">Body focus</button>
+                  <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Stop tool loops — change approach">Stop looping</button>
+                  <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="File artifacts first — write report not chat">Write report</button>
+                </div>
+              </details>
             </div>
           </div>
           <div class="chat-compose grok-compose">
             <div class="compose-attach" id="composeAttach" hidden></div>
-            <textarea id="chatInput" rows="4" placeholder="Message Mag agent…  Enter send · Shift+Enter or Alt+Enter newline · paste images"></textarea>
+            <textarea id="chatInput" rows="3" placeholder="Message Mag…  Enter send · Shift+Enter newline"></textarea>
             <div class="compose-bar">
-              <div class="compose-hints">
-                <span class="hint-key">Enter</span> send
+              <div class="compose-hints muted sm">
+                <span id="chatStatus">Ready</span>
                 <span class="hint-sep">·</span>
-                <span class="hint-key">Shift+Enter</span> newline
-                <span class="hint-sep">·</span>
-                <span class="hint-key">Ctrl+V</span> image/text
-                <span class="hint-sep">·</span>
-                <span class="hint-key">Shift+Tab</span> mode
+                <span id="chatQuota" title="DeepSeek usage">—</span>
               </div>
               <div class="compose-actions">
-                <span class="muted" id="chatQuota" title="DeepSeek Mag-tracked usage">—</span>
-                <span class="muted" id="chatStatus">Ready</span>
-                <input type="text" id="steerInput" placeholder="!steer …" title="Steer the running agent mid-turn (!steer / !pause / !continue / !escape)" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem;width:9rem" />
-                <button type="button" class="btn ghost" id="btnSteer" title="Send steer to the running agent">Steer</button>
                 <label class="btn ghost compose-file-btn" title="Attach file">
                   + file
                   <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />

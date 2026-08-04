@@ -186,17 +186,23 @@ def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
 
 
 def h_operator_inbox(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
-    from mag.operator_inbox import clear_pending, commit_guidance, status as inbox_status
+    from mag.breadcrumbs import drop_breadcrumb, status as breadcrumb_status
+    from mag.operator_inbox import clear_pending
 
     if body is None or not body:
-        return 200, inbox_status()
+        return 200, breadcrumb_status()
     action = str(body.get("action") or "commit").strip().lower()
     if action == "clear":
         return 200, clear_pending()
     text = str(body.get("text") or "").strip()
     if not text:
         return _err(400, "text required")
-    return 200, commit_guidance(text, source=str(body.get("source") or "dashboard"))
+    return 200, drop_breadcrumb(
+        text,
+        source=str(body.get("source") or "dashboard"),
+        refine=bool(body.get("refine")),
+        path=str(body.get("path") or "").strip() or None,
+    )
 
 
 def h_mag_os(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:

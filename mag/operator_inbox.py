@@ -81,7 +81,14 @@ def pending_hints() -> list[str]:
     ]
 
 
-def commit_guidance(text: str, *, source: str = "dashboard") -> dict[str, Any]:
+def commit_guidance(
+    text: str,
+    *,
+    source: str = "dashboard",
+    kind: str = "guidance",
+    refine: bool = False,
+    path: str | None = None,
+) -> dict[str, Any]:
     text = (text or "").strip()
     if not text:
         return {"ok": False, "error": "empty guidance"}
@@ -90,6 +97,9 @@ def commit_guidance(text: str, *, source: str = "dashboard") -> dict[str, Any]:
         "id": f"inbox-{datetime.now(timezone.utc).strftime('%H%M%S')}",
         "text": text[:4000],
         "source": source,
+        "kind": kind,
+        "refine": bool(refine),
+        "path": path,
         "status": "pending",
         "ts": _now(),
     }
@@ -208,12 +218,33 @@ def drain_pending_at_checkpoint(*, task_hint: str = "") -> list[dict[str, Any]]:
                 "id": item.get("id"),
                 "text": text,
                 "task_hint": task,
+                "kind": item.get("kind") or "guidance",
+                "refine": bool(item.get("refine")),
+                "path": item.get("path"),
             })
             record_decision(
-                "operator inbox checkpoint",
+                "operator breadcrumb checkpoint",
                 text,
-                "applied queued guidance — autonomous per operator_directives",
+                "applied queued breadcrumb — incorporate without breaking stride",
             )
+            if item.get("refine"):
+                try:
+                    from mag.orchestrator import enqueue
+
+                    goal = f"[refine breadcrumb] {text[:500]}"
+                    rec = enqueue(goal, provider="deepseek", tag="breadcrumb-refine")
+                    actions.append({
+                        "action": "refine_spawn",
+                        "id": item.get("id"),
+                        "queue_id": rec.get("queue_id"),
+                        "goal": goal[:200],
+                    })
+                except Exception as e:
+                    actions.append({
+                        "action": "refine_failed",
+                        "id": item.get("id"),
+                        "error": str(e)[:120],
+                    })
         item["status"] = "processed"
         item["processed_at"] = _now()
         processed.append({**item, "action": "socratic" if ambiguous else "apply"})
@@ -278,13 +309,22 @@ def apply_actions_to_messages(
     for a in actions:
         if a.get("action") == "apply":
             text = a.get("text") or ""
+            kind = a.get("kind") or "guidance"
+            label = "BREADCRUMB" if kind == "breadcrumb" else "GUIDANCE"
+            refine_note = ""
+            if a.get("refine"):
+                refine_note = (
+                    "\nA refine sub-agent was queued on the orchestrator to develop this idea — "
+                    "fold its output if useful."
+                )
             out.append({
                 "role": "user",
                 "content": (
-                    f"[OPERATOR GUIDANCE — queued while you were working]\n{text}\n\n"
-                    "Apply per operator_directives (memory/operator_directives.md): "
-                    "execute autonomously; this overrides vague plan drift. "
-                    "Record the pick in working.md if significant."
+                    f"[OPERATOR {label} — dropped on your path, not mid-tool]\n{text}\n\n"
+                    "Incorporate into your current line of work: search, riff, or adjust plan — "
+                    "do not restart from scratch unless the note demands it. "
+                    "Apply per operator_directives (memory/operator_directives.md)."
+                    f"{refine_note}"
                 ),
             })
         elif a.get("action") == "socratic":

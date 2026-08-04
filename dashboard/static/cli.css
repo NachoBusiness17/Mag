@@ -1051,6 +1051,62 @@ body.cli .home-foot {
 }
 .inbox-actions { margin-top: 0.4rem; flex-wrap: wrap; gap: 0.35rem; }
 #operatorInboxStatus.warn { color: var(--warn, #c9a227); font-weight: 600; }
+.breadcrumb-dock .breadcrumb-trail {
+  margin: 0.25rem 0 0.45rem;
+  padding: 0;
+  list-style: none;
+  max-height: 5.5rem;
+  overflow: auto;
+}
+.breadcrumb-trail .breadcrumb-item {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  padding: 0.2rem 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.breadcrumb-trail .breadcrumb-item.crumb .crumb-text {
+  color: var(--accent2, #7cffc8);
+}
+.breadcrumb-trail .breadcrumb-item:last-child { border-bottom: none; }
+.inbox-presets summary { list-style: none; cursor: pointer; }
+.dock-more { position: relative; display: inline-block; }
+.dock-more summary { list-style: none; cursor: pointer; }
+.dock-more summary::-webkit-details-marker { display: none; }
+.dock-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.2rem);
+  z-index: 40;
+  min-width: 9rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.dock-more:not([open]) .dock-more-menu { display: none; }
+.dock-more-menu .dock-btn { width: 100%; text-align: left; }
+.chat-more-menu { position: relative; display: inline-block; }
+.chat-more-menu summary { list-style: none; cursor: pointer; }
+.chat-more-menu summary::-webkit-details-marker { display: none; }
+.chat-more-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 30;
+  min-width: 10rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.chat-more-menu:not([open]) .chat-more-panel { display: none; }
+.toggle-row { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
 .governance-card { border-color: var(--good, #1f6b4d); }
 .gov-themes li { font-size: 0.88rem; }
 .gov-steer-btns .btn-sm { font-size: 0.78rem; padding: 0.25rem 0.5rem; }

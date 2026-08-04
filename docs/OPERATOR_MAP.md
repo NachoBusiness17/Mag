@@ -109,11 +109,28 @@ Other tabs:
 
 | Tab | Use |
 |-----|-----|
-| **Chat** | Talk to Mag; Dispatch mode → `POST /api/v1/dispatch` |
+| **Chat** | Talk to Mag; Agent/Talk modes; **breadcrumbs** dock (deferred steering) |
 | **Workers** (`/static/agents.html`) | Spawn/kill/steer sub-agents |
 | **Orchestrate** | Full quota table + probe |
 
 Auto-refresh: Body tab reloads every **60s** when open.
+
+---
+
+## 5b. Steering: breadcrumbs vs emergency steer
+
+Two channels — use breadcrumbs by default; reserve `!steer` for interrupts.
+
+| Channel | When it lands | API / UI | Agent behavior |
+|---------|---------------|----------|----------------|
+| **Breadcrumb** | Next checkpoint (between tool rounds) | Chat tab → **Breadcrumbs** dock · `POST /api/v1/operator-inbox` | Incorporate into current search/plan — do not restart |
+| **Refine breadcrumb** | Same checkpoint + orchestrator queue | Checkbox **Refine agent** on drop | Spawns `breadcrumb-refine` sub-agent to develop the idea |
+| **Path drop** | Same | `@memory/path.md` or `file:path` in breadcrumb box | Expands file excerpt into the crumb (≤1200 chars) |
+| **Emergency steer** | Immediately (mid-round) | Body → Governance · `POST /api/v1/governance` `{cmd: "!pause"}` | Pigeonhole — breaks stride on purpose |
+
+**Disk:** `memory/operator_inbox.json` (pending crumbs) · drained by `mag.agent_cli` at checkpoint via `operator_inbox.drain_pending_at_checkpoint`.
+
+**Layman:** Drop a note while the agent is working — it picks it up at the next breath, not mid-tool. Check **Refine agent** if you want a background worker to riff the idea.
 
 ---
 

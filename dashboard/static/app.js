@@ -386,6 +386,8 @@ function setTab(name) {
     refreshEconomy();
     startOperatorInboxPoll();
     setTimeout(() => $("#chatInput")?.focus(), 50);
+  } else {
+    stopOperatorInboxPoll();
   }
   if (name === "operate") loadOperate();
   if (name === "orchestrate") loadOrchestrate();
@@ -881,9 +883,13 @@ async function loadHome() {
 
 /* --- Chat-first home --- */
 const CHAT_KEY = "mag_chat_v1";
+const CHAT_DOM_LIMIT = 40;
+const CHAT_SAVE_THROTTLE_MS = 900;
 let chatMode = "agent"; // agent | ask | dispatch | tangent
 let chatBusy = false;
 const AGENT_SESSION = "dashboard";
+let _chatStreamSaveTimer = null;
+let _pendingStreamText = "";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
 
@@ -1103,33 +1109,84 @@ function lightMd(s) {
   return parts.join("");
 }
 
+function renderChatMessageHtml(m) {
+  const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
+  const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
+  let toolsHtml = "";
+  if (m.tools && m.tools.length) {
+    toolsHtml =
+      `<div class="tool-trace">` +
+      m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
+      `</div>`;
+  }
+  const body =
+    role === "mag" || role === "sys"
+      ? lightMd(m.text || "")
+      : esc(m.text || "").replace(/\n/g, "<br/>");
+  const pendingCls = m.meta === "pending" ? " pending" : "";
+  return `<div class="chat-msg ${role}${pendingCls}" data-chat-pending="${m.meta === "pending" ? "1" : "0"}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
+}
+
 function renderChat() {
   const log = $("#chatLog");
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> = DeepSeek + Mag tools (Grok-like hands, no Grok tokens) · <b>Ask/Dispatch</b> = talk only · <b>Copy pack</b> for DeepSeek web · paste multi-line in the box.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> runs with tools · <b>Talk</b> is Q&A only · drop <b>breadcrumbs</b> while it works.</div>`;
     return;
   }
-  log.innerHTML = msgs
-    .map((m) => {
-      const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
-      const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
-      let toolsHtml = "";
-      if (m.tools && m.tools.length) {
-        toolsHtml =
-          `<div class="tool-trace">` +
-          m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
-          `</div>`;
-      }
-      const body =
-        role === "mag" || role === "sys"
-          ? lightMd(m.text || "")
-          : esc(m.text || "").replace(/\n/g, "<br/>");
-      return `<div class="chat-msg ${role}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
-    })
-    .join("");
+  const slice = msgs.length > CHAT_DOM_LIMIT ? msgs.slice(-CHAT_DOM_LIMIT) : msgs;
+  const hidden = msgs.length - slice.length;
+  const head =
+    hidden > 0
+      ? `<div class="chat-msg sys muted sm">${hidden} older message(s) hidden — clear chat to reset</div>`
+      : "";
+  log.innerHTML = head + slice.map(renderChatMessageHtml).join("");
   log.scrollTop = log.scrollHeight;
+}
+
+function updateStreamBubble(text) {
+  const log = $("#chatLog");
+  if (!log) return;
+  let bubble = log.querySelector('.chat-msg[data-chat-pending="1"]');
+  if (!bubble) {
+    bubble = document.createElement("div");
+    bubble.className = "chat-msg mag pending";
+    bubble.dataset.chatPending = "1";
+    bubble.innerHTML = `<span class="meta">pending</span><div class="chat-body"></div>`;
+    log.appendChild(bubble);
+  }
+  const body = bubble.querySelector(".chat-body");
+  if (body) body.innerHTML = lightMd(text || "…");
+  log.scrollTop = log.scrollHeight;
+}
+
+function throttledSavePendingStream(text) {
+  _pendingStreamText = text;
+  if (_chatStreamSaveTimer) return;
+  _chatStreamSaveTimer = setTimeout(() => {
+    _chatStreamSaveTimer = null;
+    const msgs = loadChatHistory();
+    const p = msgs.find((m) => m.meta === "pending");
+    if (p) {
+      p.text = _pendingStreamText || "…";
+      saveChatHistory(msgs);
+    }
+  }, CHAT_SAVE_THROTTLE_MS);
+}
+
+function flushPendingStreamSave() {
+  if (_chatStreamSaveTimer) {
+    clearTimeout(_chatStreamSaveTimer);
+    _chatStreamSaveTimer = null;
+  }
+  const msgs = loadChatHistory();
+  const p = msgs.find((m) => m.meta === "pending");
+  if (p && _pendingStreamText) {
+    p.text = _pendingStreamText;
+    saveChatHistory(msgs);
+  }
+  _pendingStreamText = "";
 }
 
 function pushChat(role, text, meta, tools) {
@@ -1352,35 +1409,74 @@ async function sendGovernanceSteer(cmd) {
 
 let _inboxPollTimer = null;
 
+function renderBreadcrumbTrail(pending) {
+  const trail = $("#breadcrumbTrail");
+  if (!trail) return;
+  const rows = Array.isArray(pending) ? pending : [];
+  if (!rows.length) {
+    trail.innerHTML = `<li class="muted sm">No crumbs on the path — drop a note while the agent works.</li>`;
+    return;
+  }
+  trail.innerHTML = rows
+    .slice(-8)
+    .map((item) => {
+      const text = String(item.text || "").replace(/\s+/g, " ").trim();
+      const short = text.length > 120 ? text.slice(0, 117) + "…" : text;
+      const kind = item.kind === "breadcrumb" ? "crumb" : "note";
+      const refine = item.refine ? " · refine" : "";
+      const path = item.path ? ` · @${esc(String(item.path))}` : "";
+      const ts = item.ts ? `<span class="muted sm">${esc(String(item.ts).slice(11, 19))}</span>` : "";
+      return `<li class="breadcrumb-item ${kind}"><span class="crumb-text">${esc(short)}</span>${path}${refine} ${ts}</li>`;
+    })
+    .join("");
+}
+
 async function loadOperatorInboxStatus() {
   const el = $("#operatorInboxStatus");
   if (!el) return;
   try {
     const s = await getJSON("/api/v1/operator-inbox");
     const n = s.pending_n || 0;
-    el.textContent = n ? `${n} queued for next checkpoint` : "0 queued";
+    el.textContent = n ? `${n} on path` : "0 on path";
     el.classList.toggle("warn", n > 0);
+    renderBreadcrumbTrail(s.pending);
   } catch {
-    el.textContent = "inbox offline";
+    el.textContent = "offline";
+    renderBreadcrumbTrail([]);
   }
 }
 
 function startOperatorInboxPoll() {
   loadOperatorInboxStatus();
   if (_inboxPollTimer) clearInterval(_inboxPollTimer);
-  _inboxPollTimer = setInterval(loadOperatorInboxStatus, 4000);
+  _inboxPollTimer = setInterval(loadOperatorInboxStatus, 5000);
+}
+
+function stopOperatorInboxPoll() {
+  if (_inboxPollTimer) {
+    clearInterval(_inboxPollTimer);
+    _inboxPollTimer = null;
+  }
 }
 
 async function commitOperatorGuidance() {
   const input = $("#operatorInboxInput");
   const text = (input?.value || "").trim();
   if (!text) return;
+  const refine = !!$("#breadcrumbRefine")?.checked;
   try {
-    const r = await postJSON("/api/v1/operator-inbox", { text, source: "dashboard" });
+    const r = await postJSON("/api/v1/operator-inbox", {
+      text,
+      source: "dashboard",
+      refine,
+    });
     if (input) input.value = "";
+    if ($("#breadcrumbRefine")?.checked && refine) $("#breadcrumbRefine").checked = false;
     await loadOperatorInboxStatus();
     toast(
-      r.pending_n ? `Queued · ${r.pending_n} waiting at checkpoint` : "Queued",
+      r.pending_n
+        ? `Dropped · ${r.pending_n} on path${refine ? " · refine queued at checkpoint" : ""}`
+        : "Dropped",
       !!r.ok
     );
   } catch (e) {
@@ -1487,18 +1583,14 @@ async function sendChat() {
       let acc = "";
       const updatePending = (delta) => {
         acc += delta;
-        const msgs = loadChatHistory();
-        const p = msgs.find((m) => m.meta === "pending");
-        if (p) {
-          p.text = acc || "…";
-          saveChatHistory(msgs);
-          renderChat();
-        }
+        updateStreamBubble(acc || "…");
+        throttledSavePendingStream(acc || "…");
       };
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
         updatePending
       );
+      flushPendingStreamSave();
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
       meta = `agent · ${done.provider || provider} · tools=${(tools || []).length} · live`;
@@ -1558,6 +1650,7 @@ async function sendChat() {
     refreshEconomy();
     refreshChatQuota();
   } catch (e) {
+    flushPendingStreamSave();
     const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
     msgs.push({
       role: "mag",
@@ -1568,6 +1661,7 @@ async function sendChat() {
     saveChatHistory(msgs);
     renderChat();
   } finally {
+    flushPendingStreamSave();
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
     setChatMode(chatMode);
@@ -5137,16 +5231,8 @@ async function bind() {
     const sid = e.detail?.session_id;
     if (sid) selectDayOnDesk(sid);
   });
-  // Office + Days CTAs
+  // Office CTAs (home chat/days/diary/story wired in wireDaysDesk)
   $("#btnHomeRefresh")?.addEventListener("click", () => loadHome());
-  $("#btnHomeChat")?.addEventListener("click", () => {
-    setTab("chat");
-    if ($("#chatInput") && !$("#chatInput").value.trim()) {
-      $("#chatInput").value = "what was I doing?";
-    }
-  });
-  $("#btnHomeDays")?.addEventListener("click", () => setTab("sessions"));
-  $("#btnHomeIdeas")?.addEventListener("click", () => setTab("ideas"));
   $("#btnHomePack")?.addEventListener("click", async () => {
     const t = "python main.py context-pack";
     try {
@@ -5246,10 +5332,6 @@ async function bind() {
   setChatMode("agent");
   renderChat();
   $("#btnChatSend")?.addEventListener("click", () => sendChat());
-  $("#btnSteer")?.addEventListener("click", () => sendSteer());
-  $("#steerInput")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); sendSteer(); }
-  });
   $("#btnInboxQueue")?.addEventListener("click", () => commitOperatorGuidance());
   $("#operatorInboxInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -5290,8 +5372,18 @@ async function bind() {
   });
   $("#chatModeAgent")?.addEventListener("click", () => setChatMode("agent"));
   $("#chatModeAsk")?.addEventListener("click", () => setChatMode("ask"));
-  $("#chatModeDispatch")?.addEventListener("click", () => setChatMode("dispatch"));
-  $("#chatModeTangent")?.addEventListener("click", () => setChatMode("tangent"));
+  document.querySelectorAll("[data-chat-more]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.chatMore;
+      if (mode) setChatMode(mode);
+      btn.closest("details")?.removeAttribute("open");
+    });
+  });
+  document.querySelectorAll(".dock-more-menu .dock-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelector(".dock-more")?.removeAttribute("open");
+    });
+  });
   document.querySelectorAll("#chatChips .chip").forEach((b) => {
     b.addEventListener("click", () => {
       if ($("#chatInput")) $("#chatInput").value = b.dataset.q || "";
