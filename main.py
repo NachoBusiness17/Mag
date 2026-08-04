@@ -392,6 +392,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_governor.add_argument("--run", type=int, default=1, help="cycles to autorun")
     p_governor.add_argument("--dry", type=int, default=0, help="decide + report only")
+    p_autorun = sub.add_parser(
+        "autorun",
+        help="Intelligent drainer cycle: fill queue, plan, route, execute",
+    )
+    p_autorun.add_argument("--once", action="store_true", help="single tick then exit")
+    p_autorun.add_argument("--dry", action="store_true", help="plan only, no execute")
+    p_autorun.add_argument("--no-fill", action="store_true", help="skip intelligent queue fill")
+    p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
+    p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval (seconds)")
     p_auto = sub.add_parser(
         "autopilot",
         help="Brain+loop pass: improve queue + governor + seed-mirror status",
@@ -1951,6 +1960,20 @@ def main(argv: list[str] | None = None) -> int:
             no_dashboard=args.no_dashboard,
             with_instrument=args.with_instrument,
         )
+    if args.cmd == "autorun":
+        from mag.governor_autorun import autorun_loop, autorun_once, fill_queue, plan_pending
+        import json as _json
+
+        if args.fill_only:
+            fill_queue()
+            print(_json.dumps(plan_pending(), indent=2, default=str))
+            return 0
+        if args.once or args.dry:
+            res = autorun_once(fill=not args.no_fill, dry=bool(args.dry))
+            print(_json.dumps(res, indent=2, default=str))
+            return 0
+        autorun_loop(interval_s=float(args.interval))
+        return 0
     if args.cmd == "governor":
         from mag.governor import main as governor_main
         return governor_main(["--dry", str(args.dry)] if args.dry else ["--run", str(args.run)])

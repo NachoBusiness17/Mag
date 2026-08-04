@@ -87,6 +87,28 @@ def start_watch_thread(interval: float = 5.0) -> threading.Thread:
     return t
 
 
+def start_autorun_thread(interval: float = 5.0) -> threading.Thread | None:
+    """Background governor autorun when drainer is enabled (fill/plan/execute)."""
+    enabled = False
+    try:
+        from mag.preferences import drainer_enabled
+
+        enabled = drainer_enabled()
+    except Exception:
+        enabled = os.environ.get("MAG_DRAINER", "").strip().lower() in ("1", "true", "yes")
+    if not enabled:
+        return None
+
+    def _run() -> None:
+        from mag.governor_autorun import autorun_loop
+
+        autorun_loop(interval_s=interval)
+
+    t = threading.Thread(target=_run, name="mag-autorun", daemon=True)
+    t.start()
+    return t
+
+
 def run_integral(
     *,
     mag_interval: float | None = None,
@@ -119,7 +141,7 @@ def run_integral(
     print("=== Mag integral runtime (one process) ===")
     print(f"  pid={os.getpid()}")
     print(f"  watch every {w_sec}s (baked into mag — no second process)")
-    print(f"  mag cycle every {sec}s")
+    print(f"  companion cycle every {sec}s  (legacy sense/judge/act — NOT governor)")
     print("  kill this → live board freezes; session amend resumes on restart")
     print("  session docs: amend same id (no duplicate dossiers)")
     write_heartbeat(status="starting", mag_interval=sec, watch_interval=w_sec)
@@ -142,6 +164,14 @@ def run_integral(
 
         threading.Thread(target=_dash, name="mag-dashboard", daemon=True).start()
         print(f"  dashboard http://{host}:{port}/")
+
+    autorun_t = start_autorun_thread(interval=5.0)
+    if autorun_t:
+        print("  GOVERNOR AUTORUN: ON  (fill → plan → route → execute)")
+        write_heartbeat(status="running", autorun_on=True, autorun_interval=5.0)
+    else:
+        print("  GOVERNOR AUTORUN: OFF  (set MAG_DRAINER=1 or toggle dashboard drainer)")
+        write_heartbeat(status="running", autorun_on=False)
 
     # Daemon chain imported AFTER the dashboard thread is up, and guarded:
     # a missing lib / broken import here logs a warning and keeps the server

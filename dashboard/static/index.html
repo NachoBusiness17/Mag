@@ -927,6 +927,32 @@
               <ul id="coordinationLive" class="signal-list"></ul>
             </article>
           </div>
+            <article class="card full" id="autorunCard">
+              <h2>Governor &amp; autorun</h2>
+              <p class="muted sm" id="autorunLayman">Decision framework — fill queue, plan routes, execute. Separate from legacy companion cycle.</p>
+              <div class="row" style="margin:0.4rem 0;flex-wrap:wrap;gap:0.5rem;align-items:center">
+                <span class="pill" id="autorunStatePill">—</span>
+                <span class="pill" id="autorunLegacyPill">companion —</span>
+                <span class="muted sm" id="autorunOpenTodo">—</span>
+              </div>
+              <table class="kv"><tbody id="autorunLastCycle"></tbody></table>
+              <details class="home-adv" style="margin-top:0.5rem">
+                <summary>Orchestrator queue</summary>
+                <ul id="autorunQueueList" class="signal-list"></ul>
+              </details>
+              <details class="home-adv" style="margin-top:0.35rem">
+                <summary>Depth routing</summary>
+                <table class="kv"><tbody id="autorunRouting"></tbody></table>
+              </details>
+              <details class="home-adv" style="margin-top:0.35rem">
+                <summary>Recent governor cycles</summary>
+                <ul id="autorunGovRecent" class="signal-list"></ul>
+              </details>
+              <div class="row" style="margin-top:0.5rem;gap:0.35rem;flex-wrap:wrap">
+                <button type="button" class="btn ghost btn-sm" id="btnAutorunRefresh">Refresh autorun</button>
+                <button type="button" class="btn ghost btn-sm" id="btnAutorunDry">Plan once (dry)</button>
+              </div>
+            </article>
           <article class="card full governance-card" id="governanceCard">
             <h2>Governance — steer without re-approving every step</h2>
             <p class="muted sm" id="governanceLayman">Loading…</p>

@@ -10,8 +10,8 @@ Spawns the background services and keeps them alive:
                  and we must not spawn a second seat on top of it.
   3. Scribe    - synthesis_agent.py (writes memory/running_commentary.md).
   4. Dashboard - python main.py dashboard (serves 127.0.0.1:8765).
-  5. Drainer   - python main.py orchestrator drain (auto-advances the task
-                 queue). OPT-IN: only started if MAG_DRAINER=1. It spawns
+  5. Drainer   - python main.py autorun (intelligent fill/plan/route/execute).
+                 OPT-IN: only started if MAG_DRAINER=1. It spawns
                  one-shot sub-agents that compete with the interactive seat,
                  so it is OFF by default.
 
@@ -188,7 +188,7 @@ def build_slots() -> list[dict]:
     if _drainer_wanted():
         slots.append({
             "name": "drainer",
-            "cmd": [PY, str(ROOT / "main.py"), "orchestrator", "drain"],
+            "cmd": [PY, str(ROOT / "main.py"), "autorun"],
             "wanted": True,
             "proc": None,
         })
@@ -470,7 +470,7 @@ def _sync_dynamic_slots(slots: list[dict]) -> None:
         if s["name"] == "drainer":
             s["wanted"] = want_drain
             if want_drain:
-                s["cmd"] = [PY, str(ROOT / "main.py"), "orchestrator", "drain"]
+                s["cmd"] = [PY, str(ROOT / "main.py"), "autorun"]
                 s.pop("note", None)
             else:
                 s["cmd"] = []

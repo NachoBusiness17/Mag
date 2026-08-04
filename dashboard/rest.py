@@ -206,6 +206,22 @@ def h_mag_os(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     return 200, live_status()
 
 
+def h_autorun_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.autorun_status import autorun_dashboard_status
+
+    return 200, autorun_dashboard_status()
+
+
+def h_autorun_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.governor_autorun import autorun_once
+
+    data = body or {}
+    dry = bool(data.get("dry"))
+    fill = data.get("fill", True) is not False
+    res = autorun_once(fill=fill, dry=dry)
+    return 200, {"ok": True, "result": res}
+
+
 def h_home_summary(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """One payload for the Home tab: health, tip, latest bead, loops, economy."""
     from mag.health import sanity
@@ -964,8 +980,8 @@ def h_router_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
                     "goal": (t.get("goal") or "")[:80],
                     "status": t.get("status"),
                     "provider": t.get("provider"),
-                    "created": t.get("created"),
-                    "finished": t.get("finished"),
+                    "created": t.get("created_at") or t.get("created"),
+                    "finished": t.get("ended_at") or t.get("finished"),
                     "exit_code": t.get("exit_code"),
                 })
         tasks.sort(key=lambda t: t.get("created") or "", reverse=True)
@@ -979,8 +995,20 @@ def h_router_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
         }
         # --- orchestrator task queue (auto-advance) ---
         try:
-            from mag.orchestrator import queue_status as _qs
+            from mag.orchestrator import queue_status as _qs, list_queue as _lq
+
             out["queue"] = _qs()
+            out["queue_items"] = [
+                {
+                    "queue_id": q.get("queue_id"),
+                    "status": q.get("status"),
+                    "goal": (q.get("goal") or "")[:120],
+                    "provider": q.get("provider"),
+                    "tag": q.get("tag"),
+                    "task_id": q.get("task_id"),
+                }
+                for q in _lq(limit=15)
+            ]
         except Exception as qe:
             out["queue_error"] = str(qe)[:120]
     except Exception as e:
@@ -2123,6 +2151,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/quota", h_quota),
     ("GET", "/api/v1/router-status", h_router_status),
     ("GET", "/api/v1/status", h_router_status),
+    ("GET", "/api/v1/autorun", h_autorun_status),
+    ("POST", "/api/v1/autorun", h_autorun_post),
     ("GET", "/api/v1/diary", h_diary),
     ("GET", "/api/v1/story", h_story),
     ("GET", "/api/v1/story/file", h_story_file),
@@ -2239,6 +2269,8 @@ LEGACY: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/workspace/file", h_workspace_file_get),
     ("POST", "/api/workspace/file", h_workspace_file_post),
     ("POST", "/api/autopilot", h_autopilot),
+    ("GET", "/api/autorun", h_autorun_status),
+    ("POST", "/api/autorun", h_autorun_post),
     ("POST", "/api/orchestrator/queue", h_orchestrator_queue_post),
     ("POST", "/api/seat/task", h_seat_task),
 ]

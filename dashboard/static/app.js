@@ -397,7 +397,12 @@ function setTab(name) {
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
   if (name === "ideas") loadIdeas();
-  if (name === "status") loadStatus();
+  if (name === "status") {
+    loadStatus();
+    startStatusRefresh();
+  } else {
+    stopStatusRefresh();
+  }
   if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
@@ -3672,6 +3677,22 @@ async function loadSeatsPanel() {
 }
 
 let chronicleTimer = null;
+let statusRefreshTimer = null;
+
+function startStatusRefresh() {
+  if (statusRefreshTimer) clearInterval(statusRefreshTimer);
+  statusRefreshTimer = setInterval(() => {
+    const panel = document.getElementById("panel-status");
+    if (panel?.classList.contains("active")) loadStatus();
+  }, 60_000);
+}
+
+function stopStatusRefresh() {
+  if (statusRefreshTimer) {
+    clearInterval(statusRefreshTimer);
+    statusRefreshTimer = null;
+  }
+}
 async function loadChronicle() {
   const meta = $("#chronicle-meta");
   const content = $("#chronicle-content");
@@ -3802,6 +3823,109 @@ async function onAutopilotOnce() {
     toast("Autopilot failed: " + (e.message || e));
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+async function loadAutorunPanel() {
+  const layman = $("#autorunLayman");
+  const pill = $("#autorunStatePill");
+  const legacy = $("#autorunLegacyPill");
+  const openTodo = $("#autorunOpenTodo");
+  const lastCycle = $("#autorunLastCycle");
+  const qList = $("#autorunQueueList");
+  const routing = $("#autorunRouting");
+  const recent = $("#autorunGovRecent");
+  try {
+    const ar = await getJSON("/api/v1/autorun");
+    const gov = ar.governor || {};
+    const alive = !!gov.autorun_alive;
+    const enabled = !!gov.drainer_enabled;
+    if (pill) {
+      pill.textContent = alive
+        ? "GOVERNOR AUTORUN: ON"
+        : enabled
+          ? "GOVERNOR: enabled but not running"
+          : "GOVERNOR AUTORUN: OFF";
+      pill.className = `pill ${alive ? "ok" : enabled ? "warn" : "muted"}`;
+    }
+    if (legacy) {
+      legacy.textContent = gov.legacy_daemon
+        ? "Companion loop: ON (sense/judge/act)"
+        : "Companion loop: —";
+      legacy.className = "pill muted";
+    }
+    if (openTodo) {
+      openTodo.textContent = `${gov.open_todo_mag ?? 0} open [mag] todo · queue ${
+        (ar.queue?.counts || {}).queued ?? 0
+      } queued`;
+    }
+    if (layman && ar.hints) {
+      layman.textContent = alive
+        ? "Autorun loop is active — fill → plan → route → execute."
+        : `Autorun idle. ${ar.hints.enable || ""}`;
+    }
+    const lc = gov.last_cycle || {};
+    const auto = (ar.autorun || {}).last_tick || {};
+    kvRows(lastCycle, [
+      ["Governor last", lc.ts ? `${lc.action || "?"} · ok=${lc.ok}` : "—", lc.ok ? "ok" : lc.ts ? "warn" : ""],
+      ["Task", (lc.title || "—").slice(0, 90)],
+      ["Detail", (lc.detail || "—").slice(0, 120)],
+      ["Autorun tick", auto.ts ? `${auto.action || "?"} · drain=${auto.drain || "—"}` : "—"],
+    ]);
+    if (qList) {
+      const items = ar.queue_items || [];
+      qList.innerHTML = items.length
+        ? items
+            .map((q) => {
+              const st = q.status || "?";
+              const tone = st === "running" ? "warn" : st === "queued" ? "" : st === "done" ? "ok" : "muted";
+              return `<li class="${tone}"><strong>${esc(st)}</strong> · ${esc(
+                q.provider || "?"
+              )} · ${esc((q.goal || "").slice(0, 70))}</li>`;
+            })
+            .join("")
+        : `<li class="muted">Queue empty — add via todo.md or Autopilot once</li>`;
+    }
+    if (routing) {
+      const rows = (ar.routing || []).map((r) => [
+        r.depth,
+        `${r.seat} / ${r.mode}`,
+        r.provider || r.tier || "",
+      ]);
+      kvRows(routing, rows.length ? rows : [["—", "—", "—"]]);
+    }
+    if (recent) {
+      const rows = gov.recent || [];
+      recent.innerHTML = rows.length
+        ? rows
+            .map(
+              (r) =>
+                `<li class="${r.ok ? "ok" : "warn"}">${esc(r.ts || "")} · ${esc(
+                  r.action || "?"
+                )} · ${esc((r.title || "").slice(0, 55))}</li>`
+            )
+            .join("")
+        : `<li class="muted">No governor cycles yet</li>`;
+    }
+    return ar;
+  } catch (e) {
+    if (pill) {
+      pill.textContent = "Autorun status unavailable";
+      pill.className = "pill warn";
+    }
+    if (qList) qList.innerHTML = `<li class="muted">${esc(e.message || e)}</li>`;
+    return null;
+  }
+}
+
+async function runAutorunDry() {
+  try {
+    const j = await postJSON("/api/v1/autorun", { dry: true, fill: true });
+    toast("Plan saved to governor_autorun_trail.jsonl", !!j.ok);
+    await loadAutorunPanel();
+    return j;
+  } catch (e) {
+    toast(String(e.message || e), false);
   }
 }
 
@@ -3999,14 +4123,17 @@ const recent = ingest.recent_urls || [];
     await syncDrainerToggle(router);
     await loadSeatFeed();
     await loadGovernance();
+    await loadAutorunPanel();
 
-    // --- Ops overview (supervisor + fleet) ---
+    // --- Ops overview (supervisor + fleet) — data from router-status ---
     const opsSup = $("#opsSupervisor");
     const opsFleet = $("#opsFleet");
     const opsList = $("#opsFleetList");
     const opsSum = $("#opsFleetSummary");
+    const sup = router.supervisor || {};
+    const f = router.fleet || {};
+    const q = router.queue || {};
     if (opsSup) {
-      const sup = h.supervisor || {};
       const supRunning = sup.running ? "RUNNING" : "stopped";
       const pids = sup.pids || {};
       const wanted = sup.wanted || {};
@@ -4020,8 +4147,6 @@ const recent = ingest.recent_urls || [];
       ]);
     }
     if (opsFleet) {
-      const f = h.fleet || {};
-      const q = h.queue || {};
       const qc = q.counts || {};
       const qRows = [
         ["Fleet total", f.total ?? "—"],
@@ -5061,6 +5186,8 @@ async function bind() {
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
+  $("#btnAutorunRefresh")?.addEventListener("click", () => loadAutorunPanel());
+  $("#btnAutorunDry")?.addEventListener("click", () => runAutorunDry());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
   $("#govDrainerToggle")?.addEventListener("change", () => onGovDrainerChange());
   $("#govBehavioralToggle")?.addEventListener("change", () => onGovBehavioralChange());
