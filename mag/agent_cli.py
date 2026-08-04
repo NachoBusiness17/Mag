@@ -735,6 +735,10 @@ def run_turn(
     messages.append({"role": "user", "content": user_text})
     messages = _clip_history(messages, provider=provider)
     traces: list[str] = []
+    tool_trace: list[dict[str, Any]] = []
+    _activity["goal"] = user_text[:500]
+    _activity["phase"] = "working"
+    _sync_current(goal=user_text, status="running", tool_trace=tool_trace)
     budget = usable_context_budget(provider)
     ratio = _repack_ratio()
     threshold = int(budget * ratio)
@@ -1032,6 +1036,15 @@ def run_turn(
                         )
                 payload = json.dumps(out, default=str)[:TOOL_RESULT_CHARS]
                 traces.append(f"{name}: ok={out.get('ok')}")
+                tool_trace.append(
+                    {
+                        "tool": name,
+                        "args": args,
+                        "ok": out.get("ok"),
+                        "exit_code": out.get("exit_code"),
+                        "output": (out.get("output") or out.get("error") or "")[:500],
+                    }
+                )
                 messages.append(
                     {
                         "role": "tool",
@@ -1043,6 +1056,15 @@ def run_turn(
             _activity["last_tool"] = name
             _activity["phase"] = "working"
             _maybe_status(rnd, name)
+            last_out = ""
+            if tool_trace:
+                last_out = str(tool_trace[-1].get("output") or "")[:2000]
+            _sync_current(
+                goal=user_text,
+                last_result=last_out,
+                status="running",
+                tool_trace=tool_trace,
+            )
             # T1 escape checkpoint #3: operator escape fired mid-tool-loop - end
             # the round cleanly instead of starting another model round. The
             # partial tool chain is sanitized away next turn by _sanitize_messages.
@@ -1063,6 +1085,12 @@ def run_turn(
         if text:
             _activity["phase"] = "answered"
             _mail(phase="answered")
+            _sync_current(
+                goal=user_text,
+                last_result=text[:2000],
+                status="running",
+                tool_trace=tool_trace,
+            )
             messages.append({"role": "assistant", "content": text})
             return text, messages, traces
 
