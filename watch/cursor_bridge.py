@@ -125,7 +125,8 @@ def probe_hq() -> dict[str, Any]:
         )
         return out
     out["health"] = health
-    out["reachable"] = status == 200 and bool(health.get("ok", True))
+    # Dashboard up = steerable (degraded = watch/mag not running; handoff/delegate still work)
+    out["reachable"] = status == 200 and bool(health) and health.get("status") != "down"
     _, surface, _ = _req_safe("GET", "/api/v1/surface", timeout=4)
     if surface:
         out["surface"] = surface

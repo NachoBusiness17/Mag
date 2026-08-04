@@ -72,7 +72,7 @@ def _probe_url(base: str, token: str = "", timeout: float = 4.0) -> dict[str, An
         with urllib.request.urlopen(req, timeout=timeout) as r:
             health = json.loads(r.read().decode("utf-8", errors="replace") or "{}")
         out["health"] = health
-        out["reachable"] = r.status == 200 and bool(health.get("ok", True))
+        out["reachable"] = r.status == 200 and bool(health) and health.get("status") != "down"
         req2 = urllib.request.Request(f"{base}/api/v1/surface", headers=headers)
         with urllib.request.urlopen(req2, timeout=timeout) as r2:
             out["surface"] = json.loads(r2.read().decode("utf-8", errors="replace") or "{}")
