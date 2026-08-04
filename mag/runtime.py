@@ -141,7 +141,7 @@ def run_integral(
     print("=== Mag integral runtime (one process) ===")
     print(f"  pid={os.getpid()}")
     print(f"  watch every {w_sec}s (baked into mag — no second process)")
-    print(f"  mag cycle every {sec}s")
+    print(f"  companion cycle every {sec}s  (legacy sense/judge/act — NOT governor)")
     print("  kill this → live board freezes; session amend resumes on restart")
     print("  session docs: amend same id (no duplicate dossiers)")
     write_heartbeat(status="starting", mag_interval=sec, watch_interval=w_sec)
@@ -167,8 +167,11 @@ def run_integral(
 
     autorun_t = start_autorun_thread(interval=5.0)
     if autorun_t:
-        print("  governor autorun thread ON (MAG_DRAINER / drainer pref)")
-        write_heartbeat(status="autorun_on", autorun_interval=5.0)
+        print("  GOVERNOR AUTORUN: ON  (fill → plan → route → execute)")
+        write_heartbeat(status="running", autorun_on=True, autorun_interval=5.0)
+    else:
+        print("  GOVERNOR AUTORUN: OFF  (set MAG_DRAINER=1 or toggle dashboard drainer)")
+        write_heartbeat(status="running", autorun_on=False)
 
     # Daemon chain imported AFTER the dashboard thread is up, and guarded:
     # a missing lib / broken import here logs a warning and keeps the server

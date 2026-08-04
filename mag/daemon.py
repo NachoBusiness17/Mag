@@ -114,7 +114,9 @@ def run_cycle() -> dict[str, Any]:
 def run_loop(interval: float | None = None, once: bool = False) -> None:
     pol = load_policy()
     sec = float(interval if interval is not None else pol.get("interval_seconds") or 120)
-    print(f"Sovereign Mag running (interval={sec}s). Ctrl+C to stop.")
+    print(f"Mag companion running (interval={sec}s). Ctrl+C to stop.")
+    print("  This is the LEGACY sense/judge/act loop — not the governor framework.")
+    print("  Governor autorun: dashboard Body → Governor card, or MAG_DRAINER=1")
     print(f"  todo: {resolve(pol['todo_path'])}")
     print(f"  attention: {resolve(pol['attention_path'])}")
     print(f"  harness: use={pol.get('use_grok_harness')}")
