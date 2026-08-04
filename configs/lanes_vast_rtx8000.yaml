@@ -1,0 +1,29 @@
+# Merge into lanes.yaml when OLLAMA_HOST tunnels to Vast RTX 8000 48GB plant.
+# Or: copy local_models + load_policy sections into configs/lanes.yaml
+#
+# Prerequisite:
+#   $env:OLLAMA_HOST = "http://127.0.0.1:11434"  # after SSH -L
+#   python main.py blast --status   # ollama.ok true
+
+# --- paste/replace these blocks in lanes.yaml ---
+
+local_models:
+  clerk: gemma:2b
+  router: gemma:2b
+  worker: qwen2.5:32b
+  critic: qwen2.5:32b
+  biographer: qwen2.5:32b
+  embed: nomic-embed-text
+
+load_policy:
+  mode: sequential
+  prefer_keep_worker_hot: true
+
+# Optional power mode (comment worker above; uncomment):
+# local_models:
+#   clerk: gemma:2b
+#   router: gemma:2b
+#   worker: llama3.3:70b
+#   critic: llama3.3:70b
+#   biographer: llama3.3:70b
+#   embed: nomic-embed-text

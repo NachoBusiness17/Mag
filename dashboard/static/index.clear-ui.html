@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mag — Local office</title>
+  <link rel="stylesheet" href="/static/style.css?v=type2" />
+  <link rel="stylesheet" href="/static/clear.css?v=type2" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">MAG</span>
+        <div>
+          <h1>Your local work office</h1>
+          <p>Remembers in files · not chat · FIND → FILE → LOAD</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="ship" id="homeShip" title="Office honesty status">…</span>
+        <span class="pill" id="healthPill" title="Health">…</span>
+        <button type="button" class="btn ghost" id="btnCatchUp">Catch up</button>
+        <button type="button" class="btn ghost" id="btnRefresh">Refresh</button>
+        <button type="button" class="btn primary" id="btnHomeChat">Chat</button>
+      </div>
+    </header>
+
+    <nav class="nav" role="tablist">
+      <button type="button" class="on" data-tab="home" id="nav-home">Home</button>
+      <button type="button" data-tab="chat" id="nav-chat">Chat</button>
+      <button type="button" data-tab="sessions" id="nav-sessions">Days</button>
+      <button type="button" data-tab="tools" id="nav-tools">More tools</button>
+      <a class="btn ghost" href="/static/../docs/HOW_TO_MAG_DASHBOARD.md" style="display:none" id="howtoLink">How-to</a>
+    </nav>
+
+    <div class="content">
+      <!-- HOME -->
+      <section id="panel-home" class="panel on">
+        <p class="help-bar">
+          <strong>What is this?</strong>
+          Mag files your AI work on this computer so you don’t re-explain yourself every day.
+          Full guide: <code>docs/HOW_TO_MAG_DASHBOARD.md</code> in the Mag project folder.
+        </p>
+
+        <div class="steps" aria-label="How Mag works">
+          <div class="step">
+            <div class="n">1 · FIND</div>
+            <div class="name">Gather your words</div>
+            <p class="how">Posts, exports, notes — as you said them, not AI rewrite.</p>
+          </div>
+          <div class="step">
+            <div class="n">2 · FILE</div>
+            <div class="name">Save a bead</div>
+            <p class="how">A “bead” is one workday on disk. Chat alone is not memory.</p>
+          </div>
+          <div class="step">
+            <div class="n">3 · LOAD</div>
+            <div class="name">Brief the AI</div>
+            <p class="how">Small pack of what matters. Not the whole scroll history.</p>
+          </div>
+        </div>
+
+        <div class="stats" id="homeStats"></div>
+        <div class="alert hidden" id="homePhoenix" role="status"></div>
+
+        <div class="chain" id="vmapTree" aria-label="Memory chain map">
+          <!-- filled by JS: tip → bead → edges → load -->
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <h2>Today · latest workday</h2>
+            <p class="title" id="homeBeadTitle">—</p>
+            <p class="meta" id="homeBeadMeta">—</p>
+            <p class="blurb" id="homeBeadBlurb">—</p>
+            <ul id="homeBeadBullets"></ul>
+            <div class="row">
+              <button type="button" class="btn ghost" id="btnHomeDays">All days</button>
+              <button type="button" class="btn ghost" id="btnHomeVisual">Day picture</button>
+              <button type="button" class="btn ghost" id="btnHomeVerify">Run verify</button>
+              <button type="button" class="btn ghost" id="btnHomeRefresh">Refresh home</button>
+            </div>
+            <p class="meta" style="margin-top:0.75rem">Provenance (real files)</p>
+            <ul class="prov" id="homeProvList"></ul>
+          </article>
+
+          <aside>
+            <article class="card" style="margin-bottom:0.85rem">
+              <h2>Chain tip</h2>
+              <p class="title" id="homeTip" style="font-family:var(--mono);font-size:1.1rem">—</p>
+              <p class="meta" id="homeTipMeta">—</p>
+              <p class="meta" id="homePath">FIND → FILE → LOAD</p>
+            </article>
+            <article class="card" style="margin-bottom:0.85rem">
+              <h2>Tokens today</h2>
+              <p id="homeEcon" class="blurb">—</p>
+            </article>
+            <article class="card" id="homeVerifyCard">
+              <h2>Verify day <span class="muted" id="homeVerifyScore"></span></h2>
+              <ul class="verify" id="homeVerify"></ul>
+            </article>
+          </aside>
+
+          <article class="card">
+            <h2>Still open</h2>
+            <ul id="homeLoops"></ul>
+          </article>
+          <article class="card">
+            <h2>Do next</h2>
+            <ul id="homeNext"></ul>
+          </article>
+          <article class="card full">
+            <h2>Carry forward (bonds)</h2>
+            <ul id="homeBonds"></ul>
+          </article>
+          <article class="card full">
+            <h2>System</h2>
+            <ul id="homeSys"></ul>
+            <div class="home-zg" id="homeZg" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- CHAT -->
+      <section id="panel-chat" class="panel">
+        <div class="chat-shell">
+          <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+            <div>
+              <strong>Chat with Mag (local)</strong>
+              <span class="muted" style="font-size:0.95rem"> · usually 0 Grok tokens · Ask = your filed memory</span>
+            </div>
+            <div class="row" style="margin:0">
+              <button type="button" class="btn chat-mode-btn on" data-mode="ask" id="chatModeAsk">Ask</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
+              <button type="button" class="btn ghost" id="btnChatClear">Clear</button>
+            </div>
+          </div>
+          <div class="economy-bar" id="economyBar" style="padding:0.45rem 1rem;font-size:0.95rem;color:var(--muted);border-bottom:1px solid var(--line)">
+            <span id="economyGoal">Local spend vs full Grok dump</span>
+            · <b id="econLocal">0</b> local · <b id="econSaved">0</b> saved · <span id="econTurns">0 turns</span>
+            <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
+          </div>
+          <div class="chat-chips" id="chatChips" style="padding:0.5rem 1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
+            <button type="button" class="btn ghost chip" data-q="what was I doing?">What was I doing?</button>
+            <button type="button" class="btn ghost chip" data-q="what should I do next?">What next?</button>
+            <button type="button" class="btn ghost chip" data-q="Is the office healthy?">Office healthy?</button>
+          </div>
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="chat-compose">
+            <textarea id="chatInput" rows="3" placeholder="Ask Mag about your filed work…"></textarea>
+            <div class="row">
+              <span class="muted" id="chatStatus" style="flex:1">Ready</span>
+              <button type="button" class="btn primary" id="btnChatSend">Send</button>
+            </div>
+          </div>
+        </div>
+        <span class="badge-zero hidden" id="badgeZeroGrok"></span>
+      </section>
+
+      <!-- DAYS -->
+      <section id="panel-sessions" class="panel">
+        <p class="help-bar">Each card is a <strong>filed workday (bead)</strong>. Click for detail.</p>
+        <div class="stats" id="stats"></div>
+        <div class="session-cards" id="sessionRows"></div>
+      </section>
+
+      <!-- TOOLS (progressive disclosure) -->
+      <section id="panel-tools" class="panel">
+        <p class="help-bar">
+          Extra tools. You don’t need these for daily “what was I doing?” — open only when you care.
+        </p>
+        <div class="tools-wrap">
+          <details>
+            <summary>Board — live scraps (brief, todo, live Grok)</summary>
+            <div class="tools-body" id="tools-board-host">
+              <div id="panel-board" class="panel on">
+                <div class="stats" id="boardStats"></div>
+                <div class="kanban" id="boardKanban"></div>
+                <div class="mod-panels" id="boardPanels">
+                  <article class="card">
+                    <h3>Ask biographer</h3>
+                    <textarea id="askQ" rows="3" placeholder="What was I working on?"></textarea>
+                    <div class="row">
+                      <button type="button" class="btn" id="btnAsk">Ask (local)</button>
+                      <button type="button" class="btn ghost" id="btnBrief">Rebuild brief</button>
+                    </div>
+                    <pre class="pre" id="askOut">—</pre>
+                  </article>
+                  <article class="card"><h3>Latest brief</h3><pre class="pre" id="briefOut">—</pre></article>
+                  <article class="card"><h3>Attention</h3><pre class="pre" id="attOut">—</pre></article>
+                  <article class="card"><h3>Todo</h3><pre class="pre" id="todoOut">—</pre></article>
+                  <article class="card"><h3>Live from Grok</h3><pre class="pre" id="liveOut">—</pre></article>
+                  <article class="card"><h3>CURRENT</h3><pre class="pre" id="statusOut">—</pre></article>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>AI brief paste — copy a pack for another AI</summary>
+            <div class="tools-body">
+              <div id="panel-operate" class="panel on">
+                <div class="stats" id="osStats"></div>
+                <p class="title" id="osBeadTitle">—</p>
+                <p class="meta" id="osBeadMeta">—</p>
+                <p class="blurb" id="osBeadBlurb">—</p>
+                <ul id="osBeadBullets"></ul>
+                <div id="osTicket" class="card" style="margin:0.5rem 0"></div>
+                <ul id="osSysList"></ul>
+                <div id="osOpenBits" class="muted"></div>
+                <div class="row">
+                  <button type="button" class="btn ghost" data-tpl="build">Build</button>
+                  <button type="button" class="btn ghost" data-tpl="strike">Strike</button>
+                  <button type="button" class="btn ghost" data-tpl="limits">Local only</button>
+                  <button type="button" class="btn ghost" data-tpl="spore">Other AI</button>
+                  <button type="button" class="btn" id="btnCopyFeed">Copy</button>
+                  <button type="button" class="btn ghost" id="btnCopyTicket">Copy job</button>
+                  <span id="osCopyStatus" class="muted"></span>
+                </div>
+                <textarea id="osFeed" class="os-feed" rows="10" readonly style="width:100%;margin-top:0.5rem;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-family:var(--mono);font-size:0.95rem"></textarea>
+                <span id="osLead" class="hidden"></span>
+                <button type="button" class="hidden" id="btnOsRefresh"></button>
+                <button type="button" class="hidden" id="btnOsCatchUp"></button>
+                <button type="button" class="hidden" id="btnOsOpenSessions"></button>
+                <button type="button" class="hidden" id="btnOsOpenVisual"></button>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Models &amp; smoke — local seats / quota</summary>
+            <div class="tools-body">
+              <div id="panel-orchestrate" class="panel on">
+                <div class="stats" id="orchStats"></div>
+                <pre class="pre" id="modelsMap">—</pre>
+                <p class="muted" id="modelsLine">—</p>
+                <div class="row">
+                  <button type="button" class="btn" id="btnMultiSmoke">Run multi-smoke</button>
+                  <button type="button" class="btn ghost" id="btnModelsRefresh">Refresh models</button>
+                  <button type="button" class="btn ghost" id="btnQuotaRefresh">Refresh quota</button>
+                  <button type="button" class="btn ghost" id="btnProbeNow">Probe live</button>
+                </div>
+                <pre class="pre" id="smokeOut">—</pre>
+                <div id="usageReport"></div>
+                <div id="quotaTable"></div>
+                <div id="probeTable"></div>
+                <pre class="pre" id="providersHint">—</pre>
+                <pre class="pre" id="laneCfg">—</pre>
+                <pre class="pre" id="usageToday">—</pre>
+                <pre class="pre" id="usageTail">—</pre>
+                <p class="muted" id="usageReportLine"></p>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Token flow ledger</summary>
+            <div class="tools-body">
+              <div id="panel-flow" class="panel on">
+                <p class="muted" id="flowNote">—</p>
+                <div class="stats" id="flowStats"></div>
+                <div id="flowModelBars"></div>
+                <div id="flowRoleBars"></div>
+                <div id="flowProvTable"></div>
+                <div id="flowRemainTable"></div>
+                <div id="flowEdges"></div>
+                <div id="flowIdeas"></div>
+                <div id="flowArtifacts"></div>
+                <div id="flowArtifactList"></div>
+                <pre class="pre" id="flowTimeline">—</pre>
+                <button type="button" class="btn ghost" id="btnFlowRefresh">Refresh flow</button>
+                <span id="flowMeta" class="hidden"></span>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Visual day map</summary>
+            <div class="tools-body">
+              <div id="panel-visual" class="panel on">
+                <div class="row">
+                  <select id="visSessionSelect"></select>
+                  <button type="button" class="btn ghost" id="btnVisPin">Pin</button>
+                  <button type="button" class="btn ghost" id="btnZoomOut">−</button>
+                  <span id="visZoomLabel">100%</span>
+                  <button type="button" class="btn ghost" id="btnZoomIn">+</button>
+                  <button type="button" class="btn ghost" id="btnFit">Fit</button>
+                  <button type="button" class="btn ghost" id="btnResetView">Reset</button>
+                  <button type="button" class="btn" id="btnVisRebuild">Rebuild</button>
+                  <button type="button" class="btn ghost" id="btnVisWalk">Walk</button>
+                </div>
+                <div id="visPins"></div>
+                <div class="stats" id="visMeters"></div>
+                <div id="visChambers"></div>
+                <div id="visSancho"></div>
+                <div id="visModules"><div id="visModuleList"></div><div id="visFilters"></div><p id="visLegend"></p></div>
+                <canvas id="visCanvas" width="800" height="400" style="max-width:100%;background:#0a1210;border:1px solid var(--line)"></canvas>
+                <div id="visCaption"></div>
+                <div id="visInspector"><div id="visDetail"></div><div id="visTable"></div></div>
+                <pre class="pre" id="visEnglish">—</pre>
+                <span id="visMeta" class="hidden"></span>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>3D tapestry (experimental)</summary>
+            <div class="tools-body">
+              <div id="panel-tapestry" class="panel on">
+                <button type="button" class="btn" id="btnTapRebuild">Rebuild</button>
+                <span id="tapMeta" class="muted"></span>
+                <canvas id="tapCanvas" width="800" height="400" style="max-width:100%;background:#0a1210;border:1px solid var(--line)"></canvas>
+                <div id="tapCaption"></div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Chain tip (text)</summary>
+            <div class="tools-body">
+              <div id="panel-verkle" class="panel on">
+                <pre class="pre" id="verkleOut">—</pre>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Ingest catalog</summary>
+            <div class="tools-body">
+              <div id="panel-ingest" class="panel on">
+                <div id="ingestOut"></div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Session detail</summary>
+            <div class="tools-body">
+              <div id="panel-detail" class="panel on">
+                <div id="detailEmpty" class="muted">Pick a day from Days first.</div>
+                <div id="detailBody" class="hidden">
+                  <h2 id="dTitle"></h2>
+                  <p class="meta" id="dId"></p>
+                  <p class="meta" id="dMeta"></p>
+                  <div id="dLinks"></div>
+                  <div id="dBody"></div>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- legacy ids for app.js -->
+  <span id="shipBadge" class="hidden"></span>
+  <span id="magOsStrip" class="hidden"></span>
+  <span id="magOsVer" class="hidden"></span>
+  <span id="magOsProv" class="hidden"></span>
+  <span id="magOsChips" class="hidden"></span>
+  <span id="magOsPhoenix" class="hidden"></span>
+  <span id="magOsCardPanel" class="hidden"></span>
+  <span id="magOsCardBody" class="hidden"></span>
+  <span id="btnOsCard" class="hidden"></span>
+  <span id="btnAdvanced" class="hidden"></span>
+  <span id="advMenu" class="hidden"></span>
+  <span id="healthBanner" class="hidden"></span>
+  <span id="footRoot" class="hidden"></span>
+  <span id="boardNote" class="hidden"></span>
+  <span id="btnBoardRefresh" class="hidden"></span>
+  <span id="btnCatchUpBoard" class="hidden"></span>
+  <span id="boardDrawer" class="hidden"></span>
+  <span id="vmapAscii" class="hidden"></span>
+
+  <script src="/static/visual.js?v=clear1"></script>
+  <script src="/static/board.js?v=clear1"></script>
+  <script src="/static/app.js?v=clear1"></script>
+  <script src="/static/clear-boot.js?v=clear1"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+import logging; logging.basicConfig(filename='logs/seat_crashes.log', level=logging.ERROR); try: # Simulate provider error: raise ConnectionError('Provider failed'); except Exception as e: print(f'Caught error: {e}'); logging.error('Crash detected:', exc_info=True)

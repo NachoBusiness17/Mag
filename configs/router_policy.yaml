@@ -1,0 +1,17 @@
+# Complexity / intent → route. Enforced in code with YAML as documentation.
+defaults:
+  tier: T2
+  max_retries: 2
+
+routes:
+  list_or_read: direct
+  simple_edit: direct
+  multi_step: plan
+  hard_code: escalate   # prefer specialist when local weak
+  private_hint: local_only
+
+tiers:
+  T0: never_model
+  T1: ollama_only
+  T2: ollama_or_remote
+  T3: specialist_ok

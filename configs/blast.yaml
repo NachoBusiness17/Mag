@@ -1,0 +1,28 @@
+# Mag blast plant — full-blast self-improve with human influence dials
+# CLI: python main.py blast --run
+# Dash: BLAST window → influence
+# DNA stays on this Mag root. Ollama may be remote (OLLAMA_HOST).
+
+schema: blast.v1
+enabled: true
+
+# Wall budgets (operator can override via influence + CLI)
+defaults:
+  dig_minutes: 45
+  max_tickets: 4
+  cycle_seconds: 300          # pause between dig cycles when running
+  scout_every_n_cycles: 2     # re-scout field every N dig cycles
+  max_cycles: 0               # 0 = unlimited until stop / pause
+
+# Safety
+safety:
+  auto_promote: false         # human gate only
+  require_ollama: true
+  abort_on_hard_ollama_fail: true
+  max_consecutive_fails: 3
+
+paths:
+  influence: memory/improve/blast/influence.json
+  status: memory/improve/blast/status.json
+  log: logs/blast.jsonl
+  latest_md: memory/improve/blast/latest.md

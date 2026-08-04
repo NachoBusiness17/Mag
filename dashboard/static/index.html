@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MAG · マグ · 勾玉</title>
+  <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
+  <link rel="stylesheet" href="/static/cli.css?v=lattice-graph-v1" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body class="cli cyber desk-tabs">
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <header class="cli-bar top sticky-chrome magatama-bar" title="PSO Mag lineage — Magatama companion (勾玉)">
+    <div class="brand" title="MAG · マグ — Magatama 勾玉 · grows with what you feed it">
+      <span class="magatama" aria-hidden="true">
+        <!-- Classic 勾玉 (magatama) comma jewel — PSO Mag spirit -->
+        <svg viewBox="0 0 48 48" width="28" height="28" focusable="false">
+          <defs>
+            <linearGradient id="magGrad" x1="15%" y1="0%" x2="90%" y2="100%">
+              <stop offset="0%" stop-color="#7cffc8"/>
+              <stop offset="45%" stop-color="#39ff9a"/>
+              <stop offset="100%" stop-color="#00c8e0"/>
+            </linearGradient>
+            <filter id="magGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.1" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- Comma-shaped magatama body -->
+          <path filter="url(#magGlow)" fill="url(#magGrad)"
+            d="M30.5 5.5c8.2 1.2 13.8 9.2 12.2 17.6-1.5 8-8.4 13.6-16.2 13.2-7.2-.4-13-5.6-14.2-12.4C11 17.2 15 11 21.4 9.2c-1.2 5.8 2.4 11.8 8.4 13.2 5.2 1.2 10.2-1.8 11.2-6.8.8-4.2-1.4-8.4-5.4-10.4-1.4-.7-3.2-1.2-5.1-1.7z"/>
+          <circle cx="33.2" cy="14.8" r="3.1" fill="#05080a"/>
+          <circle cx="33.2" cy="14.8" r="1.15" fill="#39ff9a" opacity="0.9"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <h1>
+          <span class="brand-en">MAG</span>
+          <span class="brand-jp" lang="ja" title="Mag (PSO) · Magatama">マグ<span class="brand-sep">·</span>勾玉</span>
+        </h1>
+      </div>
+    </div>
+    <p class="cli-quote" id="cliQuote" title="Click for another line">…</p>
+    <div class="actions" id="topActions">
+      <span class="ship-badge hidden" id="homeShip" hidden aria-hidden="true">…</span>
+      <span class="health-pill hidden" id="healthPill" hidden aria-hidden="true">…</span>
+      <button type="button" class="btn ghost btn-sm" id="btnMirrorReplay" title="Replay Mirror first-run tour">Mirror</button>
+      <button type="button" class="btn ghost btn-refresh" id="btnRefresh" title="Reload this view" aria-label="Refresh">↻</button>
+    </div>
+  </header>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <nav class="cli-dock sticky-chrome" aria-label="primary doors">
+    <button type="button" class="dock-btn on" data-win="home" title="Where you were, are, and go next">Office</button>
+    <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
+    <button type="button" class="dock-btn" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
+    <button type="button" class="dock-btn" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
+    <button type="button" class="dock-btn" data-win="ideas" title="What you still hold — primary board for Mag as OS">Ideas</button>
+    <button type="button" class="dock-btn" data-win="chat" title="Ask Mag from filed memory">Chat</button>
+    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Body</button>
+    <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
+    <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
+    <button type="button" class="dock-btn" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
+  </nav>
+  <div class="desk" id="desk">
+
+    <div class="win" data-win="chronicle" id="win-chronicle">
+      <div class="win-titlebar">
+        <span class="win-title">Pulse — what actually happened</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">-</button>
+          <button type="button" class="win-max" title="maximize">+</button>
+          <button type="button" class="win-close" title="close">x</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-chronicle" class="panel pane-pad chronicle-panel">
+          <div class="pane-head">
+            <div>
+              <h2 class="pane-h">Pulse</h2>
+              <p class="muted pane-sub" id="chronicle-meta">Loading…</p>
+              <p class="honesty-note" id="chronicleHonesty">Sourced from attention.md, seat feed, workers — not invented commentary.</p>
+            </div>
+          </div>
+          <pre id="chronicle-content" class="chronicle-pre"></pre>
+          <h3 class="ideas-col-h">Events</h3>
+          <ul id="chronicleEvents" class="chronicle-events signal-list"></ul>
+          <p class="muted sm" id="chronicleSources"></p>
+        </section>
+      </div>
+    </div>
+
+    <div class="win focused" data-win="home" id="win-home">
+      <div class="win-titlebar">
+        <span class="win-title">Office · been → now → next</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-home" class="panel active home-signal">
+          <p class="home-headline" id="homeHeadline">Loading office…</p>
+          <div class="alert hidden" id="homePhoenix" role="status"></div>
+          <article class="card launch-pad hidden" id="homeLaunchPad" aria-labelledby="homeLaunchTitle">
+            <h2 id="homeLaunchTitle">Republic launch point</h2>
+            <p class="muted pane-sub" id="homeLaunchSubtitle">—</p>
+            <ul id="homeLaunchFramework" class="signal-list"></ul>
+            <h3 class="ideas-col-h">Core operations (work without beads)</h3>
+            <ul id="homeLaunchOps" class="signal-list launch-ops"></ul>
+            <p class="muted sm" id="homeLaunchRepublic">—</p>
+          </article>
+
+          <div class="trail-grid">
+            <article class="card trail-been">
+              <h2>Been</h2>
+              <p class="title" id="homeBeadTitle">—</p>
+              <p class="meta" id="homeBeadMeta">—</p>
+              <p class="blurb" id="homeBeadBlurb">—</p>
+              <ul id="homeBeadBullets"></ul>
+              <p class="meta" id="homePrevLine">—</p>
+            </article>
+            <article class="card trail-now">
+              <h2>Now</h2>
+              <ul id="homeNowList" class="signal-list"></ul>
+              <p class="meta" id="homePath">FIND → FILE → LOAD</p>
+            </article>
+            <article class="card trail-going">
+              <h2>Going</h2>
+              <p class="title" id="homePrimaryNext">—</p>
+              <ul id="homeGoingList" class="signal-list"></ul>
+              <ul id="homeLoops" class="hidden"></ul>
+              <ul id="homeNext" class="hidden"></ul>
+            </article>
+          </div>
+
+          <div class="row home-cta">
+            <button type="button" class="btn primary" id="btnHomeChat">Chat · what was I doing?</button>
+            <button type="button" class="btn ghost" id="btnHomeDays">Open Days</button>
+            <button type="button" class="btn ghost" id="btnHomeDiary">Read diary</button>
+            <button type="button" class="btn ghost" id="btnHomeStory">Read story</button>
+            <button type="button" class="btn ghost" id="btnHomeIdeas">Open Ideas</button>
+            <button type="button" class="btn ghost" id="btnHomeRefresh">Refresh</button>
+            <button type="button" class="btn ghost" id="btnHomePack">Copy pack CLI</button>
+          </div>
+
+          <details class="home-adv">
+            <summary>Advanced · tip · verify · tokens · bonds · chain map</summary>
+            <div class="stats" id="homeStats"></div>
+            <div class="chain" id="vmapTree" aria-label="Memory chain map"></div>
+            <div class="grid">
+              <article class="card">
+                <h2>Chain tip</h2>
+                <p class="title" id="homeTip" style="font-family:var(--mono);font-size:1.1rem">—</p>
+                <p class="meta" id="homeTipMeta">—</p>
+              </article>
+              <article class="card">
+                <h2>Tokens today</h2>
+                <p id="homeEcon" class="blurb">—</p>
+              </article>
+              <article class="card" id="homeVerifyCard">
+                <h2>Verify day <span class="muted" id="homeVerifyScore"></span></h2>
+                <ul class="verify" id="homeVerify"></ul>
+              </article>
+              <article class="card">
+                <h2>Carry forward (bonds)</h2>
+                <ul id="homeBonds"></ul>
+              </article>
+              <article class="card">
+                <h2>System</h2>
+                <ul id="homeSys"></ul>
+                <div class="home-zg" id="homeZg" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem"></div>
+              </article>
+              <article class="card full">
+                <h2>Provenance</h2>
+                <ul class="prov" id="homeProvList"></ul>
+              </article>
+            </div>
+          </details>
+          <!-- legacy ids for older handlers -->
+          <button type="button" class="hidden" id="btnHomeVisual"></button>
+          <button type="button" class="hidden" id="btnHomeVerify"></button>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="chat" id="win-chat">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ TTY // CHAT</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-chat" class="panel">
+<div class="chat-shell">
+          <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+            <div>
+              <strong>Chat with Mag</strong>
+              <span class="muted" style="font-size:0.95rem"> · one desk · pack stays local · brain = seat below</span>
+            </div>
+            <div class="row" style="margin:0;align-items:center;gap:0.4rem">
+              <label class="muted" for="chatProvider" style="font-size:0.85rem">Seat</label>
+              <select id="chatProvider" title="Where compute runs" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem">
+                <option value="deepseek" selected>DeepSeek (API)</option>
+                <option value="local">Local (Ollama)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="gemini">Gemini</option>
+                <option value="xai">xAI API</option>
+                <option value="auto">Auto dispatch</option>
+              </select>
+              <button type="button" class="btn chat-mode-btn on" data-mode="agent" id="chatModeAgent" title="DeepSeek + Mag tools — when Grok is empty">Agent</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="ask" id="chatModeAsk">Ask</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
+              <button type="button" class="btn ghost" id="btnCopyPack" title="Copy Mag pack for DeepSeek web">Copy pack</button>
+              <button type="button" class="btn ghost" id="btnAgentReset" title="Reset agent tool session + pack">Reset agent</button>
+              <button type="button" class="btn ghost" id="btnChatClear">Clear</button>
+            </div>
+          </div>
+          <p class="help-bar" style="margin:0;border-radius:0;border-left:0;border-right:0">
+            <strong>Agent</strong> = Grok-like tools on Mag disk (DeepSeek brain, multi-line paste in box).
+            <strong>Ask/Dispatch</strong> = talk only. <strong>Copy pack</strong> = DeepSeek web. No Grok tokens.
+          </p>
+
+          <div class="economy-bar" id="economyBar" style="padding:0.45rem 1rem;font-size:0.95rem;color:var(--muted);border-bottom:1px solid var(--line)">
+            <span id="economyGoal">Local spend vs full Grok dump</span>
+            Â· <b id="econLocal">0</b> local Â· <b id="econSaved">0</b> saved Â· <span id="econTurns">0 turns</span>
+            <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
+          </div>
+          <div class="chat-chips" id="chatChips" style="padding:0.5rem 1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
+            <button type="button" class="btn ghost chip" data-q="what was I doing?">What was I doing?</button>
+            <button type="button" class="btn ghost chip" data-q="what should I do next?">What next?</button>
+            <button type="button" class="btn ghost chip" data-q="Is the office healthy?">Office healthy?</button>
+          </div>
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="operator-inbox-dock" id="operatorInboxDock">
+            <div class="inbox-head">
+              <strong>Guidance queue</strong>
+              <span class="muted sm">Type while the agent runs · Enter queues · read at next checkpoint</span>
+              <span class="muted sm" id="operatorInboxStatus">0 queued</span>
+            </div>
+            <textarea id="operatorInboxInput" rows="2" placeholder="Steer direction, corrections, priorities…  Enter = queue for next stop · Shift+Enter = newline"></textarea>
+            <div class="row inbox-actions">
+              <button type="button" class="btn primary btn-sm" id="btnInboxQueue">Queue ↵</button>
+              <button type="button" class="btn ghost btn-sm" id="btnInboxClear">Clear draft</button>
+              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Focus on dashboard Body tab and operator inbox only">Dashboard focus</button>
+              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Stop tool loops — change approach per behavioral T3">Stop looping</button>
+              <button type="button" class="btn ghost btn-sm inbox-chip" data-inbox="Switch to writing the report — file artifacts first">Write report</button>
+              <button type="button" class="btn ghost btn-sm" data-gov-steer="!pause" title="Immediate hold">!pause now</button>
+              <button type="button" class="btn ghost btn-sm" data-gov-steer="!continue" title="Immediate resume">!continue now</button>
+            </div>
+          </div>
+          <div class="chat-compose grok-compose">
+            <div class="compose-attach" id="composeAttach" hidden></div>
+            <textarea id="chatInput" rows="4" placeholder="Message Mag agent…  Enter send · Shift+Enter or Alt+Enter newline · paste images"></textarea>
+            <div class="compose-bar">
+              <div class="compose-hints">
+                <span class="hint-key">Enter</span> send
+                <span class="hint-sep">·</span>
+                <span class="hint-key">Shift+Enter</span> newline
+                <span class="hint-sep">·</span>
+                <span class="hint-key">Ctrl+V</span> image/text
+                <span class="hint-sep">·</span>
+                <span class="hint-key">Shift+Tab</span> mode
+              </div>
+              <div class="compose-actions">
+                <span class="muted" id="chatQuota" title="DeepSeek Mag-tracked usage">—</span>
+                <span class="muted" id="chatStatus">Ready</span>
+                <input type="text" id="steerInput" placeholder="!steer …" title="Steer the running agent mid-turn (!steer / !pause / !continue / !escape)" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem;width:9rem" />
+                <button type="button" class="btn ghost" id="btnSteer" title="Send steer to the running agent">Steer</button>
+                <label class="btn ghost compose-file-btn" title="Attach file">
+                  + file
+                  <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />
+                </label>
+                <button type="button" class="btn primary" id="btnChatSend">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="badge-zero hidden" id="badgeZeroGrok"></span>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="sessions" id="win-sessions">
+      <div class="win-titlebar">
+        <span class="win-title">// DAYS — worklog map</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-sessions" class="panel days-merge">
+          <div class="days-split">
+            <div class="days-list-col">
+              <div class="days-list-sticky">
+                <p class="help-bar">Workdays on the left · 3D tree on the right. Big bead = filed day · small = your turns · orange = worker runs · faint blue = Verkle proof chain.</p>
+                <div class="days-legend row" id="daysLegend"></div>
+                <div class="stats" id="stats"></div>
+              </div>
+              <div class="session-cards" id="sessionRows"></div>
+            </div>
+            <div class="days-graph-col">
+              <div class="tap-toolbar sticky-in-pane">
+                <button type="button" class="btn" id="btnTapRebuild">Rebuild graph</button>
+                <button type="button" class="btn ghost" id="btnTapFrame" title="Re-center camera to fill the stage">Frame</button>
+                <label class="toggle-row tap-lattice-toggle">
+                  <input type="checkbox" id="tapLatticeToggle" checked />
+                  <span>Verkle lattice</span>
+                </label>
+                <span id="tapMeta" class="muted"></span>
+                <span class="muted tap-hint">Hover → context rail · click pin · explore sub-beads</span>
+              </div>
+              <div class="tap-stage days-tap">
+                <div class="tap-canvas-wrap">
+                  <canvas id="tapCanvas"></canvas>
+                </div>
+                <aside id="tapInspect" class="tap-inspect days-rail">
+                  <div class="rail-section rail-hover">
+                    <div class="tap-inspect-h">Context (hover)</div>
+                    <div id="tapHoverRail" class="tap-inspect-body rail-body">
+                      <p class="muted">Move over a bead — what / why / source file.</p>
+                    </div>
+                  </div>
+                  <div class="rail-section rail-pin">
+                    <div class="tap-inspect-h">Pinned</div>
+                    <div id="tapCaption" class="tap-inspect-body rail-body">
+                      <p class="muted">Click a node or day card to pin.</p>
+                    </div>
+                  </div>
+                  <div class="rail-actions row">
+                    <button type="button" class="btn primary btn-sm" id="btnDaysOpenDetail">Open day</button>
+                    <button type="button" class="btn ghost btn-sm" id="btnDaysOpenVisual">Visual</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- do NOT use class "panel" here — body.cli .win .panel { display:block !important }
+             was overriding .hidden and covering the whole Days view with an empty layer -->
+        <div id="panel-tapestry" hidden aria-hidden="true" style="display:none!important;height:0;overflow:hidden"></div>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="board" id="win-board">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ BOARD // SCRAPS</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-board" class="panel">
+<div class="stats" id="boardStats"></div>
+                <div class="kanban" id="boardKanban"></div>
+                <div class="mod-panels" id="boardPanels">
+                  <article class="card">
+                    <h3>Ask biographer</h3>
+                    <textarea id="askQ" rows="3" placeholder="What was I working on?"></textarea>
+                    <div class="row">
+                      <button type="button" class="btn" id="btnAsk">Ask (local)</button>
+                      <button type="button" class="btn ghost" id="btnBrief">Rebuild brief</button>
+                    </div>
+                    <pre class="pre" id="askOut">â€”</pre>
+                  </article>
+                  <article class="card"><h3>Latest brief</h3><pre class="pre" id="briefOut">â€”</pre></article>
+                  <article class="card"><h3>Attention</h3><pre class="pre" id="attOut">â€”</pre></article>
+                  <article class="card"><h3>Todo</h3><pre class="pre" id="todoOut">â€”</pre></article>
+                  <article class="card"><h3>Live from Grok</h3><pre class="pre" id="liveOut">â€”</pre></article>
+                  <article class="card"><h3>CURRENT</h3><pre class="pre" id="statusOut">â€”</pre></article>
+                </div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="operate" id="win-operate">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ BRIEF // PASTE</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-operate" class="panel">
+<div class="stats" id="osStats"></div>
+                <p class="title" id="osBeadTitle">â€”</p>
+                <p class="meta" id="osBeadMeta">â€”</p>
+                <p class="blurb" id="osBeadBlurb">â€”</p>
+                <ul id="osBeadBullets"></ul>
+                <div id="osTicket" class="card" style="margin:0.5rem 0"></div>
+                <ul id="osSysList"></ul>
+                <div id="osOpenBits" class="muted"></div>
+                <div class="row">
+                  <button type="button" class="btn ghost" data-tpl="build">Build</button>
+                  <button type="button" class="btn ghost" data-tpl="strike">Strike</button>
+                  <button type="button" class="btn ghost" data-tpl="limits">Local only</button>
+                  <button type="button" class="btn ghost" data-tpl="spore">Other AI</button>
+                  <button type="button" class="btn" id="btnCopyFeed">Copy</button>
+                  <button type="button" class="btn ghost" id="btnCopyTicket">Copy job</button>
+                  <span id="osCopyStatus" class="muted"></span>
+                </div>
+                <textarea id="osFeed" class="os-feed" rows="10" readonly style="width:100%;margin-top:0.5rem;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-family:var(--mono);font-size:0.95rem"></textarea>
+                <span id="osLead" class="hidden"></span>
+                <button type="button" class="hidden" id="btnOsRefresh"></button>
+                <button type="button" class="hidden" id="btnOsCatchUp"></button>
+                <button type="button" class="hidden" id="btnOsOpenSessions"></button>
+                <button type="button" class="hidden" id="btnOsOpenVisual"></button>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="detail" id="win-detail">
+      <div class="win-titlebar">
+        <span class="win-title">Day detail</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-detail" class="panel">
+          <div id="detailEmpty" class="muted">Pick a day from Days first.</div>
+          <div id="detailBody" class="hidden detail-boxes">
+            <article class="card">
+              <h2>Story</h2>
+              <h3 id="dTitle"></h3>
+              <p class="meta" id="dId"></p>
+              <p class="meta" id="dMeta"></p>
+            </article>
+            <article class="card">
+              <h2>DNA &amp; exports</h2>
+              <div id="dLinks"></div>
+            </article>
+            <article class="card full">
+              <h2>Notes &amp; body</h2>
+              <div id="dBody"></div>
+            </article>
+          </div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="visual" id="win-visual">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ MAP // VISUAL</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-visual" class="panel">
+                <p class="help-bar"><strong>English first.</strong> Canvas is optional depth — not the point of the day.</p>
+                <pre class="pre" id="visEnglish" style="max-height:12rem;white-space:pre-wrap">—</pre>
+                <div class="stats" id="visMeters"></div>
+                <details class="home-adv" open>
+                  <summary>Picture tools (zoom · chambers)</summary>
+                  <div class="row">
+                    <select id="visSessionSelect"></select>
+                    <button type="button" class="btn ghost" id="btnVisPin">Pin</button>
+                    <button type="button" class="btn ghost" id="btnZoomOut">−</button>
+                    <span id="visZoomLabel">100%</span>
+                    <button type="button" class="btn ghost" id="btnZoomIn">+</button>
+                    <button type="button" class="btn ghost" id="btnFit">Fit</button>
+                    <button type="button" class="btn ghost" id="btnResetView">Reset</button>
+                    <button type="button" class="btn" id="btnVisRebuild">Rebuild</button>
+                    <button type="button" class="btn ghost" id="btnVisWalk">Walk</button>
+                  </div>
+                  <div id="visPins"></div>
+                  <div id="visChambers"></div>
+                  <div id="visSancho"></div>
+                  <div id="visModules"><div id="visModuleList"></div><div id="visFilters"></div><p id="visLegend"></p></div>
+                  <canvas id="visCanvas" width="800" height="400" style="max-width:100%;background:#0a1210;border:1px solid var(--line)"></canvas>
+                  <div id="visCaption"></div>
+                  <div id="visInspector"><div id="visDetail"></div><div id="visTable"></div></div>
+                </details>
+                <span id="visMeta" class="hidden"></span>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="tapestry" id="win-tapestry" aria-hidden="true">
+      <div class="win-body"><p class="muted">Merged into Days. Use the Days door.</p></div>
+    </div>
+
+    <div class="win" data-win="flow" id="win-flow">
+      <div class="win-titlebar">
+        <span class="win-title">Token flow (lab)</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-flow" class="panel">
+<p class="muted" id="flowNote">â€”</p>
+                <div class="stats" id="flowStats"></div>
+                <div id="flowModelBars"></div>
+                <div id="flowRoleBars"></div>
+                <div id="flowProvTable"></div>
+                <div id="flowRemainTable"></div>
+                <div id="flowEdges"></div>
+                <div id="flowIdeas"></div>
+                <div id="flowArtifacts"></div>
+                <div id="flowArtifactList"></div>
+                <pre class="pre" id="flowTimeline">â€”</pre>
+                <button type="button" class="btn ghost" id="btnFlowRefresh">Refresh flow</button>
+                <span id="flowMeta" class="hidden"></span>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="orchestrate" id="win-orchestrate">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ SEATS // MODELS</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-orchestrate" class="panel">
+<div class="stats" id="orchStats"></div>
+                <pre class="pre" id="modelsMap">â€”</pre>
+                <p class="muted" id="modelsLine">â€”</p>
+                <div class="row">
+                  <button type="button" class="btn" id="btnMultiSmoke">Run multi-smoke</button>
+                  <button type="button" class="btn ghost" id="btnModelsRefresh">Refresh models</button>
+                  <button type="button" class="btn ghost" id="btnQuotaRefresh">Refresh quota</button>
+                  <button type="button" class="btn ghost" id="btnProbeNow">Probe live</button>
+                </div>
+                <pre class="pre" id="smokeOut">â€”</pre>
+                <div id="usageReport"></div>
+                <div id="quotaTable"></div>
+                <div id="probeTable"></div>
+                <pre class="pre" id="providersHint">â€”</pre>
+                <pre class="pre" id="laneCfg">â€”</pre>
+                <pre class="pre" id="usageToday">â€”</pre>
+                <pre class="pre" id="usageTail">â€”</pre>
+                <p class="muted" id="usageReportLine"></p>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="blast" id="win-blast">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ BLAST // SELF-IMPROVE</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-blast" class="panel">
+          <p class="help-bar">
+            <strong>Full-blast dig plant.</strong>
+            DNA stays on this machine. Point Ollama at Vast via tunnel
+            (<code>OLLAMA_HOST=http://127.0.0.1:11434</code> after SSH -L).
+            Chat tab = talk direct. This tab = steer digs. Promote is human-only.
+          </p>
+          <div class="stats" id="blastStats"></div>
+          <div class="row" style="margin:0.75rem 0;flex-wrap:wrap;gap:0.4rem">
+            <button type="button" class="btn primary" id="btnBlastStart">Start blast</button>
+            <button type="button" class="btn ghost" id="btnBlastPause">Pause</button>
+            <button type="button" class="btn ghost" id="btnBlastResume">Resume</button>
+            <button type="button" class="btn ghost" id="btnBlastStop">Stop</button>
+            <button type="button" class="btn ghost" id="btnBlastRefresh">Refresh</button>
+          </div>
+          <article class="card" style="margin-bottom:0.85rem">
+            <h2>Influence</h2>
+            <label class="muted" for="blastFocus">Focus (steers every dig)</label>
+            <textarea id="blastFocus" rows="4" style="width:100%;margin:0.35rem 0" placeholder="e.g. memory contracts for Mag trail/residual; refuse product worship; steal from SubtleMemory paper onlyâ€¦"></textarea>
+            <div class="row" style="flex-wrap:wrap;gap:0.5rem;align-items:end">
+              <div>
+                <label class="muted" for="blastMinutes">dig min</label><br />
+                <input type="number" id="blastMinutes" min="5" max="180" value="45" style="width:5rem" />
+              </div>
+              <div>
+                <label class="muted" for="blastTickets">max tickets</label><br />
+                <input type="number" id="blastTickets" min="1" max="12" value="4" style="width:5rem" />
+              </div>
+              <div>
+                <label class="muted" for="blastCycle">cycle sec</label><br />
+                <input type="number" id="blastCycle" min="30" max="3600" value="300" style="width:5rem" />
+              </div>
+              <button type="button" class="btn" id="btnBlastSave">Save influence</button>
+            </div>
+            <p class="meta" id="blastInfluenceMeta" style="margin-top:0.5rem">â€”</p>
+          </article>
+          <article class="card" style="margin-bottom:0.85rem">
+            <h2>Plant status</h2>
+            <pre class="pre" id="blastStatusOut">â€”</pre>
+          </article>
+          <article class="card" style="margin-bottom:0.85rem">
+            <h2>Ollama seat</h2>
+            <pre class="pre" id="blastOllamaOut">â€”</pre>
+          </article>
+          <article class="card full">
+            <h2>Top tickets (promote gate)</h2>
+            <div id="blastCandidates"></div>
+          </article>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="verkle" id="win-verkle">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ LATTICE // HISTORY + PLAN</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-verkle" class="panel">
+          <p class="help-bar">
+            <strong>Verkle lattice thus far.</strong>
+            Tip = chain alive. History = theme + tension over days. Plan = working open + agent next â€” not a second throne.
+          </p>
+          <div class="stats" id="latticeStats"></div>
+          <p class="blurb" id="latticeOneLine">â€”</p>
+          <div class="grid lattice-grid">
+            <article class="card">
+              <h2>Graph · queryable store</h2>
+              <p class="meta">memory/lattice/nodes.jsonl + edges.jsonl — session knots + instrument digs (same graph agents query)</p>
+              <div id="latticeGraph" class="lattice-graph"></div>
+            </article>
+            <article class="card">
+              <h2>Plan Â· open irons</h2>
+              <p class="meta" id="latticeFocus">Focus: â€”</p>
+              <ul id="latticePlanList"></ul>
+              <p class="meta" style="margin-top:0.6rem">Agent next (versioned self)</p>
+              <ul id="latticeAgentNext"></ul>
+            </article>
+            <article class="card">
+              <h2>Themes Â· histogram</h2>
+              <div id="latticeThemes" class="theme-bars"></div>
+            </article>
+          </div>
+          <article class="card" style="margin-top:0.85rem">
+            <h2>History Â· session beads</h2>
+            <p class="meta">Dominant theme + tension (higher bar = more tension proxy)</p>
+            <div id="latticeHistory" class="lattice-history"></div>
+          </article>
+          <article class="card" style="margin-top:0.85rem">
+            <h2>Chain tip Â· tail</h2>
+            <pre class="pre" id="verkleOut" style="max-height:12rem">â€”</pre>
+          </article>
+          <div class="row" style="margin-top:0.75rem">
+            <button type="button" class="btn ghost" id="btnLatticeRefresh">Refresh lattice</button>
+            <button type="button" class="btn ghost" id="btnLatticePack">Copy pack path</button>
+          </div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+    <div class="win" data-win="ingest" id="win-ingest">
+      <div class="win-titlebar">
+        <span class="win-title">â–¶ INGEST // CAT</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">â–¡</button>
+          <button type="button" class="win-close" title="close">Ã—</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-ingest" class="panel">
+<div id="ingestOut"></div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+  
+
+    <div class="win" data-win="diary" id="win-diary">
+      <div class="win-titlebar"><span class="win-title">Diary — how we got here</span></div>
+      <div class="win-body">
+        <section id="panel-diary" class="panel pane-pad">
+          <div class="pane-head">
+            <div>
+              <h2 class="pane-h">Your workdays as a story</h2>
+              <p class="muted pane-sub" id="diaryArc">Loading diary…</p>
+            </div>
+            <div class="row">
+              <button type="button" class="btn ghost chip on" id="btnDiaryOldest" data-order="oldest">Oldest first</button>
+              <button type="button" class="btn ghost chip" id="btnDiaryNewest" data-order="newest">Newest first</button>
+              <button type="button" class="btn ghost" id="btnDiaryReload">Reload</button>
+              <button type="button" class="btn primary" id="btnDiaryCopy">Copy story</button>
+            </div>
+          </div>
+          <div class="router-summary" id="diaryStats"></div>
+          <div class="theme-row" id="diaryThemes"></div>
+          <article class="card diary-project" id="diaryProject">
+            <h2 class="pane-h sm">What this project is (short)</h2>
+            <p class="muted" id="diaryProjectOne">Loading project prologue…</p>
+            <p id="diaryProjectSpine" class="diary-spine"></p>
+            <p id="diaryProjectDual" class="muted diary-dual"></p>
+            <div class="diary-proj-cols">
+              <div>
+                <h3 class="diary-subh">Origins</h3>
+                <ul id="diaryOrigins" class="diary-beats"></ul>
+              </div>
+              <div>
+                <h3 class="diary-subh">Goals</h3>
+                <ul id="diaryGoals" class="diary-beats"></ul>
+                <h3 class="diary-subh">Open now</h3>
+                <ul id="diaryOpen" class="diary-beats"></ul>
+              </div>
+            </div>
+            <details class="home-adv" id="diaryDocsDetails">
+              <summary id="diaryDocsSummary">Supporting documents (0)</summary>
+              <ul id="diaryDocs" class="url-list diary-docs"></ul>
+            </details>
+          </article>
+          <h2 class="pane-h sm diary-day-label">Day by day</h2>
+          <div class="diary-timeline" id="diaryTimeline"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="win" data-win="story" id="win-story">
+      <div class="win-titlebar">
+        <span class="win-title">Story — thesis · journey · artifacts</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-story" class="panel pane-pad story-panel">
+          <div class="pane-head">
+            <div>
+              <h2 class="pane-h" id="storyTitle">What we’re building</h2>
+              <p class="muted pane-sub" id="storySub">Loading plain-English story…</p>
+            </div>
+            <div class="row">
+              <button type="button" class="btn ghost" id="btnStoryReload">Reload</button>
+              <button type="button" class="btn primary" id="btnStoryCopy">Copy full story</button>
+              <button type="button" class="btn ghost" id="btnStoryOffice">Office</button>
+            </div>
+          </div>
+          <div class="router-summary" id="storyLive"></div>
+          <nav class="story-toc" id="storyToc" aria-label="Story sections"></nav>
+          <div id="storyRoot" class="story-root">
+            <p class="muted">Loading thesis journey…</p>
+          </div>
+        </section>
+      </div>
+      <div class="win-resize" title="resize"></div>
+    </div>
+
+<div class="win" data-win="ideas" id="win-ideas">
+      <div class="win-titlebar"><span class="win-title">Ideas — what you still hold</span></div>
+      <div class="win-body">
+        <section id="panel-ideas" class="panel pane-pad ideas-os">
+          <header class="ideas-hero">
+            <div class="ideas-hero-copy">
+              <p class="ideas-kicker">Primary board · Mag as operating system</p>
+              <h2 class="pane-h">Your unfinished business — written down</h2>
+              <p class="ideas-lead">
+                <strong>Days</strong> remembers what you worked on.
+                <strong>Ideas</strong> remembers what you still care about after the day ends.
+                This board is where Mag (and later your own model) should look first — not the whole chat history.
+              </p>
+            </div>
+            <div class="ideas-hero-actions">
+              <button type="button" class="btn ghost" id="btnIdeasRefresh" title="Reload the board from disk">Reload</button>
+              <button type="button" class="btn primary" id="btnIdeasSeed" title="Import open items from your working notes">Pull from my notes</button>
+            </div>
+          </header>
+
+          <ol class="ideas-howto" aria-label="How to use this board">
+            <li><span class="howto-n">1</span><span><b>Pick one card</b> on the left — one open thread, not everything.</span></li>
+            <li><span class="howto-n">2</span><span><b>Read the brief</b> on the right — a short note Mag can trust.</span></li>
+            <li><span class="howto-n">3</span><span><b>Hand it to Chat</b> (or copy it) so the model works that thread only.</span></li>
+          </ol>
+
+          <div class="ideas-why" role="note">
+            <p>
+              Why this exists: chat forgets and invents priorities.
+              Cards on this board live as files on your machine.
+              The eventual model-as-OS should <em>operate on this board</em> — find a card, brief itself, act, then mark it done — not re-read your whole life every time.
+            </p>
+          </div>
+
+          <div class="stats ideas-stats" id="ideasStats"></div>
+
+          <div class="filter-row ideas-filters" id="ideasFilters" role="toolbar" aria-label="Show which cards">
+            <button type="button" class="btn ghost chip on" data-filter="open" title="Still needs work">Needs work</button>
+            <button type="button" class="btn ghost chip" data-filter="open_loop" title="Open loops / unfinished tensions">Open loops</button>
+            <button type="button" class="btn ghost chip" data-filter="project" title="Bigger workstreams">Projects</button>
+            <button type="button" class="btn ghost chip" data-filter="held" title="On the shelf — references, not urgency">On the shelf</button>
+            <button type="button" class="btn ghost chip" data-filter="all" title="Everything on the board">Everything</button>
+          </div>
+
+          <div class="ideas-split">
+            <div class="ideas-col">
+              <h3 class="ideas-col-h">The board <span class="muted">— click a card</span></h3>
+              <div class="ideas-list" id="ideasList"></div>
+            </div>
+            <div class="ideas-side">
+              <h3 class="ideas-col-h">Brief for the model <span class="muted">— not the whole attic</span></h3>
+              <p class="ideas-pack-hint muted">
+                This is the short note you hand Mag: what this card is, a little context, and what it touches.
+                Prefer this over pasting an entire chat.
+              </p>
+              <pre class="pre ideas-pack" id="ideasPack">Pick a card on the left…</pre>
+              <div class="row ideas-pack-actions">
+                <button type="button" class="btn primary" id="btnIdeasToChat" disabled>Work this in Chat</button>
+                <button type="button" class="btn ghost" id="btnIdeasCopyPack" disabled>Copy brief</button>
+              </div>
+              <div class="row ideas-status-actions" id="ideasStatusActions">
+                <span class="muted ideas-status-lab">Card state</span>
+                <button type="button" class="btn ghost btn-sm" id="btnIdeaDone" disabled title="PATCH status=done">Mark done</button>
+                <button type="button" class="btn ghost btn-sm" id="btnIdeaShelf" disabled title="PATCH status=held">On the shelf</button>
+                <button type="button" class="btn ghost btn-sm" id="btnIdeaReopen" disabled title="PATCH status=open">Needs work</button>
+              </div>
+              <p class="ideas-foot muted">
+                Stored under <code>memory/ideas/</code> · true source is the files, not this screen.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="win" data-win="status" id="win-status">
+      <div class="win-titlebar"><span class="win-title">Body — seats, workers &amp; governance</span></div>
+      <div class="win-body">
+        <section id="panel-status" class="panel status-panel pane-pad">
+          <div class="pane-head">
+            <div>
+              <h2 class="pane-h">Body</h2>
+              <p class="muted pane-sub" id="statusHeadline">Who is plugged in, what is running, what Mag can call.</p>
+              <p class="muted sm" id="statusOfficeHeadline"></p>
+              <p class="honesty-note" id="statusHonesty"></p>
+              <div class="row" id="statusPills" style="margin-top:0.45rem;flex-wrap:wrap;gap:0.35rem"></div>
+            </div>
+            <div class="row">
+              <button type="button" class="btn ghost" id="btnStatusCatchUp">Catch up</button>
+              <button type="button" class="btn primary" id="btnStatusReload">Reload</button>
+              <button type="button" class="btn ghost" id="btnOpenWorkers">Workers tab</button>
+            </div>
+          </div>
+          <div class="status-bands body-top-bands">
+            <article class="card">
+              <h2>Inbound seats</h2>
+              <p class="muted sm">Where you talk to Mag — Cursor, dashboard Chat, CLI, Grok TUI.</p>
+              <div id="seatsInbound" class="seats-grid conn-list"></div>
+            </article>
+            <article class="card">
+              <h2>Outbound providers</h2>
+              <p class="muted sm">API brains Mag can call — from configs/providers.yaml.</p>
+              <div id="seatsOutbound" class="seats-grid conn-list"></div>
+            </article>
+            <article class="card">
+              <h2>Workers (48h)</h2>
+              <p class="muted sm" id="workersLayman">Orchestrator tasks — running + recent only.</p>
+              <ul id="workersList" class="signal-list"></ul>
+            </article>
+          </div>
+          <article class="card full governance-card" id="governanceCard">
+            <h2>Governance — steer without re-approving every step</h2>
+            <p class="muted sm" id="governanceLayman">Loading…</p>
+            <div class="row gov-toggles" style="margin:0.5rem 0;flex-wrap:wrap;gap:0.75rem;align-items:center">
+              <label class="toggle-row">
+                <input type="checkbox" id="govDrainerToggle" />
+                <span>Auto-drain worker queue</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="govBehavioralToggle" checked />
+                <span>Inject behavioral themes into every pack</span>
+              </label>
+            </div>
+            <div class="row gov-steer-btns" style="margin:0.5rem 0;flex-wrap:wrap;gap:0.35rem">
+              <button type="button" class="btn ghost btn-sm" data-gov-steer="!continue" title="Compass picks next blueprint step">!continue</button>
+              <button type="button" class="btn ghost btn-sm" data-gov-steer="!pause">!pause</button>
+              <button type="button" class="btn ghost btn-sm" data-gov-steer="!escape">!escape</button>
+              <input type="text" id="govSteerInput" placeholder="!steer …" style="flex:1;min-width:12rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem" />
+              <button type="button" class="btn primary btn-sm" id="btnGovSteerSend">Steer all</button>
+            </div>
+            <p class="muted sm" id="governanceSteerNote">Steers Chat agent + all running workers via pigeonhole.</p>
+            <ul id="governanceThemes" class="signal-list gov-themes"></ul>
+            <p class="muted sm" id="governanceCursorNote"></p>
+          </article>
+          <div class="router-summary" id="routerSummary"></div>
+          <div class="status-bands router-bands">
+            <article class="card">
+              <h2>Routes (live plugs)</h2>
+              <p class="muted sm">Who Mag can call. Live = key present. Budget % = Mag yaml limits, not vendor UI.</p>
+              <div id="routerConnections" class="conn-list"></div>
+            </article>
+            <article class="card">
+              <h2>API chains</h2>
+              <p class="muted sm">Multi-key failover chains + rented boxes. Green dot = key(s) in env.</p>
+              <div id="chainsList" class="conn-list"></div>
+              <div class="row" style="margin-top:0.6rem">
+                <button type="button" class="btn ghost" id="btnProbeChains" title="POST /api/probe-status (live ping, can take ~minutes)">Live probe</button>
+                <span class="muted sm" id="chainsHint"></span>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Pressure &amp; today</h2>
+              <p class="muted sm">Honest usage Mag actually logged. Grok TUI plan % is not in this file.</p>
+              <table class="kv"><tbody id="statusSpend"></tbody></table>
+              <ul id="statusPressure" class="signal-list"></ul>
+              <div class="row" id="statusActions"></div>
+            </article>
+            <article class="card">
+              <h2>Ingest &amp; memory</h2>
+              <p class="muted sm">Websites, docs, ideas — dig without the dump.</p>
+              <table class="kv"><tbody id="statusSeats"></tbody></table>
+              <details class="home-adv" id="ingestDetails">
+                <summary id="ingestSummary">Recent URLs (0)</summary>
+                <ul id="ingestUrlList" class="url-list"></ul>
+              </details>
+            </article>
+            <article class="card">
+              <h2>Seat feed</h2>
+              <p class="muted sm">Grok hooks · Cursor hooks · DeepSeek agent · orchestrator — merged by time.</p>
+              <div class="row" style="margin-bottom:0.5rem">
+                <button type="button" class="btn ghost btn-sm" id="btnSeatFeedReload">Refresh feed</button>
+                <span class="muted sm" id="seatFeedSummary">—</span>
+              </div>
+              <ul id="seatFeedList" class="url-list seat-feed-list"></ul>
+            </article>
+            <article class="card">
+              <h2>Desks &amp; drainer</h2>
+              <p class="muted sm">Mag home :8765 · Mirror strike desk :8743 · queue auto-advance.</p>
+              <table class="kv"><tbody id="statusDesks"></tbody></table>
+              <div class="row" style="margin-top:0.6rem;align-items:center;gap:0.75rem">
+                <label class="toggle-row">
+                  <input type="checkbox" id="drainerToggle" />
+                  <span>Auto-drain orchestrator queue</span>
+                </label>
+                <span class="muted sm" id="drainerHint">—</span>
+              </div>
+              <div class="row" style="margin-top:0.6rem;gap:0.5rem;flex-wrap:wrap">
+                <a class="btn ghost btn-sm" href="/shell" target="_blank" rel="noopener">Open Sovereign Shell</a>
+                <button type="button" class="btn ghost btn-sm" id="btnAutopilotOnce">Autopilot once</button>
+                <span class="muted sm" id="autopilotHint">improve → queue · governor · seed-mirror status</span>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Ops overview</h2>
+              <p class="muted sm">Supervisor + orchestrator fleet — auto-refresh 60s.</p>
+              <table class="kv"><tbody id="opsSupervisor"></tbody></table>
+              <table class="kv"><tbody id="opsFleet"></tbody></table>
+              <details class="home-adv" id="opsFleetDetails">
+                <summary id="opsFleetSummary">Recent tasks (0)</summary>
+                <ul id="opsFleetList" class="url-list"></ul>
+              </details>
+            </article>
+          </div>
+          <details class="home-adv">
+            <summary>Body / ship (office health)</summary>
+            <table class="kv"><tbody id="statusBody"></tbody></table>
+            <ul id="statusWhy" class="signal-list muted"></ul>
+          </details>
+          <details class="home-adv">
+            <summary>Lab instruments</summary>
+            <p class="muted">Rare depth — not the daily path.</p>
+            <div class="row">
+              <button type="button" class="btn ghost" data-bury="flow">Token flow (local est.)</button>
+              <button type="button" class="btn ghost" data-bury="orchestrate">Models detail</button>
+              <button type="button" class="btn ghost" data-bury="ingest">Full ingest catalog</button>
+              <button type="button" class="btn ghost" data-bury="board">Board scraps</button>
+              <button type="button" class="btn ghost" data-bury="operate">Brief paste</button>
+            </div>
+            <p class="muted sm" style="margin-top:0.5rem">"Saved vs dump" lives under Token flow only — local counterfactual, not Grok plan savings.</p>
+          </details>
+        </section>
+      </div>
+    </div>
+</div>
+
+
+    
+
+    
+
+  <!-- legacy ids for app.js -->
+  <span id="shipBadge" class="hidden"></span>
+  <span id="magOsStrip" class="hidden"></span>
+  <span id="magOsVer" class="hidden"></span>
+  <span id="magOsProv" class="hidden"></span>
+  <span id="magOsChips" class="hidden"></span>
+  <span id="magOsPhoenix" class="hidden"></span>
+  <span id="magOsCardPanel" class="hidden"></span>
+  <span id="magOsCardBody" class="hidden"></span>
+  <span id="btnOsCard" class="hidden"></span>
+  <span id="btnAdvanced" class="hidden"></span>
+  <span id="advMenu" class="hidden"></span>
+  <span id="healthBanner" class="hidden"></span>
+  <span id="footRoot" class="hidden"></span>
+  <span id="boardNote" class="hidden"></span>
+  <span id="btnBoardRefresh" class="hidden"></span>
+  <span id="btnCatchUpBoard" class="hidden"></span>
+  <span id="boardDrawer" class="hidden"></span>
+  <span id="vmapAscii" class="hidden"></span>
+
+  <div id="mirrorGuideBackdrop" class="mirror-guide-backdrop hidden" aria-hidden="true"></div>
+  <div id="mirrorGuide" class="mirror-guide hidden" role="dialog" aria-modal="true" aria-labelledby="mirrorGuideTitle">
+    <div class="mirror-clippy">
+      <div class="mirror-avatar" aria-hidden="true" title="Your Mirror">
+        <svg viewBox="0 0 48 48" width="52" height="52" focusable="false">
+          <defs>
+            <linearGradient id="mirrorMagGrad" x1="15%" y1="0%" x2="90%" y2="100%">
+              <stop offset="0%" stop-color="#7cffc8"/>
+              <stop offset="45%" stop-color="#39ff9a"/>
+              <stop offset="100%" stop-color="#00c8e0"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#mirrorMagGrad)" d="M30.5 5.5c8.2 1.2 13.8 9.2 12.2 17.6-1.5 8-8.4 13.6-16.2 13.2-7.2-.4-13-5.6-14.2-12.4C11 17.2 15 11 21.4 9.2c-1.2 5.8 2.4 11.8 8.4 13.2 5.2 1.2 10.2-1.8 11.2-6.8.8-4.2-1.4-8.4-5.4-10.4-1.4-.7-3.2-1.2-5.1-1.7z"/>
+          <circle cx="33.2" cy="14.8" r="3.1" fill="#05080a"/>
+          <circle cx="33.2" cy="14.8" r="1.15" fill="#39ff9a" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="mirror-bubble">
+        <p class="mirror-kicker">First run · your mirror</p>
+        <h2 id="mirrorGuideTitle">Hi — I'm your Mirror</h2>
+        <p id="mirrorGuideText" class="mirror-text">…</p>
+        <div class="mirror-step-dots" id="mirrorGuideDots" aria-hidden="true"></div>
+        <div class="mirror-guide-actions">
+          <button type="button" class="btn ghost btn-sm" id="btnMirrorSkip">Skip tour</button>
+          <button type="button" class="btn ghost btn-sm" id="btnMirrorBack" disabled>Back</button>
+          <button type="button" class="btn primary btn-sm" id="btnMirrorNext">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/visual.js?v=tesuji9"></script>
+  <script src="/static/board.js?v=tesuji9"></script>
+  <script src="/static/windows.js?v=tesuji33"></script>
+  <script src="/static/app.js?v=lattice-graph-v1"></script>
+</body>
+</html>

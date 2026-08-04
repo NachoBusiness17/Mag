@@ -1,0 +1,7 @@
+# Multi-smoke fixture (T2 public) — NEVER replace with live chat
+
+Project: local sovereign Mag harness.
+Rules: local models do memory and scutwork; Grok is scarce and only for hard work.
+Data tiers: T0/T1 stay on the machine; free remote APIs only get public T2+ text.
+Jobs: watch Grok sessions, write session dossiers, briefs, visual packs; escalate with short brief not full chat.
+Risk: treating todo completion as if the mirror product were finished; polish theater; empty data/raw blocking train claims.

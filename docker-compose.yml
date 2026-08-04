@@ -1,0 +1,57 @@
+# Mag runs in a container — agent subprocesses never get your full desktop.
+# Host only: localhost ports + explicit volume mounts (memory, watch, logs, state, queue).
+#
+#   docker compose up -d --build
+#   http://127.0.0.1:8765/
+#
+# Optional local LLM sidecar:
+#   docker compose --profile ollama up -d --build
+
+services:
+  mag:
+    build: .
+    image: mag-sovereign:local
+    container_name: mag-sovereign
+    env_file:
+      - .env
+    environment:
+      MAG_BIND_HOST: "0.0.0.0"
+      MAG_CONTAINER: "1"
+      MAG_NO_MIRROR: "1"
+      MAG_DRAINER: "0"
+      OLLAMA_HOST: "http://ollama:11434"
+    ports:
+      - "127.0.0.1:8765:8765"
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./memory:/app/memory
+      - ./watch:/app/watch
+      - ./logs:/app/logs
+      - ./state:/app/state
+      - ./queue:/app/queue
+      - ./configs:/app/configs:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    networks:
+      - mag_net
+
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    container_name: mag-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - mag_ollama_data:/root/.ollama
+    networks:
+      - mag_net
+
+networks:
+  mag_net:
+    driver: bridge
+
+volumes:
+  mag_ollama_data:

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "as_of": "2026-08-03",
+  "note": "Deterministic hard rails (Maelstrom V2 pattern). Evaluated at preflight with NO LLM. Add rules here; agent_cli._preflight_tool enforces them. See mag/rails.py.",
+  "write_file_content": [
+    {
+      "id": "no_live_secret_values",
+      "desc": "Block writing live-looking API key/token values into any artifact (path check alone cannot catch content leaks)",
+      "regex": "(?i)\\b(sk-[A-Za-z0-9_-]{16,}|[A-Za-z0-9_-]{0,32}api[_-]?key[\"']?\\s*[:=]\\s*[\"'][A-Za-z0-9_\\-]{16,}[\"']?)",
+      "severity": "block"
+    }
+  ],
+  "write_file_path": [
+    {
+      "id": "no_residual_dna",
+      "desc": "Never write residual DNA / knots / quota state (mirrors agent_cli._safe_tool_args legacy list)",
+      "patterns": [".env", "verkle_tip.json", "verkle_chain.jsonl", "/knots/", "quota_state.json"]
+    }
+  ]
+}

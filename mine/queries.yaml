@@ -1,0 +1,13 @@
+# Field mining query packs (Wave M) — not run by graph yet
+x_semantic:
+  - agent router architecture handoff contract local LLM
+  - multi-agent memory scoped not shared
+  - Ollama OpenRouter crew agent cost routing
+x_keyword:
+  - '("LLM router" OR "agent router") (ollama OR openrouter OR handoff)'
+arxiv:
+  - 'ti:"LLM router" OR abs:"multi-agent handoff"'
+reddit_subs:
+  - LocalLLaMA
+  - MachineLearning
+  - LLMDevs

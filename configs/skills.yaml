@@ -1,0 +1,66 @@
+# Mag / operator skill progressive disclosure (not always in L0 prompt)
+# Schema: mag_skills.v1
+# Load into context-pack only when job matches — skills > MCP flood.
+
+schema: mag_skills.v1
+version: "2026-07-27"
+
+# process vs case (memory_verkle_map)
+memory_rule: |
+  Process lessons → playbook / promote.
+  Case facts → residual DNA.
+  Mid-goal continuity → trail + progress.md.
+  Prompt is never the memory system.
+
+skills:
+  - id: operator-quixote
+    when: [always_soft]
+    load: never_into_l0_full
+    note: "Default register for Grok TUI; not Mag janitor dump"
+
+  - id: sovereign-mag
+    when: [dispatch, recall, multi_model, quota]
+    path: "~/.grok/skills/sovereign-mag/SKILL.md"
+    pack_excerpt: true
+
+  - id: strike-chord
+    when: [hard_reason, architecture, mirror, priority]
+    path: "~/.grok/skills/strike-chord/SKILL.md"
+    pack_excerpt: false
+    note: "Explicit strike only"
+
+  - id: feature-compose
+    when: [improve, model_signal, harness_scout]
+    path: docs/templates/FEATURE_COMPOSE.md
+    pack_excerpt: true
+
+  - id: model-tesuji
+    when: [huggingface, model_signal]
+    path: docs/templates/MODEL_TESUJI.md
+    pack_excerpt: true
+
+  - id: memory-verkle
+    when: [memory, improve, harness, openclaw]
+    path: docs/ref/memory_verkle_map.md
+    pack_excerpt: true
+
+  - id: run-trail-lattice
+    when: [trail, long_horizon, agent]
+    path: docs/ref/run_trail_lattice.md
+    pack_excerpt: true
+
+  - id: patch-verify
+    when: [hard_code, code, fix, edit, refactor]
+    path: memory/improve/weaves/W7-patch-verify.md
+    pack_excerpt: true
+    note: "Mined 2026-08-03: 18/20 run_python calls in one edit session were hand-rolled read->patch->verify->compile. This weave is the 2-call recipe."
+
+job_to_skills:
+  scut: []
+  recall: [sovereign-mag]
+  public_summarize: []
+  hard_code: [sovereign-mag, run-trail-lattice, patch-verify]
+  hard_reason: [sovereign-mag, strike-chord]
+  research: [feature-compose, memory-verkle]
+  improve: [feature-compose, model-tesuji, memory-verkle]
+  default: [memory-verkle]

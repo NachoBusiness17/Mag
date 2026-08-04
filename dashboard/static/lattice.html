@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MAG · Conspiracy lattice</title>
+  <style>
+    :root {
+      --bg: #030806;
+      --ink: #c8e6d9;
+      --accent: #7cf5ff;
+      --line: rgba(0, 240, 255, 0.22);
+      --muted: #8ab8a4;
+      --bad: #ff6b6b;
+      --good: #3dffa8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, sans-serif; }
+    .bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+      padding: 10px 14px; border-bottom: 1px solid var(--line); background: #0a1412;
+    }
+    .bar h1 { margin: 0; font-size: 0.95rem; letter-spacing: 0.08em; color: var(--accent); }
+    .bar .meta { color: var(--muted); font-size: 0.85rem; flex: 1; min-width: 12rem; }
+    .bar a, .bar button {
+      border: 1px solid var(--line); background: transparent; color: var(--accent);
+      padding: 6px 10px; text-decoration: none; font-size: 0.8rem; cursor: pointer; border-radius: 4px;
+    }
+    .bar a.primary, .bar button.primary { background: rgba(124, 245, 255, 0.12); }
+    .bar .bad { color: var(--bad); }
+    .bar .good { color: var(--good); }
+    #frame { width: 100%; height: calc(100% - 52px); border: 0; display: block; background: #030806; }
+    #fallback { display: none; padding: 1.5rem; max-width: 40rem; line-height: 1.55; }
+    #fallback pre {
+      background: #0a1412; border: 1px solid var(--line); padding: 0.75rem 1rem;
+      overflow: auto; font-size: 0.8rem; color: var(--muted);
+    }
+    ul.knots { columns: 2; gap: 1rem; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <h1>CONSPIRACY LATTICE</h1>
+    <span class="meta" id="status">Checking instrument on :8743…</span>
+    <a href="http://127.0.0.1:8743/?preset=conspiracy" target="_blank" rel="noopener" class="primary">Open desk (new tab)</a>
+    <a href="http://127.0.0.1:8743/?preset=demo" target="_blank" rel="noopener">Short demo</a>
+    <a href="/">Mag home</a>
+    <button type="button" id="btnReload" class="primary">Reload embed</button>
+  </header>
+  <iframe id="frame" title="Sovereign Mirror lattice desk" src="about:blank"></iframe>
+  <div id="fallback">
+    <h2>Instrument not reachable</h2>
+    <p>The conspiracy lattice runs on the <strong>Sovereign Mirror desk</strong> at port <code>8743</code>. Mag only hosts this launcher.</p>
+    <p id="errDetail" class="bad"></p>
+    <p>Start it:</p>
+    <pre id="startCmd">cd Documents\projects\worktrees\sovereign-mirror-scaffold
+.\.venv\Scripts\strike.exe dashboard --port 8743 --no-browser</pre>
+    <p>Then open <a href="http://127.0.0.1:8743/?preset=conspiracy">http://127.0.0.1:8743/?preset=conspiracy</a> or click Reload embed.</p>
+    <div id="inv"></div>
+  </div>
+  <script>
+    const frame = document.getElementById("frame");
+    const status = document.getElementById("status");
+    const fallback = document.getElementById("fallback");
+    const DESK = "http://127.0.0.1:8743/?preset=conspiracy";
+
+    async function probe() {
+      try {
+        const r = await fetch("http://127.0.0.1:8743/api/health", { cache: "no-store", mode: "cors" });
+        // health may block CORS from :8765 — try no-cors style via image or just attempt iframe
+        if (!r.ok) throw new Error("health " + r.status);
+        const d = await r.json();
+        status.textContent = `Instrument up · v${d.version || "?"} · loading full lattice…`;
+        status.className = "meta good";
+        frame.style.display = "block";
+        fallback.style.display = "none";
+        frame.src = DESK;
+        return true;
+      } catch (e) {
+        // CORS often blocks health from Mag origin — still try iframe
+        status.textContent = "Embedding desk (if blank, start :8743)…";
+        frame.src = DESK;
+        // after short wait, probe via mag API inventory
+        try {
+          const lab = await fetch("/api/v1/lattice-lab").then((x) => x.json());
+          if (lab.ok) {
+            document.getElementById("inv").innerHTML =
+              `<p class="meta">${lab.n_knots || 0} knot files on disk · default stack ${(lab.default_stack || []).length}</p>` +
+              `<ul class="knots">${(lab.knots || []).map((k) => `<li><code>${k.id}</code></li>`).join("")}</ul>`;
+          }
+        } catch (_) {}
+        // assume iframe may work even if CORS health fails
+        setTimeout(async () => {
+          // if still no cross-origin check, leave iframe; show fallback only if user clicks
+        }, 500);
+        return false;
+      }
+    }
+
+    document.getElementById("btnReload").onclick = () => {
+      status.textContent = "Reloading…";
+      frame.src = DESK + "&t=" + Date.now();
+      fallback.style.display = "none";
+      frame.style.display = "block";
+    };
+
+    // Mag-side inventory always
+    fetch("/api/v1/lattice-lab")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.start) document.getElementById("startCmd").textContent = d.start.replace(/`/g, "");
+      })
+      .catch(() => {});
+
+    probe();
+  </script>
+</body>
+</html>

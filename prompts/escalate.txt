@@ -1,0 +1,4 @@
+When escalating to Grok, be precise: one job, paths, constraints, success checks.
+Never put T0 secrets in the handoff body.
+Attach context-pack / nervous glance — not full chat dump.
+State what local already tried and failed. One job only. Artifact paths over prose.

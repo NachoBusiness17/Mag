@@ -1,0 +1,83 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --line: #30363d;
+  --ink: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.top nav { margin-left: auto; display: flex; gap: 0.75rem; }
+.top a { color: var(--accent); font-size: 0.85rem; }
+.muted { color: var(--muted); }
+.sm { font-size: 0.8rem; }
+.mono { font-family: var(--mono); font-size: 0.78rem; }
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 220px 1fr 320px;
+  min-height: 0;
+}
+.tree-pane, .agent-pane {
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  overflow: auto;
+  padding: 0.5rem;
+}
+.agent-pane { border-right: 0; border-left: 1px solid var(--line); }
+.pane-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.5rem; }
+.tree { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
+.tree li { padding: 0.2rem 0; cursor: pointer; }
+.tree li:hover { color: var(--accent); }
+.tree .dir { color: var(--muted); }
+.editor-pane { display: flex; flex-direction: column; min-height: 0; }
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.editor { flex: 1; min-height: 0; }
+button, select, textarea {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 4px;
+}
+button:disabled { opacity: 0.4; }
+textarea { width: 100%; resize: vertical; }
+.agent-out {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.agent-out.small { max-height: 8rem; }
+.row { display: flex; gap: 0.4rem; margin: 0.4rem 0; }

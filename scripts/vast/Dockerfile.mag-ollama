@@ -1,0 +1,23 @@
+# Optional custom image (advanced). Prefer on-start script on vastai/base-image first.
+# Build + push only if you re-rent often enough to amortize registry pull time.
+#
+#   docker build -f scripts/vast/Dockerfile.mag-ollama -t YOU/mag-ollama:rtx8000 .
+#   docker push YOU/mag-ollama:rtx8000
+# Template Image Path: YOU/mag-ollama:rtx8000
+
+FROM ollama/ollama:latest
+
+ENV OLLAMA_HOST=0.0.0.0:11434
+ENV OLLAMA_KEEP_ALIVE=30m
+ENV MAG_STACK=rtx8000_48
+
+# Note: ollama pull at build time bloats image (20–40GB+). Prefer on-start pulls
+# so hosts cache base layers and you can change MAG_STACK without rebuild.
+COPY scripts/vast/onstart_mag_ollama.sh /opt/mag/onstart_mag_ollama.sh
+RUN chmod +x /opt/mag/onstart_mag_ollama.sh
+
+EXPOSE 11434
+
+# Vast often overrides CMD; set on-start in template to /opt/mag/onstart_mag_ollama.sh
+# Default: serve only (pulls happen in onstart)
+CMD ["serve"]

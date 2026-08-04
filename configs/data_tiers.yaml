@@ -1,0 +1,10 @@
+# Path globs / keywords → tier (first match wins conceptually; code uses heuristics)
+rules:
+  - tier: T0
+    keywords: [api_key, secret, password, .env, credential]
+  - tier: T1
+    keywords: [data/raw, private, intimate, archive, annotation]
+  - tier: T2
+    keywords: [public, readme, docs, open]
+  - tier: T3
+    keywords: [escalate, specialist, architecture review]

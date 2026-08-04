@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.cursor/
+.env
+.env.*
+!.env.example
+logs/*
+state/*
+memory/biography/**
+memory/briefs/**
+memory/agent_sessions/**
+memory/agent_state/**
+android/
+!memory/README.md

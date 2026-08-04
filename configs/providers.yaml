@@ -1,0 +1,252 @@
+# Multi-platform providers for Mag routing.
+# Secrets: set env vars listed under each provider (never commit keys).
+#
+# Quotas: most free tiers do NOT expose "remaining until reset" via API.
+# You set period + limits here; Mag tracks usage and refuses when empty.
+# Adjust limits to match your plan; reset_day = day of month (1-28) or "daily".
+
+defaults:
+  never_remote_tiers: [T0, T1]
+  prefer_order:
+    - ollama
+    - openrouter
+    - anthropic
+    - groq
+    - deepseek
+    - openai
+    - gemini
+    - xai
+    - together
+
+providers:
+  ollama:
+    name: Ollama (local)
+    kind: openai_compat
+    base_url: http://127.0.0.1:11434/v1
+    api_key_env: null          # Ollama ignores key; send "ollama"
+    api_key_default: ollama
+    models:
+      - gemma:2b
+      - gemma4:latest
+    default_model: gemma4:latest
+    tier_max: T1               # may see local private
+    free_local: true
+    timeout_seconds: 300
+    quota:
+      period: none             # unlimited local
+      max_calls: null
+      max_tokens: null
+
+  openrouter:
+    name: OpenRouter (many models)
+    kind: openai_compat
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    # Also accepts OR_API_KEY
+    models:
+      - openrouter/auto
+      - meta-llama/llama-3.3-70b-instruct:free
+      - google/gemma-2-9b-it:free
+      - deepseek/deepseek-r1:free
+    default_model: openrouter/auto
+    tier_max: T2
+    free_local: false
+    extra_headers:
+      HTTP-Referer: http://127.0.0.1:8765
+      X-Title: Mag Resource Harness
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: 200
+      max_tokens: 500000
+      note: "Set to your free/paid plan; OpenRouter dashboard is source of truth"
+
+  openai:
+    name: OpenAI ChatGPT API
+    kind: openai_compat
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    models:
+      - gpt-4o-mini
+      - gpt-4o
+    default_model: gpt-4o-mini
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: 100
+      max_tokens: 200000
+      note: "Paid API — set limits to budget"
+
+  anthropic:
+    name: Anthropic Claude
+    kind: anthropic_messages
+    base_url: https://api.anthropic.com/v1
+    api_key_env: ANTHROPIC_API_KEY
+    models:
+      - claude-sonnet-4-20250514
+      - claude-3-5-haiku-20241022
+    default_model: claude-sonnet-4-20250514
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: 80
+      max_tokens: 300000
+      note: "Claude API (CLI: set ANTHROPIC_API_KEY). Or use openrouter anthropic/* models."
+
+  groq:
+    name: Groq (fast Llama etc.)
+    kind: openai_compat
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    models:
+      - llama-3.3-70b-versatile
+      - llama-3.1-8b-instant
+    default_model: llama-3.1-8b-instant
+    tier_max: T2
+    free_local: false
+    quota:
+      period: daily
+      max_calls: 100
+      max_tokens: 100000
+      note: "Free tier often daily — check console.groq.com"
+
+  deepseek:
+    name: DeepSeek
+    kind: openai_compat
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    # Multi-key chain: both env names are tried in order; 401/403/429
+    # auto-failover to the next key (verified 2026-08-03).
+    api_key_envs: [DEEPSEEK_API_KEY, DEEPSEEK_OVERMIND_API_KEY]
+    # DeepSeek v4 defaults thinking ON; reasoning tokens eat max_tokens and
+    # small budgets return EMPTY content (the 'agent hallucinating / empty
+    # reply' bug). Top-level thinking:{type:disabled} is ~10-15x cheaper and
+    # returns real text. Verified live 2026-08-03 (12 tok vs 120 tok).
+    disable_thinking: true
+    # Canonical v4 model names (verified 2026-08-02). Legacy aliases
+    # deepseek-chat / deepseek-reasoner still resolve but are deprecated.
+    models:
+      - deepseek-v4-flash
+      - deepseek-v4-pro
+    default_model: deepseek-v4-flash
+    tier_max: T2
+    free_local: false
+
+  deepseek_overmind:
+    name: DeepSeek Overmind (second key chain)
+    kind: openai_compat
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_OVERMIND_API_KEY
+    disable_thinking: true
+    models:
+      - deepseek-v4-flash
+      - deepseek-v4-pro
+    default_model: deepseek-v4-flash
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: null
+      max_tokens: null
+      note: "Separate Overmind key; used by deepseek chain failover + explicit --provider deepseek_overmind"
+
+  vast:
+    name: Vast.ai (OpenAI-compatible endpoint)
+    kind: openai_compat
+    # base_url_env lets .env point at any rented GPU endpoint
+    # (VAST_OPENAI_BASE_URL, e.g. https://<instance>.vast.ai/v1).
+    base_url_env: VAST_OPENAI_BASE_URL
+    base_url: https://api.vast.ai/v1
+    api_key_env: VAST_OPENAI_API_KEY
+    # Override model via VAST_OPENAI_MODEL env or --model (defaults to a
+    # widely-served OpenAI-compatible id; adjust to what your instance runs).
+    model_env: VAST_OPENAI_MODEL
+    default_model: deepseek-v4-flash
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: null
+      max_tokens: null
+      note: "Rented GPU box — set VAST_OPENAI_BASE_URL + VAST_OPENAI_API_KEY (+ VAST_OPENAI_MODEL if different)"
+    # Chat context window — DeepSeek real window is 1,000,000 tokens (1M).
+    # Was 64000 (6.4% of real) → repack fired at ~36.5K tokens = 3.7% of window,
+    # destroying context-cache hits (50x flash / 120x pro cheaper on HIT).
+    # See memory/improve/deepseek_api/repack_vs_cache_analysis.md
+    context_tokens: 1000000
+    timeout_seconds: 600
+    quota:
+      period: monthly
+      reset_day: 1
+      # No Mag soft cap — vendor balance is the only gate (usage still tracked).
+      max_calls: null
+      max_tokens: null
+
+  gemini:
+    name: Google Gemini
+    kind: openai_compat
+    # OpenAI-compatible endpoint (Google)
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    api_key_env: GEMINI_API_KEY
+    # Also GOOGLE_API_KEY
+    models:
+      - gemini-2.0-flash
+      - gemini-1.5-flash
+    default_model: gemini-2.0-flash
+    tier_max: T2
+    free_local: false
+    quota:
+      period: daily
+      max_calls: 50
+      max_tokens: 200000
+      note: "Free tier RPM/RPD change often — set conservatively"
+
+  xai:
+    name: xAI Grok API
+    kind: openai_compat
+    base_url: https://api.x.ai/v1
+    api_key_env: XAI_API_KEY
+    models:
+      - grok-3-mini
+      - grok-3
+    default_model: grok-3-mini
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: 100
+      max_tokens: 300000
+      note: "Separate from Grok TUI/CLI harness (L2)"
+
+  together:
+    name: Together (Llama etc.)
+    kind: openai_compat
+    base_url: https://api.together.xyz/v1
+    api_key_env: TOGETHER_API_KEY
+    models:
+      - meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+    default_model: meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+    tier_max: T2
+    free_local: false
+    quota:
+      period: monthly
+      reset_day: 1
+      max_calls: 100
+      max_tokens: 200000
+
+# Routing preferences by job class (first with budget + key wins after ollama)
+routing:
+  scut: [ollama, groq, openrouter, deepseek, deepseek_overmind, vast]
+  recall: [ollama]
+  public_summarize: [openrouter, groq, deepseek, deepseek_overmind, vast, gemini, openai]
+  hard_code: [anthropic, xai, openai, openrouter, deepseek, vast]
+  hard_reason: [anthropic, deepseek, deepseek_overmind, vast, xai, openrouter]
+  # Interactive Grok TUI is still L2 "specialist seat" — API providers for headless
+  default: [ollama, openrouter, anthropic, groq, deepseek, gemini, openai, xai]

@@ -1,0 +1,33 @@
+# Sovereign Mag — integral companion (one process owns watch + cycles)
+interval_seconds: 120
+watch_interval_seconds: 5       # baked-in session tail (do NOT also run main.py watch)
+integral_watch: true            # start watch thread inside mag loop
+max_attention_per_day: 48   # was 8 — idle "cap reached" felt broken; companion pings still bounded
+max_assigned_per_cycle: 1
+use_grok_harness: true          # escalate hard work via the specialist harness
+harness_yolo: false             # never auto-approve tools unless you flip this
+harness_max_turns: 12
+harness_output: plain           # plain | json
+watch_before_cycle: true        # also refresh live board once per mag cycle
+# mag agent CLI — no round ceiling (legacy max_tool_rounds removed 2026-08-03);
+# context window is the real stop. Loop ends on final text / provider error /
+# context-budget exhaustion.
+# Auto-repack when est tokens > context_repack_ratio * provider usable window.
+# Repack ratio raised 0.62 → 0.85 (2026-08-02): repack destroys DeepSeek context-cache
+# hits (50x flash / 120x pro cheaper on HIT) and was firing at 3.7% of the real 1M window.
+# Repack is now a last resort, not routine. See memory/improve/deepseek_api/repack_vs_cache_analysis.md
+context_repack_ratio: 0.85
+todo_path: queue/todo.md
+attention_path: memory/attention.md
+journal_path: memory/mag_journal.md
+log_path: logs/mag.jsonl
+# Only act on todos marked [mag] or [assign]
+assigned_markers:
+  - "[mag]"
+  - "[assign]"
+# Attention heuristics (keyword / conditions)
+attention:
+  open_loops_from_working: true
+  unread_handoff: true
+  live_session_stale_minutes: 45
+  always_note_if_todo_stale_hours: 24

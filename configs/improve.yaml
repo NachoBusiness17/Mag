@@ -1,0 +1,253 @@
+# Mag improve loop — daily scout → candidates → eval → promote (gated)
+# Schema: improve.v1
+
+schema: improve.v1
+enabled: true
+
+# Never auto-download model weights unless you raise this (GB). 0 = off.
+max_auto_pull_gb: 0
+
+budgets:
+  urls_per_day: 10
+  research_packs_per_day: 1
+  candidates_per_day: 25
+  arxiv_abstracts: 15
+  x_posts_per_day: 0          # raise only with X allowlist + API later
+  remote_llm_for_scout: false # L0 heuristics only unless true + keys
+
+# Week rotation (0=Mon … 6=Sun). Extra tier-B source ids for that day.
+rotation:
+  0: [github, huggingface, agent_harness]   # Mon — harness/memory
+  1: [reddit, ollama, openclaw]             # Tue — local + OpenClaw
+  2: [arxiv, anthropic, openai]             # Wed — papers + labs (bias: process value / TTC / continual / plan search → IJL)
+  3: [openrouter, deepseek, xai]            # Thu — routes/prices
+  4: [google_adk, vast, agent_harness]      # Fri — multi-agent + harness
+  5: [catchup]                              # Sat — re-try failed + internal only
+  6: [digest]                               # Sun — playbook digest, no outbound
+
+# Always include tier A when not digest-only day
+# agent_memory = HF + OpenClaw + harness essays (regular)
+tier_a_always: [huggingface, reddit, github, arxiv, mag_internal, agent_memory]
+
+sources:
+  # --- Tier A ---
+  huggingface:
+    tier: A
+    kind_hint: model
+    urls:
+      - https://huggingface.co/models?sort=trending
+      - https://discuss.huggingface.co/t/how-do-you-design-memory-systems-for-long-running-ai-agents/175584
+      - https://huggingface.co/blog/huggingface/state-of-os-hf-spring-2026
+      - https://huggingface.co/papers/2606.05761
+      - https://huggingface.co/papers/2607.08716
+
+  reddit:
+    tier: A
+    kind_hint: practice
+    urls:
+      - https://old.reddit.com/r/LocalLLaMA/top/?t=week
+      - https://old.reddit.com/r/AI_Agents/top/?t=week
+      - https://old.reddit.com/r/MachineLearning/top/?t=week
+      - https://old.reddit.com/r/LocalLLaMA/comments/1p7siuu/anthropic_just_showed_how_to_make_ai_agents_work/
+      - https://old.reddit.com/r/LocalLLaMA/comments/1tbgarl/are_harnesses_like_openclaw_and_hermes_really/
+
+  github:
+    tier: A
+    kind_hint: runtime
+    urls:
+      - https://github.com/ollama/ollama/releases
+      - https://github.com/ggerganov/llama.cpp/releases
+      - https://github.com/vllm-project/vllm/releases
+      - https://github.com/google/adk-python
+      - https://github.com/HKUDS/OpenHarness
+      - https://github.com/badlogic/pi-mono
+
+  arxiv:
+    tier: A
+    kind_hint: paper
+    # Atom feeds — titles + abstracts only
+    feeds:
+      - https://rss.arxiv.org/rss/cs.AI
+      - https://rss.arxiv.org/rss/cs.CL
+      - https://rss.arxiv.org/rss/cs.LG
+
+  mag_internal:
+    tier: A
+    kind_hint: risk
+    local_only: true
+
+  # --- Tier B ---
+  openai:
+    tier: B
+    kind_hint: practice
+    urls:
+      - https://openai.com/blog/
+      - https://platform.openai.com/docs/guides/agents
+
+  anthropic:
+    tier: B
+    kind_hint: practice
+    urls:
+      - https://www.anthropic.com/news
+      - https://www.anthropic.com/engineering/building-effective-agents
+      - https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+
+
+  # Regular agent/memory scout (Tier A always) — contracts not products
+  agent_memory:
+    tier: A
+    kind_hint: practice
+    urls:
+      - https://discuss.huggingface.co/t/how-do-you-design-memory-systems-for-long-running-ai-agents/175584
+      - https://docs.openclaw.ai/cli/memory
+      - https://www.langchain.com/blog/your-harness-your-memory
+      - https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+    note: "Map to Mag residual/bonds/trail/tip — never closed harness as DNA"
+
+  agent_harness:
+    tier: B
+    kind_hint: practice
+    urls:
+      - https://github.com/HKUDS/OpenHarness
+      - https://docs.openclaw.ai/
+      - https://openai.com/index/the-next-evolution-of-the-agents-sdk/
+      - https://www.philschmid.de/agent-harness-2026
+    note: "Harness engineering field; steal contracts only"
+
+  openclaw:
+    tier: B
+    kind_hint: practice
+    urls:
+      - https://docs.openclaw.ai/cli/memory
+      - https://docs.openclaw.ai/
+      - https://github.com/badlogic/pi-mono
+    note: "OpenClaw/Pi memory promote + dreaming — map to promote gate + residual"
+
+  google_adk:
+    tier: B
+    kind_hint: practice
+    urls:
+      - https://developers.googleblog.com/agent-development-kit-easy-to-build-multi-agent-applications/
+      - https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/adk
+      - https://research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
+
+  xai:
+    tier: B
+    kind_hint: model
+    urls:
+      - https://x.ai/blog
+      - https://docs.x.ai/
+
+  deepseek:
+    tier: B
+    kind_hint: model
+    urls:
+      - https://api-docs.deepseek.com/
+      - https://github.com/deepseek-ai
+
+  openrouter:
+    tier: B
+    kind_hint: price
+    urls:
+      - https://openrouter.ai/models
+      - https://openrouter.ai/docs
+
+  ollama:
+    tier: B
+    kind_hint: model
+    urls:
+      - https://ollama.com/library
+      - https://ollama.com/search
+
+  vast:
+    tier: C
+    kind_hint: price
+    urls:
+      - https://vast.ai/pricing
+
+  catchup:
+    tier: B
+    kind_hint: risk
+    local_only: true
+    note: Re-open failed candidate sources from ledger
+
+  digest:
+    tier: B
+    kind_hint: practice
+    local_only: true
+    note: Playbook + weekly status only
+
+# Allowlists (empty = skip that channel until operator fills)
+allowlists:
+  x_accounts: []
+  substack_rss: []
+  github_extra_repos: []
+  # On-demand people (e.g. Academia) — not daily
+  named_profiles: []
+  # - https://independent.academia.edu/GHoard
+
+paths:
+  root: memory/improve
+  candidates: memory/improve/candidates.jsonl
+  daily: memory/improve/daily
+  evals: memory/improve/evals
+  playbook: memory/improve/playbook.md
+  state: memory/improve/state.json
+
+eval:
+  run_multi_smoke: true
+  # Fixture path relative to ROOT; empty = multi-smoke only for now
+  fixtures: []
+
+# Hugging Face / frontier models: not seats — tesuji leaves.
+# Template: docs/templates/MODEL_TESUJI.md
+# Leaves:   memory/improve/evals/models/{slug}-{date}.md
+# Rule: promote practices from Take only; never auto-pull weights.
+model_tesuji:
+  enabled: true
+  template: docs/templates/MODEL_TESUJI.md
+  evals_dir: memory/improve/evals/models
+  max_open_leaves: 2
+  # Bare "Model signal:" stays noise until a leaf exists
+  require_leaf_before_promote: true
+  example_leaf: memory/improve/evals/models/kimi-k3-2026-07-27.md
+
+# General: identify key features → evaluate → steal → enhance → compose
+# Greater-than-sum only when steals share substrate or cancel failure modes.
+feature_compose:
+  enabled: true
+  template: docs/templates/FEATURE_COMPOSE.md
+  evals_dir: memory/improve/evals/features
+  max_features_per_leaf: 5
+  require_compose_for_multi_steal: true
+  rule: "Port contracts into Mag; never stack thrones"
+
+promote:
+  auto_append_practices_to_playbook: true
+  auto_apply_model_seats: false
+  auto_apply_prompt_diffs: false
+
+# Field brief synthesis (post scout/eval) — local only, Grok reads field_brief.md
+synthesis:
+  enabled: true
+  use_llm: false         # heuristic markdown only (gemma:2b polish nuked briefs 2026-08-02)
+  role: clerk            # janitor gemma:2b only (Hermes/worker parked for brief)
+  top_n: 12              # candidates fed into ranking / LLM
+  max_tickets: 5         # action tickets in brief
+  statuses: [new, hold]  # ignore promoted/rejected
+
+# Opt-in deeper dig after field brief (not on MagImproveDaily by default)
+# CLI: python main.py improve --deep [--minutes 60]
+# Runs research-pack + local Ollama worker on ranked practice tickets.
+# Never auto-promotes; never pulls weights (max_auto_pull_gb still gates).
+deep_dive:
+  enabled: true
+  default_minutes: 60
+  max_tickets: 4
+  min_score: 12
+  kinds: [practice, runtime, paper, risk]
+  statuses: [new, hold]
+  role: worker           # gemma4 short bursts — not clerk scut
+  run_local: true
+  auto_promote: false
+  require_http_or_local: true

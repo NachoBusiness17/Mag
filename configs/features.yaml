@@ -1,0 +1,130 @@
+# Mag feature / experiment registry
+# Machine-readable (yaml.safe_load). The seat, orchestrator and run harness
+# read this to know WHAT exists, WHICH experiments are live, and HOW a feature
+# proved itself (metric + verdict). Loop: propose -> beta (one run window) ->
+# measure -> promote (status: shipped) or deprecate. Never delete history.
+version: 2026-08-03
+
+experiments:
+  # --- SHIPPED (proved, default on) -----------------------------------------
+  - id: exp-midround-steer
+    status: shipped
+    shipped: 2026-08-03
+    feature: "steer commands absorbed at every decision point, not only round boundaries"
+    hypothesis: "Operator can redirect a running turn within ~100ms instead of waiting for the turn to end."
+    metric: "steer -> absorb latency; absorb before next model call (mock E2E)"
+    evidence: "tests/test_t1_steering.py 4/4 PASS"
+    window: "12h run rev2, runs 2-3 (mocked) + live REPL"
+  - id: exp-escape-gates
+    status: shipped
+    shipped: 2026-08-03
+    feature: "'!escape' aborts at 4 gates (post-model, pre-tool, mid-tool-loop, end-of-loop)"
+    hypothesis: "An escape lands in <=1 tool call; the round ends cleanly, trail survives."
+    metric: "tool calls executed after escape; clean abort return (no crash)"
+    evidence: "tests/test_t1_steering.py test_escape_aborts_round + test_escape_mid_tool_loop"
+    window: "12h run rev2, runs 2-3"
+  - id: exp-pause-hold
+    status: shipped
+    shipped: 2026-08-03
+    feature: "'!pause' holds (Human Nod) mid-round; '!continue' resumes; never aborts"
+    hypothesis: "Pause is a gate, not a kill - the operator can freeze churn and steer."
+    metric: "pause holds >=0.5s, model not called while paused, round completes after resume"
+    evidence: "tests/test_t1_steering.py test_pause_holds_mid_round (elapsed 1.05s)"
+    window: "12h run rev2, runs 2-3"
+  - id: exp-steer-acks
+    status: shipped
+    shipped: 2026-08-03
+    feature: "instant ack line when '!steer'/'!pause'/'!continue'/'!escape' keystroke lands"
+    hypothesis: "The operator sees the seat SAW the command immediately, instead of watching it chug away silently."
+    metric: "ack printed in listener on read (msvcrt/select), not at next drain"
+    evidence: "mag/agent_cli.py _ack_cmd; mocked E2E output shows acks mid-round"
+    window: "12h run rev2, runs 2-3"
+  - id: exp-streaming-sse
+    status: shipped
+    shipped: 2026-08-03
+    feature: "Phase A1 streaming deltas (SSE smoke 27 deltas)"
+    metric: "deltas streamed, no stall, final text lands"
+    window: "12h run rev2, run 4 (live verify)"
+  - id: exp-provider-timeouts
+    status: shipped
+    shipped: 2026-08-03
+    feature: "per-provider timeouts (deepseek 600s / ollama 300s) + BACKEND_TIMEOUT env"
+    window: "12h run rev2, run 4"
+  - id: exp-empty-nudge
+    status: shipped
+    shipped: 2026-08-03
+    feature: "empty model response -> reroute streak 1 (compass), streak 2 (demand tool), streak 3 (hard stop)"
+    metric: "no silent empty acceptance"
+    window: "12h run rev2, run 4"
+  - id: exp-constitution-prompt
+    status: shipped
+    shipped: 2026-08-03
+    feature: "constitution + framework wired into the system prompt"
+    window: "12h run rev2, run 4"
+  - id: exp-collapse-detector
+    status: shipped
+    shipped: 2026-08-03
+    feature: "L3 collapse detector - 5 identical tool calls -> nudge x2 -> hard stop"
+    window: "12h run rev2, run 4"
+  - id: exp-preflight
+    status: shipped
+    shipped: 2026-08-03
+    feature: "L1 preflight blocks write_file to missing dirs + degenerate run_python"
+    window: "12h run rev2, run 4"
+  - id: exp-base-drift
+    status: shipped
+    shipped: 2026-08-03
+    feature: "Phase C1 write_file search+replace unique-match + snapshot=sha256 drift guard"
+    window: "12h run rev2, run 4"
+
+  # --- PROPOSED (test next, one per run window) -----------------------------
+  - id: exp-model-hotswap
+    status: proposed
+    feature: "'!model' <name> hot-swap mid-session (like grok cli '/model')"
+    hypothesis: "Operator switches provider/model mid-conversation without losing context."
+    metric: "swap <1s, next turn uses new model, messages preserved"
+    notes: "Grok CLI pattern; needs '!model' in REPL + run_turn model param passthrough"
+  - id: exp-live-context-meter
+    status: proposed
+    feature: "live token meter in status line (est used / window) like grok context bar"
+    hypothesis: "Seeing context pressure live reduces surprise budget stops."
+    metric: "budget_stop rate per session"
+    notes: "est already computed each round (_estimate_tokens) - just surface it"
+  - id: exp-regenerate
+    status: proposed
+    feature: "'/regen' last answer (deepseek/grok both have it)"
+    hypothesis: "Cheap retry beats manual re-prompting when the last answer missed."
+    metric: "use count; answer acceptance"
+    notes: "needs last-prompt cache + one-shot re-call"
+  - id: exp-prompt-layers
+    status: proposed
+    feature: "system prompt assembled from ordered layers (constitution -> framework -> policy -> context pack -> active blueprint -> steer history -> experiment block), each layer a file, order+flags in configs/prompt_layers.yaml"
+    hypothesis: "Layer assembly makes the prompt system hot-swappable and A/B-testable (with/without a layer per run)."
+    metric: "run completion, steer adherence, token cost per layer toggle"
+    notes: "this is the 'dynamic and upgradable prompt system' ask; refactor _system_prompt"
+  - id: exp-command-registry
+    status: proposed
+    feature: "/ and '!' commands data-driven from YAML (name, args, handler, help) instead of if-chains"
+    hypothesis: "Add/remove commands without code edits; per-experiment commands."
+    metric: "command count added per week; no regressions"
+  - id: exp-quiet-mode
+    status: proposed
+    feature: "UI chrome verbosity levels (full / status-only / quiet) via config"
+    hypothesis: "Quiet mode improves piped/automated seat readability."
+    metric: "stdout purity (already enforced), stderr volume"
+  - id: exp-thinking-visibility
+    status: proposed
+    feature: "stream deepseek reasoning_content as dim thinking lines (r1-style)"
+    hypothesis: "Visible reasoning builds operator trust; toggleable."
+    metric: "deltas; operator survey"
+    notes: "needs provider support check on deepseek API"
+  - id: exp-seat-crash-guard
+    status: proposed
+    feature: "do_turn/one-shot try/except -> seat_crashes.log + graceful continue (worklist 0)"
+    hypothesis: "No unguarded exception kills the seat; crashes become log entries."
+    metric: "seat process uptime; crash entries per run"
+    notes: "12h run worklist item 0 - next in queue"
+
+# Decision rule: a feature is promoted when its metric beats baseline in one
+# run window (beta -> refine hour). Deprecated features are never deleted -
+# status: deprecated + why, so case law stays visible.

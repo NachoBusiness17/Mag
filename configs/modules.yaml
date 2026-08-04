@@ -1,0 +1,174 @@
+# Mag module registry — upgrade contracts (modular + retrocausal-safe)
+# Schema: mag_modules.v1
+# Law: new features = edges, never second DNA store (docs/DNA.md)
+
+schema: mag_modules.v1
+version: "2026-07-27"
+# Mag OS v2 surfaces: docs/ref/MAG_OS_v2.md · GET /api/v1/mag-os
+cold_vertex: residual
+tip_policy: sessions_only
+
+invariants:
+  - id: residual_is_dna
+    rule: "Amend may add; never strip residual core"
+  - id: one_cold_vertex
+    rule: "No second DNA store (runs/bonds/pack are edges or warm-mid)"
+  - id: pack_first
+    rule: "Remotes get pack+goal only; never full chat or full trail"
+  - id: seat_purity_on_run
+    rule: "Active run locks seat until close"
+  - id: no_auto_model_seats
+    rule: "max_auto_pull_gb: 0; promote never auto-writes lanes"
+  - id: tip_sessions_only
+    rule: "verkle_tip advances on session residual, not trail append"
+
+modules:
+  residual_dna:
+    path: mag/registry.py
+    also: [mag/biography.py, mag/session_card.py, mag/verkle_knot.py]
+    layer: cold
+    provides: [residual, card, content_commit, knot_leaf, tip]
+    depends_on: []
+    upgrade: "Never remove CORE_INVARIANTS; amend-in-place only"
+    retrocausal: "Future summarize reinterprets day; tip root recomputes"
+
+  run_trail:
+    path: mag/run_trail.py
+    layer: warm_mid
+    provides: [run_object, trail, seat_lock, run_commit, related_runs]
+    depends_on: [residual_dna]
+    upgrade: "Keep mag_run.v1 / mag_trail_event.v1; bump schema on break"
+    retrocausal: "Closed runs feed bonds + residual edges; not tip"
+
+  bonds:
+    path: mag/bonds.py
+    layer: warm_mid
+    provides: [bonds_active, next_session_inputs]
+    depends_on: [residual_dna, run_trail]
+    upgrade: "related_runs section is required for lattice edge"
+    retrocausal: "Past closed goals re-enter next pack"
+
+  nervous_system:
+    path: mag/nervous_system.py
+    also: [memory/nervous_system.md, memory/nervous_system.json]
+    layer: viewport
+    provides: [glance, body_alive, key_presence, tip_glance]
+    depends_on: [residual_dna, agent_state]
+    upgrade: "nervous_system.v1; never print secrets; face files only"
+    retrocausal: false
+    note: "Agent ops containment at a glance — default LOAD via pack L0a"
+
+  context_pack:
+    path: mag/context_pack.py
+    layer: viewport
+    provides: [min_token_pack]
+    depends_on: [bonds, run_trail, nervous_system]
+    upgrade: "Pack schema mag_context_pack.v1; clip limits only; L0a = nervous pack_excerpt"
+    retrocausal: "Re-injects trail cores when run open"
+
+  dispatch:
+    path: mag/dispatch.py
+    layer: harness
+    provides: [seat_route, remote_hop]
+    depends_on: [context_pack]
+    upgrade: "Must refuse seat thrash when run active"
+    retrocausal: false
+
+  improve:
+    path: mag/improve.py
+    layer: harness
+    provides: [scout, candidates, promote_gate, field_brief]
+    depends_on: []
+    upgrade: "configs/improve.yaml; no auto model seats"
+    retrocausal: "Re-synth re-ranks past candidates under new lenses"
+
+  feature_compose:
+    path: docs/templates/FEATURE_COMPOSE.md
+    also: [docs/templates/MODEL_TESUJI.md, configs/improve.yaml]
+    layer: doctrine
+    provides: [identify_eval_steal_compose]
+    depends_on: [improve]
+    upgrade: "Leaves under memory/improve/evals/"
+    retrocausal: "New leaves re-score old field briefs"
+
+  agent_state:
+    path: mag/agent_state.py
+    also: [memory/agent_state/LATEST.md, memory/agent_state/tip.json]
+    layer: warm_mid
+    provides: [versioned_self, agent_tip, load_before_redesign]
+    depends_on: [residual_dna, context_pack]
+    upgrade: "mag_agent_state.v1; new commit = new version leaf; never erase history"
+    retrocausal: "Parent chain + residual edges.agent_state; session tip stays sessions-only"
+
+  idea_graph:
+    path: mag/idea_graph.py
+    also: [memory/ideas/nodes.jsonl, memory/ideas/edges.jsonl, docs/ref/IDEA_GRAPH.md]
+    layer: cold
+    provides: [topic_nodes, topic_edges, idea_pack]
+    depends_on: [residual_dna]
+    upgrade: "idea_graph.v0; append-only jsonl; not session tip"
+    retrocausal: false
+    note: "Topic-shaped continuity — L1 for workspace/avatars; not idea_flow seat economics"
+
+  seats_lanes:
+    path: configs/lanes.yaml
+    also: [configs/providers.yaml, memory/improve/SEATS.md]
+    layer: config
+    provides: [L0_L3_matrix]
+    depends_on: []
+    upgrade: "Human promote + manual lanes; never auto"
+    retrocausal: false
+
+  dashboard:
+    path: dashboard/
+    layer: viewport
+    provides: [http_8765]
+    depends_on: [residual_dna]
+    upgrade: "Viewport only; must not become DNA"
+    retrocausal: false
+
+  cli:
+    path: main.py
+    layer: harness
+    provides: [commands]
+    depends_on: [dispatch, improve, run_trail, bonds, context_pack]
+    upgrade: "Prefer thin handlers; extract subcommands over time"
+    debt: "mega-CLI ~900 lines — hold full split until modules green"
+
+edges:
+  - from: run_trail
+    to: bonds
+    kind: related_runs_on_close
+  - from: run_trail
+    to: residual_dna
+    kind: residual_edges_related_runs
+  - from: bonds
+    to: context_pack
+    kind: pack_attach
+  - from: run_trail
+    to: context_pack
+    kind: trail_excerpt_cores
+  - from: dispatch
+    to: run_trail
+    kind: seat_purity_gate
+  - from: feature_compose
+    to: improve
+    kind: eval_leaves
+  - from: agent_state
+    to: context_pack
+    kind: pack_l0b_excerpt
+  - from: agent_state
+    to: residual_dna
+    kind: edges_agent_state
+  - from: nervous_system
+    to: context_pack
+    kind: pack_l0a_glance
+  - from: residual_dna
+    to: nervous_system
+    kind: session_tip_read
+  - from: idea_graph
+    to: context_pack
+    kind: idea_pack_slice
+  - from: idea_graph
+    to: dashboard
+    kind: map_viewport

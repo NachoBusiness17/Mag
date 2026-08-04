@@ -1,0 +1,70 @@
+# Resource harness lanes — janitor local first; specialist remote scarce; Hermes parked.
+
+default_lane: L0
+
+# L0 = local Ollama (janitor) · L1 = free remote · L2 = specialist · L3 = human
+# Doctrine: gemma:2b = scut; gemma4 = short worker bursts; specialist = judgment.
+lanes:
+  L0:
+    name: local
+    backend: ollama
+    roles: [clerk, worker, critic, biographer]
+  L1:
+    name: free_remote
+    backend: openrouter
+    enabled: true   # requires OPENROUTER_API_KEY; probe with: python main.py probe-lanes
+    never_tiers: [T0, T1]
+    model_env: OPENROUTER_MODEL
+    default_model: openrouter/auto
+  L2:
+    name: specialist
+    backend: grok_harness
+    require_priority: true
+  L3:
+    name: human
+    backend: wait
+
+local_models:
+  # Home PC 2026-07-31: ollama list = gemma:2b, gemma4, gemma4-hermes, nomic-embed-text
+  # (qwen3.5:35b was Vast-only; multi-smoke FAIL until this map)
+  clerk: gemma:2b
+  router: gemma:2b
+  worker: gemma4:latest
+  critic: gemma4:latest
+  biographer: gemma4-hermes:latest
+  embed: nomic-embed-text
+
+# Prefer clerk hot; avoid stacking large models on small VRAM
+load_policy:
+  mode: sequential
+  prefer_keep_worker_hot: false
+
+# Hermes: optional lab only (see memory/improve/SEATS.md). Not auto-routed.
+hermes:
+  parked: true
+  note: "Explicit via hermes only; 8B+64k hybrid on 6GB is slow; Mag CLI needs bash-safe paths"
+
+grok_budget:
+  max_escalations_per_day: 8
+  require_priority: true   # need [priority] / [L2] / high critic
+  attach_brief: true       # handoff carries brief, not full chat
+
+priority_markers:
+  - "[priority]"
+  - "[grok]"
+  - "[L2]"
+
+local_markers:
+  - "[mag]"
+  - "[assign]"
+  - "[local]"
+  - "[L0]"
+
+cursor_markers:
+  - "[cursor]"
+  - "[composer]"
+  - "via cursor"
+  - "seat cursor"
+
+usage_log: logs/usage.jsonl
+briefs_dir: memory/briefs
