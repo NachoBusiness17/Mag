@@ -257,7 +257,7 @@ def log_behavioral_event(
     except OSError:
         pass
     # Mirror high-signal failures into decisions log for compass case law
-    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash"):
+    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash", "queue_failed", "queue_spawn_failed"):
         try:
             from mag.compass import record_decision
 

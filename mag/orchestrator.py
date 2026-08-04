@@ -32,6 +32,7 @@
 #   python main.py orchestrator watch <id>   (poll heartbeat freshness)
 #   python main.py orchestrator kill <id>
 #   python main.py orchestrator reap
+#   python main.py orchestrator retry [--no-triage]   (failed tasks -> improve + re-triage)
 #   python main.py orchestrator self-test
 #   python main.py orchestrator queue add "<goal>" [--provider X] [--timeout N] [--tag L]
 #   python main.py orchestrator queue list | status
@@ -64,6 +65,11 @@ QUEUE_DIR = ROOT / "memory" / "runs" / "orchestrator" / "queue"
 LOG_DIR = ROOT / "logs" / "orchestrator"
 TRAIL = ROOT / "memory" / "runs" / "orchestrator_trail.jsonl"
 DEFAULT_TIMEOUT = 900  # seconds
+
+# Lanes isolate work so test/autopilot never starve operator/epic drains.
+# Default drain order: operator → scut → heavy → autopilot (test manual only).
+QUEUE_LANES = ("operator", "scut", "heavy", "autopilot", "test")
+DRAIN_LANE_ORDER = ("operator", "scut", "heavy", "autopilot")
 
 TERMINAL = {"done", "failed", "timeout", "stalled", "killed", "died"}
 
@@ -112,6 +118,53 @@ def _trail(event: str, task_id: str, **meta: Any) -> None:
     entry = {"timestamp": _now(), "event": event, "task_id": task_id, **meta}
     with TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def infer_lane(*, tag: str = "", goal: str = "", provider: str = "") -> str:
+    """Classify queue lane from tag/goal/provider (idempotent on re-read)."""
+    t = (tag or "").lower()
+    g = (goal or "").lower()
+    p = (provider or "").lower()
+    if "[test]" in g or "three-track smoke" in g or any(h in t for h in ("smoke", "phase1", "self-test")):
+        return "test"
+    if "autopilot" in t or "[attention]" in g:
+        return "autopilot"
+    if any(h in t for h in ("epic", "conductor", "coord-", "operator")):
+        return "operator"
+    if p == "ollama" or "scut" in t:
+        return "scut"
+    if p == "deepseek" or t in ("api", "heavy") or "heavy" in t:
+        return "heavy"
+    return "operator"
+
+
+def _queue_lane(q: dict[str, Any]) -> str:
+    lane = str(q.get("lane") or "").strip()
+    if lane in QUEUE_LANES:
+        return lane
+    return infer_lane(
+        tag=str(q.get("tag") or ""),
+        goal=str(q.get("goal") or ""),
+        provider=str(q.get("provider") or ""),
+    )
+
+
+def _log_queue_behavior(kind: str, detail: str, **extra: Any) -> None:
+    """Feed queue/orchestration events into behavioral_events for improve scout."""
+    try:
+        from mag.operator_inbox import log_behavioral_event
+
+        log_behavioral_event(
+            kind=f"queue_{kind}",
+            detail=(detail or "")[:500],
+            phase=str(extra.get("lane") or extra.get("action") or "")[:80] or None,
+            session_id=str(extra.get("queue_id") or extra.get("task_id") or "")[:80] or None,
+            provider=str(extra.get("provider") or "")[:40] or None,
+        )
+    except Exception:
+        pass
+
+
 def _kill_tree(pid: int) -> None:
     """Terminate the process and its children (Windows process tree)."""
     if sys.platform == "win32":
@@ -373,11 +426,12 @@ def _queue_save(q: dict[str, Any]) -> None:
 
 
 def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
-            timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
+            timeout: int = DEFAULT_TIMEOUT, tag: str = "", lane: str | None = None) -> dict[str, Any]:
     """Add a goal to the queue. Returns the queue entry (not yet spawned)."""
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    resolved_lane = lane if lane in QUEUE_LANES else infer_lane(tag=tag, goal=goal, provider=provider)
     q = {
         "queue_id": "q" + uuid.uuid4().hex[:10],
         "goal": goal,
@@ -385,13 +439,22 @@ def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
         "model": model,
         "timeout": timeout,
         "tag": tag,
+        "lane": resolved_lane,
         "created_at": _now(),
         "status": "queued",   # queued -> running -> done/failed
         "task_id": None,
         "detail": "",
     }
     _queue_save(q)
-    _trail("queue-add", q["queue_id"], goal=goal[:120], tag=tag)
+    _trail("queue-add", q["queue_id"], goal=goal[:120], tag=tag, lane=resolved_lane)
+    _log_queue_behavior(
+        "enqueue",
+        f"{resolved_lane}: {goal[:120]}",
+        queue_id=q["queue_id"],
+        lane=resolved_lane,
+        provider=provider,
+        tag=tag,
+    )
     q["ok"] = True
     return q
 
@@ -416,11 +479,11 @@ def list_queue(limit: int = 100) -> list[dict[str, Any]]:
     return out
 
 
-def _next_queued() -> dict[str, Any] | None:
-    """Oldest queued (not yet running) entry, or None."""
+def _next_queued(*, lane: str | None = None, include_test: bool = False) -> dict[str, Any] | None:
+    """Next queued entry: by lane priority (operator first) or a specific lane."""
     _ensure_dirs()
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
-    best = None
+    queued: list[tuple[str, dict[str, Any]]] = []
     for p in QUEUE_DIR.glob("*.json"):
         try:
             q = json.loads(p.read_text(encoding="utf-8"))
@@ -428,9 +491,27 @@ def _next_queued() -> dict[str, Any] | None:
             continue
         if q.get("status") != "queued":
             continue
-        if best is None or q.get("created_at", "") < best.get("created_at", ""):
-            best = q
-    return best
+        q_lane = _queue_lane(q)
+        if lane and q_lane != lane:
+            continue
+        if not include_test and q_lane == "test":
+            continue
+        queued.append((q_lane, q))
+
+    if lane:
+        if not queued:
+            return None
+        return min(queued, key=lambda x: x[1].get("created_at", ""))[1]
+
+    for preferred in DRAIN_LANE_ORDER:
+        lane_items = [q for ql, q in queued if ql == preferred]
+        if lane_items:
+            return min(lane_items, key=lambda x: x.get("created_at", ""))
+    if include_test:
+        test_items = [q for ql, q in queued if ql == "test"]
+        if test_items:
+            return min(test_items, key=lambda x: x.get("created_at", ""))
+    return None
 
 
 def _any_running_task() -> bool:
@@ -476,26 +557,37 @@ def _reconcile_queue() -> int:
             q["detail"] = t.get("detail") or t.get("status")
             _queue_save(q)
             _trail("queue-end", q["queue_id"], task_status=t.get("status"))
+            _log_queue_behavior(
+                "done" if t.get("status") == "done" else "failed",
+                f"{_queue_lane(q)}: {str(q.get('goal') or '')[:100]} → {t.get('status')}",
+                queue_id=q.get("queue_id"),
+                task_id=tid,
+                lane=_queue_lane(q),
+            )
             fixed += 1
     return fixed
 
 
-def drain_once() -> dict[str, Any]:
+def drain_once(*, lane: str | None = None, include_test: bool = False) -> dict[str, Any]:
     """Spawn the next queued goal IF no task is currently running.
 
     This is the auto-advance: call it in a loop (or from a timer) and the
     queue drains one goal at a time, moving to the next the moment the
     current one finishes. Returns what happened.
+
+    Lanes drain in order operator → scut → heavy → autopilot. Test lane is
+    skipped unless include_test=True or lane='test'.
     """
     _ensure_dirs()
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     _reconcile_queue()
     if _any_running_task():
         return {"ok": True, "action": "busy", "detail": "a task is already running"}
-    nxt = _next_queued()
+    nxt = _next_queued(lane=lane, include_test=include_test)
     if nxt is None:
-        return {"ok": True, "action": "empty", "detail": "no queued goals"}
+        return {"ok": True, "action": "empty", "detail": "no queued goals", "lane": lane}
     qid = nxt["queue_id"]
+    q_lane = _queue_lane(nxt)
     rec = spawn_task(nxt["goal"], provider=nxt.get("provider") or "deepseek",
                      model=nxt.get("model"), timeout=int(nxt.get("timeout") or DEFAULT_TIMEOUT),
                      tag=nxt.get("tag") or "")
@@ -505,19 +597,35 @@ def drain_once() -> dict[str, Any]:
         q["detail"] = rec.get("error", "spawn failed")
         _queue_save(q)
         _trail("queue-fail", qid, error=rec.get("error", ""))
-        return {"ok": False, "action": "spawn_failed", "queue_id": qid,
+        _log_queue_behavior(
+            "spawn_failed",
+            f"{q_lane}: {rec.get('error', 'spawn failed')}",
+            queue_id=qid,
+            lane=q_lane,
+            provider=nxt.get("provider"),
+        )
+        return {"ok": False, "action": "spawn_failed", "queue_id": qid, "lane": q_lane,
                 "detail": rec.get("error", "")}
     q = _queue_load(qid) or nxt
     q["status"] = "running"
     q["task_id"] = rec["task_id"]
     q["detail"] = "spawned"
     _queue_save(q)
-    _trail("queue-start", qid, spawned_task_id=rec["task_id"])
-    return {"ok": True, "action": "started", "queue_id": qid,
+    _trail("queue-start", qid, spawned_task_id=rec["task_id"], lane=q_lane)
+    _log_queue_behavior(
+        "started",
+        f"{q_lane}: {nxt['goal'][:120]}",
+        queue_id=qid,
+        task_id=rec["task_id"],
+        lane=q_lane,
+        provider=nxt.get("provider"),
+    )
+    return {"ok": True, "action": "started", "queue_id": qid, "lane": q_lane,
             "task_id": rec["task_id"], "goal": nxt["goal"][:120]}
 
 
-def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
+def drain_loop(interval_s: float = 5.0, *, once: bool = False,
+               lane: str | None = None, include_test: bool = False) -> None:
     """Run drain_once repeatedly so the queue auto-advances.
 
     `once=True` runs a single drain pass and returns (for smoke tests / CLI).
@@ -526,14 +634,38 @@ def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
 
     Set MAG_AUTOPILOT_EVERY=N to run autopilot_once every N drain cycles
     (e.g. 60 ≈ 5 min at 5s interval) when drainer is on.
+
+    Set MAG_CONDUCTOR_EVERY=N to run conductor_tick when the queue is idle
+    (default 12 ≈ 60s at 5s interval). Conductor senses inbox/todo/improve
+    and routes one item to the cheapest capable seat.
     """
     autopilot_every = int(os.environ.get("MAG_AUTOPILOT_EVERY", "0") or "0")
+    conductor_every = int(os.environ.get("MAG_CONDUCTOR_EVERY", "12") or "12")
+    retry_every = int(os.environ.get("MAG_RETRY_EVERY", "24") or "24")
     tick = 0
     while True:
         try:
-            res = drain_once()
+            res = drain_once(lane=lane, include_test=include_test)
             if res.get("action") in ("started", "spawn_failed"):
                 print(dim("  [queue] %s %s" % (res.get("action"), res.get("detail", ""))), flush=True)
+            elif res.get("action") == "empty" and conductor_every > 0 and tick % conductor_every == 0:
+                try:
+                    from mag.conductor import conductor_tick
+
+                    ct = conductor_tick(seat="drainer")
+                    action = ct.get("action", "?")
+                    detail = (ct.get("detail") or "")[:80]
+                    picked = (ct.get("picked") or {}).get("goal", "")[:60]
+                    print(dim("  [conductor] %s %s %s" % (action, picked, detail)), flush=True)
+                except Exception as e:
+                    print(dim("  [conductor] error: %s" % e), flush=True)
+            if retry_every > 0 and tick > 0 and tick % retry_every == 0:
+                try:
+                    rr = retry_failed_tasks(triage=False)
+                    if rr.get("appended_n"):
+                        print(dim("  [retry] appended %s failed-task candidates" % rr["appended_n"]), flush=True)
+                except Exception as e:
+                    print(dim("  [retry] error: %s" % e), flush=True)
         except Exception as e:
             print(dim("  [queue] drain error: %s" % e), flush=True)
         tick += 1
@@ -554,17 +686,61 @@ def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
 
 
 def queue_status() -> dict[str, Any]:
-    """Summary of the queue: counts by status + the running task id."""
+    """Summary of the queue: counts by status, lane, and the running task id."""
     entries = list_queue()
     counts: dict[str, int] = {}
+    by_lane: dict[str, dict[str, int]] = {}
     running = None
     for q in entries:
         st = q.get("status") or "?"
         counts[st] = counts.get(st, 0) + 1
+        lane = _queue_lane(q)
+        by_lane.setdefault(lane, {})
+        by_lane[lane][st] = by_lane[lane].get(st, 0) + 1
         if st == "running":
             running = q.get("task_id")
-    return {"ok": True, "total": len(entries), "counts": counts,
-            "running_task_id": running}
+    return {
+        "ok": True,
+        "total": len(entries),
+        "counts": counts,
+        "by_lane": by_lane,
+        "drain_order": list(DRAIN_LANE_ORDER),
+        "running_task_id": running,
+    }
+
+
+def purge_queue(
+    *,
+    statuses: frozenset[str] | None = None,
+    tag_hints: tuple[str, ...] = ("test", "smoke", "phase1"),
+    goal_hints: tuple[str, ...] = ("[test]", "three-track smoke"),
+) -> dict[str, Any]:
+    """Remove stale queued/failed test entries so drainer runs real work."""
+    _ensure_dirs()
+    QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+    allowed = statuses or frozenset({"queued", "failed"})
+    removed: list[str] = []
+    for p in list(QUEUE_DIR.glob("*.json")):
+        try:
+            q = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        st = q.get("status") or ""
+        if st not in allowed:
+            continue
+        tag = str(q.get("tag") or "").lower()
+        goal = str(q.get("goal") or "").lower()
+        if not any(h in tag for h in tag_hints) and not any(h in goal for h in goal_hints):
+            continue
+        try:
+            p.unlink()
+        except OSError:
+            continue
+        removed.append(str(q.get("queue_id") or p.stem))
+        _trail("queue-purge", q.get("queue_id", p.stem), status=st, tag=tag[:40])
+    if removed:
+        _log_queue_behavior("purge", f"removed {len(removed)} test/stale entries", queue_id=removed[0])
+    return {"ok": True, "removed": removed, "removed_n": len(removed)}
 
 
 def list_tasks(limit: int = 20) -> list[dict[str, Any]]:
@@ -701,6 +877,95 @@ def respawn_dead(max_per_task: int = 2) -> dict[str, Any]:
     return {"ok": True, "reaped": reaped, "respawned": respawned}
 
 
+# ---------------------------------------------------------------------------
+# Failed-task retry loop (2026-08-04): when a task reaches a terminal failure
+# state, append an improve candidate capturing the failure and re-triage via
+# the conductor so the goal gets picked up again (with the failure context as
+# the steer). This closes the loop: a dead worker is not just recorded, it is
+# fed back into the direction bus and re-routed.
+# ---------------------------------------------------------------------------
+RETRYABLE_FAILURES = {"failed", "timeout", "stalled", "died", "killed"}
+
+
+def _append_retry_candidate(task: dict[str, Any]) -> str | None:
+    """Append an improve candidate for a failed task. Returns candidate id or None."""
+    goal = str(task.get("goal") or "").strip()
+    if not goal:
+        return None
+    try:
+        from mag.improve import ensure_dirs, append_candidates, _candidate_id
+    except Exception:
+        return None
+    tid = task.get("task_id", "")
+    detail = str(task.get("detail") or task.get("status") or "")
+    log = str(task.get("log") or "")
+    claim = f"Orchestrator task failed ({task.get('status')}): {goal}"
+    cid = _candidate_id(claim, tid)
+    row = {
+        "schema": "improve_candidate.v1",
+        "id": cid,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "kind": "risk",
+        "claim": claim[:200],
+        "detail": f"task_id={tid} status={task.get('status')} detail={detail} log={log}",
+        "source": "mag_internal",
+        "source_urls": [str(log)] if log else [],
+        "local_feasible": "true",  # retry is locally feasible
+        "status": "new",
+        "created": _now(),
+        "retry_task_id": tid,
+    }
+    try:
+        paths = ensure_dirs()
+        n = append_candidates([row], paths)
+        if n:
+            _trail("retry-candidate", tid, candidate_id=cid, status=task.get("status"))
+            return cid
+    except Exception:
+        return None
+    return None
+
+
+def retry_failed_tasks(*, triage: bool = True) -> dict[str, Any]:
+    """Feed failed tasks back into the improve ledger and re-triage via conductor.
+
+    For every terminal failed task (failed/timeout/stalled/died/killed) that has
+    a goal and has NOT already been retried (no `retry_candidate_id`), append an
+    improve candidate capturing the failure. Then, if `triage`, run one conductor
+    tick so the highest-scored candidate (likely the retry) gets re-routed.
+
+    Returns a summary of what was appended + the conductor tick result.
+    """
+    _ensure_dirs()
+    appended: list[dict[str, Any]] = []
+    for p in TASK_DIR.glob("*.json"):
+        try:
+            t = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if t.get("status") not in RETRYABLE_FAILURES:
+            continue
+        if not str(t.get("goal") or "").strip():
+            continue
+        if t.get("retry_candidate_id"):
+            continue  # already fed back once
+        cid = _append_retry_candidate(t)
+        if cid:
+            t["retry_candidate_id"] = cid
+            _save(t)
+            appended.append({"task_id": t["task_id"], "candidate_id": cid,
+                             "status": t.get("status"), "goal": t.get("goal", "")[:120]})
+
+    out: dict[str, Any] = {"ok": True, "appended": appended, "appended_n": len(appended)}
+    if triage and appended:
+        try:
+            from mag.conductor import conductor_tick
+            out["triage"] = conductor_tick(seat="orchestrator-retry")
+        except Exception as e:
+            out["triage_error"] = str(e)
+    return out
+
+
 def tail_log(task_id: str, n: int = 20) -> str:
     p = LOG_DIR / (task_id + ".out.log")
     if not p.is_file():
@@ -815,6 +1080,11 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "reap":
         print(json.dumps(reap_stale(), indent=2))
         return 0
+    if cmd == "retry":
+        # Feed failed tasks back into the improve ledger + re-triage via conductor.
+        triage = "--no-triage" not in args
+        print(json.dumps(retry_failed_tasks(triage=triage), indent=2, default=str))
+        return 0
     if cmd == "queue":
         sub = args[1] if len(args) > 1 else "list"
         if sub == "add":
@@ -849,19 +1119,39 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(q, indent=2, default=str))
             return 0 if q.get("ok") else 1
         if sub == "list":
+            filter_lane = ""
+            if "--lane" in args:
+                i = args.index("--lane")
+                if i + 1 < len(args):
+                    filter_lane = args[i + 1]
             for q in list_queue():
-                print("%s %-9s %-20s %s" % (
-                    q.get("queue_id", "?"), q.get("status", "?"),
+                qlane = _queue_lane(q)
+                if filter_lane and qlane != filter_lane:
+                    continue
+                print("%s %-9s %-10s %-20s %s" % (
+                    q.get("queue_id", "?"), q.get("status", "?"), qlane,
                     q.get("tag", ""), q.get("goal", "")[:60]))
             return 0
         if sub == "status":
             print(json.dumps(queue_status(), indent=2, default=str))
             return 0
+        if sub == "purge":
+            print(json.dumps(purge_queue(), indent=2, default=str))
+            return 0
         print("unknown queue subcommand: " + sub)
         return 2
     if cmd == "drain":
         once = "--once" in args
-        drain_loop(interval_s=5.0, once=once)
+        lane = ""
+        if "--lane" in args:
+            i = args.index("--lane")
+            if i + 1 < len(args):
+                lane = args[i + 1]
+        include_test = "--include-test" in args
+        if once:
+            print(json.dumps(drain_once(lane=lane or None, include_test=include_test), indent=2, default=str))
+            return 0
+        drain_loop(interval_s=5.0, once=False, lane=lane or None, include_test=include_test)
         return 0
     if cmd == "run":
         rest = args[1:]
