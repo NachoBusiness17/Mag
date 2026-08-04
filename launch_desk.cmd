@@ -20,7 +20,7 @@ echo   backend :8000  ^|  lab :8765  ^|  DeepSeek agent
 echo ============================================================
 echo.
 
-REM Load .env + enable drainer when MAG_DRAINER=1 in .env
+REM Load .env + enable drainer when MAG_DRAINER=1 in .env (runs: mag autorun)
 "%PY%" -c "from models.env_load import load_dotenv; load_dotenv(); import os; from mag.preferences import set_drainer; set_drainer(os.getenv('MAG_DRAINER','0').strip().lower() in ('1','true','yes'))" 2>nul
 
 echo [1/3] Tool backend...
