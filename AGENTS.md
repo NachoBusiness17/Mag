@@ -16,6 +16,9 @@ This project is the **Mag Resource Harness** (standalone product home): local Ol
 
 **Default shell `python` is often Hermes** (`…\hermes-agent\venv\…`) — no Mag deps → `No module named 'langgraph'`.
 
+**API keys (DeepSeek, etc.) go in repo-root `.env` only** — never commit, never `memory/`.  
+Bootstrap: `powershell -File scripts\ensure_local_env.ps1` (Windows) or `bash scripts/ensure_local_env.sh`.
+
 Always use **this repo's** interpreter:
 
 ```text
