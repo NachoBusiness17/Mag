@@ -33,6 +33,14 @@ from mag.compass import (
 from mag import remedy  # at-will error toolkit: lookup cards from memory/remedies/
 from mag import rails  # deterministic hard rails: configs/constitutional_rails.json (Maelstrom V2)
 from models.providers import _looks_degenerate, chat_messages
+from mag.prefix_cache import (
+    byte_stable_prefix_enabled,
+    ensure_stable_system,
+    fresh_pack_text,
+    stable_system_prompt,
+    wrap_user_with_reminder,
+)
+from mag.tool_eco import compress_tool_output
 from tools import TOOL_MAP, dispatch as tool_dispatch
 
 # --- HTTP backend (FastAPI) -------------------------------------------------
@@ -364,6 +372,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
 
 
 def _system_prompt(pack_text: str, *, repacked: bool = False) -> str:
+    """Legacy monolithic system prompt (cache-hostile). Used when MAG_BYTE_STABLE_PREFIX=0."""
     repack_note = ""
     anchor_text = ""
     anchor_path = os.environ.get("MAG_ANCHORED_PLAN") or str(ROOT / "memory" / "plans" / "ANCHOR.md")
@@ -661,6 +670,14 @@ def repack_messages(
         f"## Result crumbs (truncated)\n{crumbs or '(no tool bodies kept)'}\n\n"
         "Continue from residual. Call tools only for gaps. Final answer when done."
     )
+    if byte_stable_prefix_enabled(provider):
+        return [
+            {"role": "system", "content": stable_system_prompt()},
+            {
+                "role": "user",
+                "content": wrap_user_with_reminder(residual, pack_text, repacked=True),
+            },
+        ]
     return [
         {"role": "system", "content": _system_prompt(pack_text, repacked=True)},
         {"role": "user", "content": residual},
@@ -732,9 +749,23 @@ def run_turn(
     """
     # Never append user onto a half-finished tool chain
     messages = _sanitize_messages(messages)
-    messages.append({"role": "user", "content": user_text})
+    if byte_stable_prefix_enabled(provider):
+        messages = ensure_stable_system(messages, provider=provider)
+        pack_text = fresh_pack_text()
+        messages.append(
+            {
+                "role": "user",
+                "content": wrap_user_with_reminder(user_text, pack_text, repacked=False),
+            }
+        )
+    else:
+        messages.append({"role": "user", "content": user_text})
     messages = _clip_history(messages, provider=provider)
     traces: list[str] = []
+    tool_trace: list[dict[str, Any]] = []
+    _activity["goal"] = user_text[:500]
+    _activity["phase"] = "working"
+    _sync_current(goal=user_text, status="running", tool_trace=tool_trace)
     budget = usable_context_budget(provider)
     ratio = _repack_ratio()
     threshold = int(budget * ratio)
@@ -778,6 +809,8 @@ def run_turn(
                     _paused.clear()
                     print(dim("  → resumed (Human Nod)"), flush=True)
         messages = _sanitize_messages(messages)
+        if byte_stable_prefix_enabled(provider):
+            messages = ensure_stable_system(messages, provider=provider)
         est = _estimate_tokens(messages)
         if est > threshold and repacks < max_repacks:
             messages = repack_messages(
@@ -1030,8 +1063,21 @@ def run_turn(
                             messages,
                             traces,
                         )
-                payload = json.dumps(out, default=str)[:TOOL_RESULT_CHARS]
+                eco_off = os.environ.get("MAG_TOOL_ECO", "1").strip().lower() in ("0", "false", "no")
+                if eco_off:
+                    payload = json.dumps(out, default=str)[:TOOL_RESULT_CHARS]
+                else:
+                    payload = compress_tool_output(name, out, max_chars=TOOL_RESULT_CHARS)
                 traces.append(f"{name}: ok={out.get('ok')}")
+                tool_trace.append(
+                    {
+                        "tool": name,
+                        "args": args,
+                        "ok": out.get("ok"),
+                        "exit_code": out.get("exit_code"),
+                        "output": (out.get("output") or out.get("error") or "")[:500],
+                    }
+                )
                 messages.append(
                     {
                         "role": "tool",
@@ -1043,6 +1089,15 @@ def run_turn(
             _activity["last_tool"] = name
             _activity["phase"] = "working"
             _maybe_status(rnd, name)
+            last_out = ""
+            if tool_trace:
+                last_out = str(tool_trace[-1].get("output") or "")[:2000]
+            _sync_current(
+                goal=user_text,
+                last_result=last_out,
+                status="running",
+                tool_trace=tool_trace,
+            )
             # T1 escape checkpoint #3: operator escape fired mid-tool-loop - end
             # the round cleanly instead of starting another model round. The
             # partial tool chain is sanitized away next turn by _sanitize_messages.
@@ -1063,6 +1118,12 @@ def run_turn(
         if text:
             _activity["phase"] = "answered"
             _mail(phase="answered")
+            _sync_current(
+                goal=user_text,
+                last_result=text[:2000],
+                status="running",
+                tool_trace=tool_trace,
+            )
             messages.append({"role": "assistant", "content": text})
             return text, messages, traces
 
@@ -1600,8 +1661,10 @@ def run_agent(
     except Exception:
         pass
 
-    system = _system_prompt(pack_text)
-    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    if byte_stable_prefix_enabled(provider):
+        messages: list[dict[str, Any]] = [{"role": "system", "content": stable_system_prompt()}]
+    else:
+        messages = [{"role": "system", "content": _system_prompt(pack_text)}]
     last_answer = ""
     pending_attach: list[str] = []
 
@@ -1792,8 +1855,16 @@ def run_agent(
         if low == "/pack":
             pack = build_context_pack(max_brief=900, max_live=400)
             pack_text = format_context_pack_text(pack)
-            messages = [{"role": "system", "content": _system_prompt(pack_text)}]
-            print(green("pack refreshed") + dim(f" · {_tip_line(pack)}"), flush=True)
+            if byte_stable_prefix_enabled(provider):
+                messages = [{"role": "system", "content": stable_system_prompt()}]
+                print(
+                    green("stable prefix ok")
+                    + dim(f" · volatile pack on next turn · {_tip_line(pack)}"),
+                    flush=True,
+                )
+            else:
+                messages = [{"role": "system", "content": _system_prompt(pack_text)}]
+                print(green("pack refreshed") + dim(f" · {_tip_line(pack)}"), flush=True)
             continue
         if low == "/save":
             if not last_answer:
@@ -1955,16 +2026,23 @@ def api_agent_turn(
             (ROOT / "memory" / "context_pack_latest.md").write_text(pack_text, encoding="utf-8")
         except Exception:
             pass
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": _system_prompt(pack_text)}
-        ]
+        messages: list[dict[str, Any]] = (
+            [{"role": "system", "content": stable_system_prompt()}]
+            if byte_stable_prefix_enabled(provider)
+            else [{"role": "system", "content": _system_prompt(pack_text)}]
+        )
         tip = _tip_line(pack)
     else:
         messages = list(sess.get("messages") or [])
         # ensure system present
         if not messages or messages[0].get("role") != "system":
             pack = build_context_pack(max_brief=900, max_live=400)
-            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack))}] + messages
+            sys_msg = (
+                stable_system_prompt()
+                if byte_stable_prefix_enabled(provider)
+                else _system_prompt(format_context_pack_text(pack))
+            )
+            messages = [{"role": "system", "content": sys_msg}] + messages
         tip = "session-continued"
 
     if on_stream is None:

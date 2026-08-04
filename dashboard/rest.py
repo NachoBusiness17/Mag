@@ -1066,6 +1066,59 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
     return 200, {"ok": True, "activity": row}
 
 
+def h_surface(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Distributed surface plan status — phase, bind hints, recent inbound."""
+    from mag.distributed_surface import surface_status
+
+    return 200, surface_status()
+
+
+def h_handoff_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Ingest remote goal/FILE into queue/todo.md, working.md, optional Verkle leaf."""
+    from mag.distributed_surface import ingest_file_block
+
+    data = dict(body or {})
+    res = ingest_file_block(
+        str(data.get("text") or data.get("body") or data.get("goal") or ""),
+        source=str(data.get("source") or "api").strip() or "api",
+        device=str(data.get("device") or data.get("client") or "unknown").strip() or "unknown",
+        kind=str(data.get("kind") or "auto").strip() or "auto",
+        file_verkle=bool(data.get("file_verkle") or data.get("verkle")),
+    )
+    code = 200 if res.get("ok") else 400
+    return code, res
+
+
+def h_seat_file(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """FILE a full seat transcript → agent_sessions + Verkle workday bead."""
+    from mag.seat_file import file_seat
+
+    data = dict(body or {})
+    seat = str(data.get("seat") or data.get("session_id") or "external").strip() or "external"
+    source = str(data.get("source") or data.get("seat_source") or "external").strip()
+    provider = str(data.get("provider") or source).strip()
+    messages = data.get("messages")
+    if messages is not None and not isinstance(messages, list):
+        return 400, {"ok": False, "error": "messages must be a list"}
+    file_block = str(data.get("file_block") or data.get("text") or "")
+    goal = str(data.get("goal") or "")
+    res = file_seat(
+        seat,
+        messages=messages,
+        file_block=file_block,
+        goal=goal,
+        provider=provider,
+        source=source,
+        model=str(data.get("model") or "") or None,
+        use_llm=bool(data.get("use_llm")),
+        force=bool(data.get("force", True)),
+        amend=bool(data.get("amend", True)),
+        extra=data.get("meta") if isinstance(data.get("meta"), dict) else None,
+    )
+    code = 200 if res.get("ok") else 400
+    return code, res
+
+
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Classify depth + optionally launch the appropriate seat."""
     from mag.coordination import coordinate
@@ -2117,6 +2170,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/seat-feed", h_seat_feed),
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
+    ("GET", "/api/v1/surface", h_surface),
+    ("POST", "/api/v1/handoff/file", h_handoff_file),
+    ("POST", "/api/v1/seat/file", h_seat_file),
     ("POST", "/api/v1/coordinate", h_coordinate),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),

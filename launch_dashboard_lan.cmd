@@ -27,9 +27,14 @@ echo   Mag LAN dashboard  -  http://0.0.0.0:8765/
 echo   Reachable from other devices on the same local network.
 echo   Find this PC's IP with:  ipconfig
 echo   Then open  http://<IP>:8765/  from a phone/tablet/laptop.
+echo.
+echo   G2 auth: set MAG_REMOTE_TOKEN before tablet POSTs write todo/working.
+echo   Header: Authorization: Bearer ^<your-token^>
+echo   Dev bypass (trusted LAN only): set MAG_REMOTE_AUTH_DISABLE=1
 echo   Ctrl+C to stop.
 echo  ============================================================
 echo.
 
+set MAG_BIND_HOST=0.0.0.0
 "%PY%" main.py dashboard --host 0.0.0.0 --port 8765
 endlocal
