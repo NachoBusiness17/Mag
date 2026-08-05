@@ -45,16 +45,14 @@
 
 ## 3. Where we've been (filed history)
 
-| Era | What shipped / decided | Framework lesson filed |
-|-----|------------------------|------------------------|
-| **DNA / founding** | Residual constitution, tiers T0–T3, FIND·FILE·LOAD, beads + forest | Fidelity lives in files, not awake processes |
-| **v1 harness** | improve, orchestrator, Office, context-pack, Cursor bridge | Pack-first remotes; chat is heat |
-| **Agentic steals** | Container cage, trail, FKB vocabulary, ponytail/caveman | Rob contracts, not brands (`MAG_STEAL_AUTOPILOT.md`) |
-| **v2 plan (branch)** | route.v2, governor autorun, verkle-audit, failure KB (#8–#11) | One router; law → norm → market → architecture |
-| **v3 research** | conductor, spider, switchboard, grove, training events (#13+) | Swarm vision = **inputs** to patterns, not checklist |
-| **v4 draft** | Conductor loop, local steward, seat intelligence, behavioral compounding | **Process before volume** — mold before substrate finish |
-| **v5 pipe (Aug 2026)** | GSTD forest, Vast training, XRPL tools — planning only | External stacks = optional L1-cap seats + spore catalog |
-| **Pain filed** | Plan theater, chat≠memory, agent mess (reference/ vs mine/), cloud-only work | Spider + steward must normalize operator soil |
+| Era | What | Framework lesson |
+|-----|------|------------------|
+| **v1 Grok** | Strike chord, X constitution, napkin `@2028342347361141030` | Spawned project; need disk leaf |
+| **v2 repo** | `local_sovereign_agent` in projects folder | Residual DNA; this harness |
+| **v3 plan** | Substrate + Chat + factory (branches #13/#15) | Fit v4 mold; FILE gates |
+| **v4 draft** | Conductor, steward, eval | Process before volume |
+| **v5 pipe** | GSTD, Vast train, XRPL | Optional seats, not architecture |
+| **Pain filed** | Plan theater, chat≠memory, agent mess | Steward normalizes soil |
 
 **Meta-lesson (from framework itself):** We stopped predicting the final nation. We file episodes (`MAG_BEHAVIORAL_COMPOUNDING.md`). v4/v5 names are **direction**, not promises.
 
