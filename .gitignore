@@ -129,6 +129,9 @@ _tmp*
 Thumbs.db
 desktop.ini
 
+# Local reference clones (third-party inspiration — see reference/README.md)
+reference/gstdcoin/
+
 # Android build artifacts (source tracked; builds not)
 android/**/build/
 android/**/.gradle/
