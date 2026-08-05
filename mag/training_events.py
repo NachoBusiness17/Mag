@@ -26,6 +26,7 @@ VALID_PATTERNS = frozenset({
     "factory_cycle",
     "promote_gate",
     "resonance_hit",
+    "voice_turn",
 })
 
 

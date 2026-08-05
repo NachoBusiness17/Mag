@@ -86,6 +86,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | **Implementer** | `docs/ref/MAG_v2_PLAN.md` · `configs/modules.yaml` |
 | **Research / v3** | `docs/ref/MAG_v3_RESEARCH_PLAN.md` · `docs/ref/MAG_v3_BACKLOG.md` · **`docs/ref/MAG_v3_SWARM_VISION.md`** |
 | **Multi-seat build** | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` · `docs/ref/BUILD-TEMPLATE.md` |
+| **Mobile voice** | `docs/ref/MAG_MOBILE_VOICE_SPEC.md` |
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
 | **Container install** | `docs/CONTAINER.md` |

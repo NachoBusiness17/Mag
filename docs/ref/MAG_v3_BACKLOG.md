@@ -51,6 +51,22 @@ Copy this block. ID = `v3-NNN`.
 
 ## 2. Backlog (newest first)
 
+### v3-013 — Mobile voice client (Android + iOS, Grok-style)
+
+**One line:** Thin handset apps — push-to-talk voice → Mag home router → janitor-first answers for pennies vs voice subscriptions.
+
+**Usefulness:** 5  **Alignment:** 5  **Alpha blocker:** yes
+
+**Tier touch:** T2 transcripts over tunnel; T0/T1 stay home  
+**Depends:** v2 gate (#8 router) · Tailscale/tunnel ops · `POST /api/v1/voice/turn`  
+**Loop:** conductor + voice_trail + training_events
+
+**Intent:** Replicate Grok/ChatGPT voice **UX** without their subscription economics — phone is mic + speaker; Mag lattice is brain.  
+**Spec:** `docs/ref/MAG_MOBILE_VOICE_SPEC.md`  
+**Status:** spec
+
+---
+
 ### v3-012 — Tesuji Grove (poem skill tree)
 
 **One line:** Browse Mag learnings as a poem-style skill tree — skills, tesuji, remedies, curious errors classified — each node links to real files.
@@ -248,6 +264,7 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 
 | ID | Title | Use | Align | Ship when |
 |----|-------|-----|-------|-----------|
+| v3-013 | Mobile voice | 5 | 5 | voice/turn API + Expo pilot |
 | v3-012 | Tesuji Grove | 5 | 5 | After grove-build |
 | v3-011 | Layman dashboard | 5 | 5 | Plain copy now; layout v3 |
 | v3-009 | L-conductor | 5 | 5 | After v2 + case law volume |
