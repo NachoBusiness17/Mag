@@ -18,6 +18,7 @@
 | **This file** | Next coding run order + subsystem map |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agentic steals |
 | `docs/ref/MAG_v3_BACKLOG.md` | Feature ideas + scores (not run order) |
+| `docs/ref/MAG_v5_GSTD_FOREST.md` | GSTD forest — **v5 pipe** (catalog now, test/implement later) |
 | `docs/ref/MAG_FACTORY_PILOT.md` | Factory epic ritual + prompts |
 | `configs/modules.yaml` | Module registry + upgrade contracts |
 

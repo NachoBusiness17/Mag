@@ -1,8 +1,9 @@
 # gstdcoin GitHub org — local reference index
 
 **Source:** [github.com/gstdcoin](https://github.com/gstdcoin?tab=repositories)  
-**Local clones:** `reference/gstdcoin/` (gitignored — refresh with `scripts/pull_gstdcoin_repos.sh`)  
-**Purpose:** inspiration + future Mag ↔ GSTD forest integration; **not** a dependency of Mag harness today.
+**v5 plan:** `docs/ref/MAG_v5_GSTD_FOREST.md` — **piped for v5** test + implement  
+**Local clones:** `reference/gstdcoin/` or `mine/raw/gstdcoin/` (gitignored — refresh with `scripts/pull_gstdcoin_repos.sh`)  
+**Purpose:** inspiration + future Mag ↔ GSTD forest integration; **not** a v3/v4 dependency.
 
 ---
 
