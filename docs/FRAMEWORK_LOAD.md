@@ -80,6 +80,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | 8 | `memory/bonds_active.md` | Carry to next session |
 | 9 | `memory/improve/SEATS.md` | Who does what (janitor vs consultant) |
 | 10 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agent queue |
+| 11 | `docs/ref/releases/VERSION_REGISTRY.md` | v1–v5 release notes + graduation gates |
 
 ### Tier 2 — Role-specific (load if your job needs it)
 

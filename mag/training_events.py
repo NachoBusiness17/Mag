@@ -28,6 +28,7 @@ VALID_PATTERNS = frozenset({
     "resonance_hit",
     "voice_turn",
     "skill_gate",
+    "release_milestone",
 })
 
 

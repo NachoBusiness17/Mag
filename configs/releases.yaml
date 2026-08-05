@@ -1,0 +1,105 @@
+# Mag release registry — machine truth
+# Schema: mag_releases.v1
+# Behavioral: python main.py release record → gates.jsonl + training event
+
+schema: mag_releases.v1
+as_of: "2026-08-05"
+
+releases:
+  - id: v1
+    commitment: mag-release-v1-001
+    status: shipped
+    notes_path: docs/ref/releases/RELEASE_NOTES_v1.md
+    parent: null
+    gates: []
+
+  - id: v2
+    commitment: mag-release-v2-001
+    status: partial
+    notes_path: docs/ref/releases/RELEASE_NOTES_v2.md
+    plan_path: docs/ref/MAG_v2_PLAN.md
+    parent: v1
+    merge_prs: ["#8", "#9", "#10", "#11"]
+    gates:
+      - id: run_a
+        description: Merge #8-#11 + home PC ritual green
+        verify:
+          - mag.cmd doctor
+          - scripts/routing_smoke.py
+          - main.py verkle-audit --dry
+          - main.py autorun --once --dry
+      - id: autorun_card
+        description: Dashboard autorun card + GET /api/v1/autorun
+        verify:
+          - curl http://127.0.0.1:8765/api/v1/autorun
+      - id: tier_refuse
+        description: T0/T1 never hit remote providers (tests)
+        verify:
+          - pytest tests/test_router.py -q
+
+  - id: v3
+    commitment: mag-release-v3-001
+    status: in_progress
+    notes_path: docs/ref/releases/RELEASE_NOTES_v3.md
+    direction_path: docs/ref/MAG_DIRECTION_ARTIFACT_v2.md
+    run_sheet_path: docs/ref/MAG_NEXT_CODING_RUN.md
+    parent: v2
+    branches: ["cursor/v3-swarm-vision-e2ce", "cursor/v3-deepseek-run-e2ce"]
+    gates:
+      - id: run_a
+        description: v2 graduation (prerequisite)
+        requires: v2.run_a
+      - id: factory_pilot
+        description: RUN B — first build_audit.v1 JSON on disk
+        verify:
+          - main.py build-audit --slug factory-audit-json
+      - id: freeze_gate
+        description: RUN D — no build without frozen BUILD
+      - id: chat_preflight
+        description: CHAT-1–4 — preflight strip live
+      - id: deepseek_run
+        description: v3_deepseek_run.cmd completes once
+        verify:
+          - scripts/v3_deepseek_run.cmd
+
+  - id: v4
+    commitment: mag-release-v4-001
+    status: planned
+    notes_path: docs/ref/releases/RELEASE_NOTES_v4.md
+    mold_path: docs/ref/MAG_V4_CONDUCTOR_LOOP_DRAFT.md
+    parent: v3
+    gates:
+      - id: conductor_eval
+        description: Eval cases 1–4 replay green
+      - id: steward_daily
+        description: steward-scope + steward-patterns run daily
+      - id: cost_ledger
+        description: seat economics logged per remote call
+      - id: training_export
+        description: training-export --eval green
+
+  - id: v5
+    commitment: mag-release-v5-001
+    status: planned
+    notes_path: docs/ref/releases/RELEASE_NOTES_v5.md
+    pipe_path: docs/ref/MAG_v5_PIPE.md
+    parent: v4
+    tracks:
+      - id: v5-GSTD
+        path: docs/ref/MAG_v5_GSTD_FOREST.md
+      - id: v5-VAST
+        path: docs/ref/MAG_v5_VAST_TRAINING.md
+      - id: v5-XRPL
+        path: docs/ref/MAG_v5_XRPL.md
+    gates:
+      - id: gstd_t0_probe
+        description: GSTD_ROUTE_MAP + health probe
+      - id: vast_train_dry
+        description: vast-train --dry validates export bundle
+      - id: xrpl_read_tools
+        description: xrpl query tools T2 only
+
+behavioral:
+  gates_log: memory/improve/releases/gates.jsonl
+  training_pattern: release_milestone
+  decisions_log: memory/decisions_log.jsonl

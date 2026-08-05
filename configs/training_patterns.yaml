@@ -106,6 +106,48 @@ patterns:
     action_tier: auto
     eval_case: eval-006
 
+  estimate_miss:
+    description: Actual cost or tokens far above route estimate
+    trail_rule: estimate_error > 0.5 and leaf landed
+    min_count: 3
+    join_keys: [queue_id, task_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Widen thin pack or prefer janitor for similar goals
+    spider_hint: null
+    safe_action: draft_only
+    action_tier: draft
+    eval_case: eval-economics-003
+
+  steward_job:
+    description: Local janitor curator job completed or failed
+    trail_rule: goal starts with [steward]
+    min_count: 1
+    join_keys: [session_id, queue_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: One leaf per steward job; no REPL
+    spider_hint: null
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-steward-001
+
+  release_milestone:
+    description: Version graduation gate recorded via release registry
+    trail_rule: pattern == release_milestone and join.version set
+    min_count: 1
+    join_keys: [version, gate_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Check configs/releases.yaml gates before claiming version shipped
+    spider_hint: null
+    safe_action: observe
+    action_tier: auto
+    eval_case: null
+
 labels:
   accept:
     - delegation_success
@@ -147,21 +189,12 @@ eval_cases:
   - id: eval-009
     pattern: phase_correct
     fixture: plan_depth_not_queued
-  estimate_miss:
-    description: Actual cost or tokens far above route estimate
-    trail_rule: estimate_error > 0.5 and leaf landed
-    min_count: 3
-    join_keys: [queue_id, task_id]
-    waste_kind: ok
-    conductor_hint: Widen thin pack or prefer janitor for similar goals
-    action_tier: draft
-    eval_case: eval-economics-003
-
-  steward_job:
-    description: Local janitor curator job completed or failed
-    trail_rule: goal starts with [steward]
-    min_count: 1
-    join_keys: [session_id, queue_id]
-    conductor_hint: One leaf per steward job; no REPL
-    action_tier: auto
-    eval_case: eval-steward-001
+  - id: eval-010
+    pattern: ok
+    fixture: batch_backfill_one_knot_delta
+  - id: eval-economics-003
+    pattern: estimate_miss
+    fixture: build_estimate_180pct_actual
+  - id: eval-steward-001
+    pattern: steward_job
+    fixture: steward_prompts_catalog_leaf

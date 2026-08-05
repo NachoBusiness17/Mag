@@ -984,6 +984,25 @@ def main(argv: list[str] | None = None) -> int:
     p_train.add_argument("--pattern", default="", help="Filter by pattern type")
     p_train.add_argument("--json", action="store_true", help="JSON output")
 
+    p_rel = sub.add_parser(
+        "release",
+        help="Version registry + graduation gates (behavioral memory)",
+    )
+    p_rel.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["status", "notes", "record", "gates"],
+        help="status|notes|record|gates",
+    )
+    p_rel.add_argument("version", nargs="?", default="", help="v1|v2|v3… for notes/record/gates")
+    p_rel.add_argument("--gate", default="", help="Gate id for record (e.g. run_a)")
+    p_rel.add_argument("--ok", action="store_true", help="Gate passed")
+    p_rel.add_argument("--fail", action="store_true", help="Gate failed")
+    p_rel.add_argument("--note", default="", help="Evidence note for record")
+    p_rel.add_argument("--evidence", default="", help="Path to evidence artifact")
+    p_rel.add_argument("--json", action="store_true", help="JSON output")
+
     p_cm = sub.add_parser(
         "caveman-audit",
         help="Caveman doc density scan — filler, long lines",
@@ -1652,6 +1671,54 @@ def main(argv: list[str] | None = None) -> int:
         for r in rows:
             print(f"{r.get('ts', '')[:19]} [{r.get('pattern')}] tags={r.get('pattern_tags')}")
         return 0
+    if args.cmd == "release":
+        from mag.release_registry import (
+            format_notes_text,
+            read_gate_log,
+            record_gate,
+            status_summary,
+        )
+
+        action = getattr(args, "action", "status") or "status"
+        version = (getattr(args, "version", "") or "").strip()
+        if action == "status":
+            res = status_summary()
+            if getattr(args, "json", False):
+                print(json.dumps(res, indent=2, default=str)[:12000])
+            else:
+                for row in res.get("releases") or []:
+                    print(f"{row.get('id')}: {row.get('status')} gates={row.get('gates_defined')}")
+            return 0
+        if action == "notes":
+            if not version:
+                print("usage: release notes v2")
+                return 1
+            print(format_notes_text(version))
+            return 0
+        if action == "gates":
+            rows = read_gate_log(limit=30, version=version or None)
+            if getattr(args, "json", False):
+                print(json.dumps(rows, indent=2, default=str)[:12000])
+            else:
+                for r in rows:
+                    mark = "OK" if r.get("ok") else "FAIL"
+                    print(f"{r.get('ts', '')[:19]} v{r.get('version')} {r.get('gate_id')} [{mark}] {r.get('note', '')[:80]}")
+            return 0
+        if action == "record":
+            if not version or not getattr(args, "gate", ""):
+                print("usage: release record v2 --gate run_a --ok --note 'routing_smoke green'")
+                return 1
+            ok = bool(getattr(args, "ok", False)) and not bool(getattr(args, "fail", False))
+            res = record_gate(
+                version,
+                getattr(args, "gate", ""),
+                ok=ok,
+                note=getattr(args, "note", "") or "",
+                evidence_path=getattr(args, "evidence", "") or "",
+            )
+            print(json.dumps(res, indent=2, default=str))
+            return 0 if res.get("ok") else 1
+        return 1
     if args.cmd == "caveman-audit":
         from mag.caveman_audit import format_report, run_audit
 

@@ -273,6 +273,7 @@ Steal contracts from Cursor (`MAG_STEAL_AUTOPILOT.md`); reject SaaS memory thron
 | backlog | `MAG_v3_BACKLOG.md` §6 (v5 rows) |
 | chat target | `V3_DEEPSEEK_RUN.md` §6 wave 3 (CHAT) |
 | framework | `DNA.md`, `OPERATOR_CARD.md`, `MAG_BEHAVIORAL_COMPOUNDING.md` |
+| releases | `docs/ref/releases/VERSION_REGISTRY.md`, `configs/releases.yaml` |
 
 ---
 
