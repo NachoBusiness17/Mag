@@ -75,6 +75,7 @@ memory/handoff/**
 !memory/handoff/DEEPSEEK_START.md
 memory/remedies/**
 !memory/remedies/.gitkeep
+!memory/remedies/rem-write-file-shape.md
 memory/working/**
 memory/working_*.py
 memory/portable_bags/**

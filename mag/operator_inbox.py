@@ -1,4 +1,8 @@
-"""Operator inbox — deferred guidance while the agent is working.
+"""Operator inbox — deferred guidance (interference layer).
+
+Breadcrumbs are operator interference — dropped on the agent's path, absorbed at
+checkpoint. Routing decisions come from mag/decision_framework + mag/router.
+See docs/DECISION_LAYERS.md.
 
 Operator types in the dashboard guidance dock (or API), hits Enter to queue.
 At the next checkpoint (between tool rounds / model calls), the seat drains

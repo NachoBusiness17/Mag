@@ -633,6 +633,14 @@ def scout(*, dry: bool = False) -> dict[str, Any]:
         return {"ok": False, "error": "improve disabled in configs/improve.yaml"}
     paths = ensure_dirs(cfg)
     day = _day_str()
+    behavioral_leaf = None
+    if not dry:
+        try:
+            from mag.behavioral_synth import synthesize_behavioral_leaf
+
+            behavioral_leaf = synthesize_behavioral_leaf(day)
+        except Exception:
+            behavioral_leaf = None
     keys = _weekday_keys(cfg)
     budgets = cfg.get("budgets") or {}
     max_cand = int(budgets.get("candidates_per_day") or 25)
