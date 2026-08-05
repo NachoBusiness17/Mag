@@ -780,6 +780,34 @@ def main(argv: list[str] | None = None) -> int:
         help="0 = unlimited until --stop",
     )
 
+    p_vdesk = sub.add_parser(
+        "virtual-desk-loop",
+        help="DeepSeek research loop on Mag virtual desk brief (REPORT.txt)",
+    )
+    p_vdesk.add_argument("--status", action="store_true", help="Loop + report state")
+    p_vdesk.add_argument("--run", action="store_true", help="Start loop (foreground)")
+    p_vdesk.add_argument("--once", action="store_true", help="Single DeepSeek cycle then exit")
+    p_vdesk.add_argument("--dry", action="store_true", help="Plan next unit only")
+    p_vdesk.add_argument("--bg", action="store_true", help="With --run: detached process")
+    p_vdesk.add_argument("--stop", action="store_true", help="Stop virtual desk loop")
+    p_vdesk.add_argument(
+        "--cycle-seconds",
+        type=int,
+        default=120,
+        help="Seconds between cycles (default 120)",
+    )
+    p_vdesk.add_argument(
+        "--max-cycles",
+        type=int,
+        default=0,
+        help="0 = unlimited until --stop or all units done",
+    )
+    p_vdesk.add_argument(
+        "--provider",
+        default="",
+        help="Override provider (default deepseek from configs/virtual_desk.yaml)",
+    )
+
     p_csync = sub.add_parser(
         "canvas-sync",
         help="Sync Cursor Canvas *.tsx → memory/viewports/ manifests",
@@ -1908,6 +1936,95 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(res, indent=2, default=str)[:12000])
             return 0 if res.get("ok") else 1
         print(json.dumps(lattice_status(), indent=2, default=str)[:12000])
+        return 0
+    if args.cmd == "virtual-desk-loop":
+        import os as _os
+
+        from mag.virtual_desk_loop import plant_status as vdesk_status, run_once, start_loop, stop_loop
+
+        if getattr(args, "provider", None):
+            prov = str(args.provider or "").strip()
+            if prov:
+                _os.environ["MAG_VIRTUAL_DESK_PROVIDER"] = prov
+        if args.stop:
+            st_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "state.json"
+            res = stop_loop()
+            if st_path.is_file():
+                try:
+                    st = json.loads(st_path.read_text(encoding="utf-8"))
+                    st["run"] = False
+                    st_path.write_text(json.dumps(st, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+            print(json.dumps(res, indent=2, default=str)[:8000])
+            return 0
+        if args.once or args.dry:
+            res = run_once(dry=bool(args.dry))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if args.run and args.bg:
+            import subprocess
+            import sys
+
+            py = sys.executable
+            log = ROOT / "logs" / "virtual_desk_loop_stdout.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            cmd = [
+                py,
+                str(ROOT / "main.py"),
+                "virtual-desk-loop",
+                "--run",
+                f"--cycle-seconds={int(args.cycle_seconds or 120)}",
+                f"--max-cycles={int(args.max_cycles or 0)}",
+            ]
+            if getattr(args, "provider", None) and str(args.provider).strip():
+                cmd.append(f"--provider={str(args.provider).strip()}")
+            creation = 0
+            if sys.platform == "win32":
+                creation = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+                creation |= getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            from datetime import datetime, timezone
+
+            with log.open("a", encoding="utf-8") as lf:
+                lf.write(f"\n--- spawn {datetime.now(timezone.utc).isoformat()} ---\n")
+                lf.write(" ".join(cmd) + "\n")
+            log_handle = log.open("a", encoding="utf-8")
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(ROOT),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                env={**__import__("os").environ},
+                creationflags=creation if sys.platform == "win32" else 0,
+                start_new_session=(sys.platform != "win32"),
+            )
+            pid_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "loop.pid"
+            pid_path.parent.mkdir(parents=True, exist_ok=True)
+            pid_path.write_text(str(proc.pid), encoding="utf-8")
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "started": True,
+                        "detached": True,
+                        "pid": proc.pid,
+                        "log": str(log),
+                        "status": vdesk_status(),
+                    },
+                    indent=2,
+                    default=str,
+                )[:12000]
+            )
+            return 0
+        if args.run:
+            res = start_loop(
+                background=False,
+                cycle_seconds=int(args.cycle_seconds or 120),
+                max_cycles=int(args.max_cycles or 0),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        print(json.dumps(vdesk_status(), indent=2, default=str)[:12000])
         return 0
     if args.cmd == "blast":
         from mag.blast import (

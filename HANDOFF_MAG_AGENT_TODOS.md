@@ -240,9 +240,10 @@ python main.py ponytail-audit
 
 ## 10. Virtual desk research (feed another agent)
 
-**Proposal:** `docs/ref/RESEARCH_MAG_VIRTUAL_DESK.md`  
-**Job:** P0 isolation, supervision, observability, container+GUI, Windows two-desk ritual.  
-**Return:** Filled §8 template → `memory/research_packs/mag_virtual_desk/REPORT.md` → implementer.
+**Proposal:** `docs/ref/RESEARCH_MAG_VIRTUAL_DESK.md` · plain: `docs/ref/RESEARCH_MAG_VIRTUAL_DESK.txt`  
+**DeepSeek loop:** `python main.py virtual-desk-loop --run --bg` → `memory/research_packs/mag_virtual_desk/REPORT.txt`  
+**Stop:** `python main.py virtual-desk-loop --stop` · **Status:** `--status` · **One shot:** `--once`  
+**Config:** `configs/virtual_desk.yaml` · **Run card:** `memory/research_packs/mag_virtual_desk/RUN.txt`
 
 ---
 
