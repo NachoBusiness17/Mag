@@ -245,7 +245,7 @@ python main.py ponytail-audit
 **Stop:** `python main.py virtual-desk-loop --stop` · **Status:** `--status` · **One shot:** `--once`  
 **Config:** `configs/virtual_desk.yaml` · **Run card:** `memory/research_packs/mag_virtual_desk/RUN.txt`
 
-**v3 scope:** spider, resonance, L-exp training, workstation GUI, riddle packs — see `docs/ref/MAG_v3_RESEARCH_PLAN.md` + **`docs/ref/MAG_v3_BACKLOG.md`** (living feature ledger). Not v2 merge blockers.
+**v3 scope:** spider, resonance, L-exp training, workstation GUI, riddle packs — see `docs/ref/MAG_v3_RESEARCH_PLAN.md` + **`docs/ref/MAG_v3_BACKLOG.md`** (living feature ledger). **Next coding run:** **`docs/ref/MAG_NEXT_CODING_RUN.md`**. Not v2 merge blockers.
 
 ---
 
