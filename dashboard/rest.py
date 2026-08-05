@@ -1102,6 +1102,20 @@ def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]
     return 200, res
 
 
+def h_decide(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Framework decision: route + behavioral tips + breadcrumb interference status."""
+    from mag.decision_framework import decide
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal and not _p.get("goal"):
+        return _err(400, "goal required")
+    goal = goal or str(_p.get("goal") or "").strip()
+    depth = str(data.get("depth") or _p.get("depth") or "").strip() or None
+    res = decide(goal, depth=depth)
+    return (200 if res.get("ok") else 422), res
+
+
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Classify depth + optionally launch the appropriate seat."""
     from mag.coordination import coordinate
@@ -2156,6 +2170,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("POST", "/api/v1/coordinate", h_coordinate),
     ("POST", "/api/v1/route", h_route),
     ("GET", "/api/v1/route", h_route),
+    ("POST", "/api/v1/decide", h_decide),
+    ("GET", "/api/v1/decide", h_decide),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),

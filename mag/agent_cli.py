@@ -875,6 +875,33 @@ def run_turn(
                     traces.append(
                         f"error: {(res.get('error') or 'degenerate again')[:100]}"
                     )
+                    if degenerate_retries >= 2:
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="degenerate",
+                                detail="model lock-loop after 2 retries",
+                                phase="degenerate_escalate",
+                                provider=provider,
+                            )
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                detail="degenerate model output",
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Degenerate loop — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception:
+                            pass
                     continue
             if not retried_ok and "tool" in err_l and "tool_calls" in err_l:
                 sys_m = messages[0] if messages and messages[0].get("role") == "system" else None
@@ -1023,7 +1050,37 @@ def run_turn(
                         collapse_window.clear()
                         traces.append("collapse_stop")
                         _mail(phase="collapse_stop", step=_activity["step"], last_tool=_activity["last_tool"])
-                        print(dim("  \u2192 collapse detector: hard stop after 2 nudges"), flush=True)
+                        print(dim("  → collapse detector: escalating to smarter seat"), flush=True)
+                        try:
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                tool=name,
+                                detail=f"5x identical {name}",
+                                session_id=str(normalize_seat(load_run()).get("session_id") or ""),
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("action") == "file_for_grok":
+                                return (
+                                    "**Loop detected — escalated to Grok TUI (pack).**\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Local seat stopped burning tokens._",
+                                    messages,
+                                    traces,
+                                )
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Loop detected — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Reset agent or check orchestrator drain._",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception as exc:
+                            traces.append(f"escalate_failed:{str(exc)[:60]}")
                         return (
                             "**Stopped: collapse detector.** The same tool call repeated 5x twice "
                             "despite nudges - degenerate loop. Reset or /pack and re-state the goal.",

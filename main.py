@@ -645,6 +645,17 @@ def main(argv: list[str] | None = None) -> int:
         choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
         help="Force depth (else auto-classify)",
     )
+    p_decide = sub.add_parser(
+        "decide",
+        help="Framework decision: route + behavioral tips + interference status",
+    )
+    p_decide.add_argument("goal", nargs="+", help="What to decide")
+    p_decide.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth",
+    )
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -1654,6 +1665,13 @@ def main(argv: list[str] | None = None) -> int:
 
         goal = " ".join(args.goal)
         res = route(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "decide":
+        from mag.decision_framework import decide
+
+        goal = " ".join(args.goal)
+        res = decide(goal, depth=(args.depth or None))
         print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
     if args.cmd == "orchestrator":
