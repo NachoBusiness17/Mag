@@ -284,6 +284,16 @@ def build_context_pack(
             (brief or "")[:200],
         ]
     ).strip() or "general harness dig"
+    try:
+        from mag.preferences import inject_behavioral_pack
+        if inject_behavioral_pack():
+            from mag.decision_framework import format_tips_block, surface_tips
+
+            tips_block = format_tips_block(surface_tips(goal=soft_goal))
+            if tips_block:
+                behavioral_excerpt = (behavioral_excerpt + "\n\n" + tips_block).strip()[:1400]
+    except Exception:
+        pass
     mirror_voice_excerpt = _mirror_voice_excerpt(soft_goal, max_chars=600)
     clue_chain_excerpt = _clue_chain_excerpt(max_chars=500)
 

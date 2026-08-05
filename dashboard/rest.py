@@ -164,7 +164,7 @@ def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, di
 def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Toggle autonomy prefs or broadcast steer to chat + running workers."""
     from mag.governance import broadcast_steer
-    from mag.preferences import set_drainer, set_inject_behavioral_pack
+    from mag.preferences import set_drainer, set_inject_behavioral_pack, set_operator_active
 
     data = body or {}
     if "steer" in data or data.get("cmd"):
@@ -176,6 +176,9 @@ def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
     if "drainer" in data:
         set_drainer(bool(data["drainer"]))
         out["drainer"] = True
+    if "operator_active" in data:
+        set_operator_active(bool(data["operator_active"]))
+        out["operator_active"] = True
     if "inject_behavioral_pack" in data:
         set_inject_behavioral_pack(bool(data["inject_behavioral_pack"]))
         out["inject_behavioral_pack"] = True
@@ -1064,6 +1067,56 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
         task_id=str(data.get("task_id") or "").strip() or None,
     )
     return 200, {"ok": True, "activity": row}
+
+
+def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Unified routing decision — classify + seat + provider + honest failure."""
+    from mag.router import route
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal:
+        return _err(400, "goal required")
+    depth = str(data.get("depth") or "").strip() or None
+    force_seat = str(data.get("force_seat") or "").strip() or None
+    force_provider = str(data.get("force_provider") or "").strip() or None
+    res = route(
+        goal,
+        depth=depth,
+        force_seat=force_seat,
+        force_provider=force_provider,
+    )
+    launch = data.get("launch", False)
+    if isinstance(launch, str):
+        launch = launch.lower() not in ("0", "false", "no")
+    if launch:
+        from mag.coordination import coordinate
+
+        exec_res = coordinate(
+            goal,
+            depth=depth,
+            seat=str(data.get("caller_seat") or data.get("seat") or "api"),
+            actor=str(data.get("actor") or "api"),
+            launch=True,
+            background=bool(data.get("background")),
+            session_id=str(data.get("session_id") or "").strip() or None,
+        )
+        return (200 if exec_res.get("ok") else 500), {"route": res, "execution": exec_res}
+    return 200, res
+
+
+def h_decide(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Framework decision: route + behavioral tips + breadcrumb interference status."""
+    from mag.decision_framework import decide
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal and not _p.get("goal"):
+        return _err(400, "goal required")
+    goal = goal or str(_p.get("goal") or "").strip()
+    depth = str(data.get("depth") or _p.get("depth") or "").strip() or None
+    res = decide(goal, depth=depth)
+    return (200 if res.get("ok") else 422), res
 
 
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2118,6 +2171,10 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
     ("POST", "/api/v1/coordinate", h_coordinate),
+    ("POST", "/api/v1/route", h_route),
+    ("GET", "/api/v1/route", h_route),
+    ("POST", "/api/v1/decide", h_decide),
+    ("GET", "/api/v1/decide", h_decide),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),
