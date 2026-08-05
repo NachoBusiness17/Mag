@@ -63,7 +63,7 @@ skills:
 
   - id: caveman-prose
     when: [plan, spec, handoff, docs, priority, architecture]
-    path: memory/improve/weaves/W9-caveman-prose.md
+    path: docs/ref/weaves/W9-caveman-prose.md
     pack_excerpt: true
     note: "Plan/doc agent skill — terse specs; run caveman-audit on output."
 

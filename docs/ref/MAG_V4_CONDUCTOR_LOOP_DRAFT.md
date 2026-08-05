@@ -4,7 +4,8 @@
 **As-of:** 2026-08-05  
 **Commitment:** `mag-v4-conductor-loop-001`  
 **Parents:** `MAG_LOOP_DISCIPLINE.md` · `MAG_BEHAVIORAL_COMPOUNDING.md` · `MAG_TRAINING_DATA_SPEC.md`  
-**Related:** `MAG_LOCAL_STEWARD.md` (janitor jobs, Verkle read, actor memory)
+**Related:** `MAG_LOCAL_STEWARD.md` (janitor jobs, Verkle read, actor memory)  
+**One-pagers:** `docs/ref/onepagers/README.md` (handoff briefs for external engines)
 
 **Read when:** feeding Grok / DeepSeek / Cursor a frozen BUILD spec for loop auto-handling.
 
