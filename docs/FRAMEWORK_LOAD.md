@@ -64,9 +64,9 @@ Mag is a **private records office** on your computer — not a chat app.
 | 0 | **`docs/FRAMEWORK_LOAD.md`** | This navigation map |
 | 1 | **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** | Direction v2 — been / are / going / v3 gate / v4–v5 mold |
 | 2 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal depth |
-| 2 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
-| 3 | **`AGENTS.md`** | Python env law + command cheatsheet |
-| 4 | **`docs/DNA.md`** | What "filed" means — residual constitution |
+| 3 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
+| 4 | **`AGENTS.md`** | Python env law + command cheatsheet |
+| 5 | **`docs/DNA.md`** | What "filed" means — residual constitution |
 
 **After read:** `mag.cmd doctor` · `mag.cmd context-pack`
 
