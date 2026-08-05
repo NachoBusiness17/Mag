@@ -11,6 +11,7 @@
 | 5 | [05-wiring-gaps.md](05-wiring-gaps.md) | Skills/systems already built but underwired |
 | 6 | [06-layered-law.md](06-layered-law.md) | Constitution vs emergence; stop dumb shit |
 | 7 | [07-engine-handoff.md](07-engine-handoff.md) | Paste block + file list for any external AI |
+| 8 | [08-seat-intelligence.md](08-seat-intelligence.md) | Model/seat pick without test farm |
 
 **Law:** One ask + one deliverable per session. Do not attach chat scroll.
 
