@@ -284,6 +284,22 @@ scout → eval → memory/improve/candidates/
 
 ---
 
+### Phase 3.9 — Mag Workstation / virtual desk (exit: research → ops → optional cage GUI)
+
+**Goal:** Mag plugs away on a **second desk** while operator codes elsewhere — isolation, observability, optional headless GUI in container only.
+
+| # | Deliverable | Done when |
+|---|-------------|-----------|
+| 3.9.0 | Research proposal | `docs/ref/RESEARCH_MAG_VIRTUAL_DESK.md` — feed external agent |
+| 3.9.1 | Research report | Filled §8 template in `memory/research_packs/mag_virtual_desk/REPORT.md` |
+| 3.9.2 | Operator ritual doc | Windows two-desk + AFK env (`MAG_DRAINER`, virtual desktop) |
+| 3.9.3 | `MAG_WORKSTATION` profile | Optional: Playwright/xvfb in compose — localhost only |
+| 3.9.4 | Lab card | Autorun overnight summary readable without chat scroll |
+
+**Depends on:** Phase 1 autorun (#10), container (`CONTAINER.md`). **Not** a second orchestrator.
+
+---
+
 ### Phase 4 — Spore spine (optional module — exit: public witness without secret storage)
 
 **Goal:** X timeline as activation grammar + witness museum; disk remains truth.

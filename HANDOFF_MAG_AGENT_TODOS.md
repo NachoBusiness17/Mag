@@ -238,4 +238,12 @@ python main.py ponytail-audit
 
 ---
 
+## 10. Virtual desk research (feed another agent)
+
+**Proposal:** `docs/ref/RESEARCH_MAG_VIRTUAL_DESK.md`  
+**Job:** P0 isolation, supervision, observability, container+GUI, Windows two-desk ritual.  
+**Return:** Filled §8 template → `memory/research_packs/mag_virtual_desk/REPORT.md` → implementer.
+
+---
+
 *End handoff — update after each merge and weekly verkle-audit.*
