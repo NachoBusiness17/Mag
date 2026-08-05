@@ -1008,6 +1008,22 @@ def run_turn(
                         pass
                 else:
                     out = _run_tool(name, args)
+                    if not out.get("ok"):
+                        err_msg = str(out.get("error") or "tool failed")[:200]
+                        traces.append(f"{name}: failed")
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="tool_fail",
+                                detail=err_msg,
+                                tool=name,
+                                error=err_msg,
+                                phase=str(_activity.get("phase") or "tool"),
+                                **normalize_seat(load_run()),
+                            )
+                        except Exception:
+                            pass
                 # T1 pause gate INSIDE the tool loop: if the operator typed
                 # !pause/!escape while a tool was executing, freeze here and
                 # wait for !continue (or absorb any steer that landed too).
@@ -1045,6 +1061,13 @@ def run_turn(
                         print(dim("  \u2192 collapse detector: 5 identical tool calls - injecting nudge"), flush=True)
                         rem = remedy.prevent(name, json.dumps(args, default=str)[:200])
                         rem_txt = ("\n\nRemedy card:\n" + remedy.card_md(rem)) if rem else ""
+                        try:
+                            from mag.failure_kb import format_block, lookup
+
+                            fkb = lookup(name, json.dumps(args, default=str)[:120])
+                            fkb_txt = ("\n\n" + format_block(fkb)) if fkb else ""
+                        except Exception:
+                            fkb_txt = ""
                         messages.append(
                             {
                                 "role": "user",
@@ -1053,6 +1076,7 @@ def run_turn(
                                     "arguments 5 times in a row. Stop. Re-anchor:\n\n"
                                     + build_compass(reason="loop")
                                     + rem_txt
+                                    + fkb_txt
                                 ),
                             }
                         )

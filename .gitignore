@@ -76,6 +76,8 @@ memory/handoff/**
 memory/remedies/**
 !memory/remedies/.gitkeep
 !memory/remedies/rem-write-file-shape.md
+memory/failure_kb/**
+!memory/failure_kb/.gitkeep
 memory/working/**
 memory/working_*.py
 memory/portable_bags/**

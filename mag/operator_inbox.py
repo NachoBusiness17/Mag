@@ -272,6 +272,40 @@ def log_behavioral_event(
             )
         except Exception:
             pass
+    # FKB: dedupe failures + auto-draft remedies on recurrence
+    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash"):
+        try:
+            from mag.failure_kb import log_failure
+
+            log_failure(
+                kind=kind,
+                detail=detail,
+                tool=tool,
+                error=error,
+                phase=phase,
+                session_id=session_id,
+                provider=provider,
+                model=model,
+            )
+        except Exception:
+            pass
+    # FKB: dedupe failures + auto-draft remedies on recurrence
+    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash"):
+        try:
+            from mag.failure_kb import log_failure
+
+            log_failure(
+                kind=kind,
+                detail=detail,
+                tool=tool,
+                error=error,
+                phase=phase,
+                session_id=session_id,
+                provider=provider,
+                model=model,
+            )
+        except Exception:
+            pass
 
 
 def apply_actions_to_messages(

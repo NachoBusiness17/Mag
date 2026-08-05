@@ -116,6 +116,17 @@ def surface_tips(*, goal: str = "", limit: int = 6) -> list[dict[str, str]]:
             "source": "skills",
         })
 
+    # Failure KB — recurring tool/collapse patterns
+    try:
+        from mag.failure_kb import surface_hits
+
+        for hit in surface_hits(goal=g, limit=3):
+            if len(tips) >= limit:
+                break
+            tips.append(hit)
+    except Exception:
+        pass
+
     # Dedupe by tip text
     seen: set[str] = set()
     out: list[dict[str, str]] = []
