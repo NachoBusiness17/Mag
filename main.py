@@ -579,16 +579,6 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="start: privacy.never_remote (tier_max T1)",
     )
-    p_route = sub.add_parser(
-        "route",
-        help="Grok-facing router: classify lane; optional --local execute",
-    )
-    p_route.add_argument("goal", nargs="+", help="Goal text")
-    p_route.add_argument(
-        "--local",
-        action="store_true",
-        help="If lane=local, run ask/doctor/smoke now",
-    )
     sub.add_parser(
         "providers",
         help="List platforms (OpenAI/Gemini/DeepSeek/…) + keys + quota remaining",
@@ -634,6 +624,42 @@ def main(argv: list[str] | None = None) -> int:
         help="Queue heavy_code on orchestrator instead of inline delegate",
     )
     p_coord.add_argument("--session", default="", help="Agent session id for delegate mode")
+    p_route = sub.add_parser(
+        "route",
+        help="Unified routing decision (seat, provider, mode) — honest failures",
+    )
+    p_route.add_argument("goal", nargs="+", help="What to route")
+    p_route.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth (else auto-classify)",
+    )
+    p_route.add_argument(
+        "--local",
+        action="store_true",
+        help="If lane=local, execute ask/doctor/smoke now (legacy local runner)",
+    )
+    p_decide = sub.add_parser(
+        "decide",
+        help="Framework decision: route + behavioral tips + interference status",
+    )
+    p_decide.add_argument("goal", nargs="+", help="What to decide")
+    p_decide.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth",
+    )
+    p_fkb = sub.add_parser(
+        "fkb",
+        help="Failure Knowledge Base: search recurring failures / stats",
+    )
+    p_fkb.add_argument(
+        "fkb_args",
+        nargs="*",
+        help="stats | list [n] | search <query> | record <kind> <tool> <detail>",
+    )
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -1567,12 +1593,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps({"ok": False, "error": f"unknown action {action}"}))
         return 1
-    if args.cmd == "route":
-        from mag.route import route_goal
-
-        res = route_goal(" ".join(args.goal), run_local=args.local)
-        print(json.dumps(res, indent=2, default=str))
-        return 0 if res.get("ok") else 1
     if args.cmd == "providers":
         from models.providers import status_table
 
@@ -1638,6 +1658,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "route":
+        goal = " ".join(args.goal)
+        if getattr(args, "local", False):
+            from mag.route import route_goal
+
+            res = route_goal(goal, run_local=True)
+        else:
+            from mag.router import route
+
+            res = route(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "decide":
+        from mag.decision_framework import decide
+
+        goal = " ".join(args.goal)
+        res = decide(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "fkb":
+        from mag.failure_kb import _cli as fkb_cli
+
+        return fkb_cli(list(getattr(args, "fkb_args", []) or []))
     if args.cmd == "orchestrator":
         from mag.orchestrator import main as orc_main
 
