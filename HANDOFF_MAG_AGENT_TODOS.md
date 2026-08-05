@@ -168,10 +168,11 @@ Ledger: `memory/improve/candidates.jsonl` (created on first scout).
 ## 6. Tests (trust ritual)
 
 ```bash
-.venv/bin/python -m pytest tests/test_verkle_audit.py tests/test_router.py \
-  tests/test_failure_kb.py tests/test_autorun_v1.py -q
+.venv/bin/python -m pytest tests/test_verkle_audit.py tests/test_ponytail_audit.py \
+  tests/test_router.py tests/test_failure_kb.py tests/test_autorun_v1.py -q
 .venv/bin/python scripts/routing_smoke.py
 .venv/bin/python main.py verkle-audit --dry
+.venv/bin/python main.py ponytail-audit
 .venv/bin/python main.py fkb stats
 ```
 

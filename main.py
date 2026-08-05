@@ -819,6 +819,11 @@ def main(argv: list[str] | None = None) -> int:
     p_va.add_argument("--dry", action="store_true", help="Plan only; no writes or LLM")
     p_va.add_argument("--no-reconcile", action="store_true", help="Skip ticket reconciliation")
 
+    sub.add_parser(
+        "ponytail-audit",
+        help="Ponytail ladder scan — over-engineering only, not correctness",
+    )
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1275,6 +1280,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "ponytail-audit":
+        from mag.ponytail_audit import format_report, run_audit
+
+        res = run_audit(hints=True)
+        print(format_report(res))
+        return 0
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
@@ -1811,12 +1822,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "lattice-loop":
         from mag.lattice_loop import plant_status as lattice_status, start_loop, stop_loop
 
-        if getattr(args, "backfill", False):
-            from mag.lattice_backfill import run_backfill
-
-            res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
-            print(json.dumps(res, indent=2, default=str))
-            return 0 if res.get("ok") else 1
         if args.stop:
             # signal stop via state file (works for detached process too)
             st_path = (

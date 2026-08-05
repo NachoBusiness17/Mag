@@ -1,28 +1,45 @@
 # Mag v2 — Freedom Lattice Plan
 
 **Version:** 2.0.0-plan  
-**Commitment:** `mag-v2-plan-001`  
+**Commitment:** `mag-v2-plan-002`  
 **As-of:** 2026-08-05  
-**Status:** Active roadmap — builds on Autorun v1 (PR #10), Unified Router (#8), FKB (#9)
+**Status:** Active — ponytail/caveman discipline + Lessig modalities
 
-**Parents:** `PRODUCT_VISION_AUTORUN.md` · `MAG_OS_v2.md` · `OPERATOR_CARD.md` · `DNA.md` · `strike_origin.md`  
-**Activation phrase:** *"Mag v2 freedom lattice"* — load this doc + `MAG_Card.md` + `memory/agent_state/LATEST.md`
+**Parents:** `lessig_1_6.md` · `PRODUCT_VISION_AUTORUN.md` · `MAG_OS_v2.md` · `OPERATOR_CARD.md`  
+**Activation:** *Mag v2 freedom lattice* — load this + `MAG_Card.md` + `HANDOFF_MAG_AGENT_TODOS.md`
 
 ---
 
 ## 0. One line
 
-**A self-improving agent lattice on your disk — layman-proof at the front door, intelligent routing and autorun behind it, forkable without a king.**
+**Self-improving agent lattice on your disk — layman door, silent router, forkable beads.**
 
-Not: another chat app. Not: a mirror throne. Not: "AI runs my life."
+Not: chat app. Not: mirror throne. Not: AI runs your life.
 
 ---
 
-## 1. What v2 is (and is not)
+## 1. Lessig modalities (what binds)
 
-### 1.1 Product shape
+| Modality | v2 rule |
+|----------|---------|
+| **Law** | G1 constitution/tiers/residual · G2 secrets · G3 irreversible=L3 · G4 operator_active pauses autorun |
+| **Norm** | Pack-first · seat purity · FILE not chat · promote is human · no analysis leaf before trail |
+| **Market** | Tokens price intelligence · L0 janitor first · L2 scarce · attention > model vanity |
+| **Architecture** | `route.v2` one brain · container cage · FKB on fail · verkle tip = sessions only |
 
-Mag v2 is three stacked layers:
+**Ponytail** ([dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail)): ladder for **code** — YAGNI, reuse, stdlib, minimum diff. Safety never cut.  
+**Caveman**: density for **docs** — terse, exact, no filler. Security/irreversible breaks caveman.  
+**Audit:** `python main.py ponytail-audit` before merge.
+
+```text
+LAW (gates) → NORM (habit) → MARKET (seats) → ARCHITECTURE (code that enforces)
+```
+
+---
+
+## 2. What v2 is (three layers)
+
+### 2.1 Product shape
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -42,11 +59,11 @@ Mag v2 is three stacked layers:
 | **Lattice** | Nothing — operator never picks DeepSeek vs Grok vs Cursor | `route.v2` + decision framework + FKB + governor autorun |
 | **Freedom** | "My footprint stays on my disk" | Docker boundary, tier refuse, residual DNA, no core-mirror privilege |
 
-### 1.2 North star
+### 2.2 North star
 
 A **self-improving agent lattice**: work descends to the cheapest safe seat, ascends only with a pack, failures become remedies, cycles leave a trail, and a second person can fork the practice without inheriting your residual.
 
-### 1.3 Non-goals (v2)
+### 2.3 Non-goals (v2)
 
 | Out of scope | Why |
 |--------------|-----|
@@ -59,7 +76,7 @@ A **self-improving agent lattice**: work descends to the cheapest safe seat, asc
 
 ---
 
-## 2. Foundation already shipped (v1 → v2 bridge)
+## 3. Foundation already shipped (v1 → v2 bridge)
 
 Merge these before calling anything "v2 home install":
 
@@ -106,7 +123,7 @@ breadcrumbs (interference) → decision_framework → router
 
 ---
 
-## 3. Mag v2 phases
+## 4. Mag v2 phases
 
 ### Phase 0 — Single install path (exit: "clone → lab → autorun")
 
@@ -240,6 +257,22 @@ python main.py verkle-audit --full    # Saturday
 | 3.7.5 | MCP bridge (optional) | Mag REST as MCP for external seats |
 
 **Steal, don't import:** OpenAI sessions → residual; Anthropic evaluator → pytest; ADK typed state → route.v2 schema.
+
+---
+
+### Phase 3.8 — Ponytail discipline (exit: lean code, dense docs)
+
+**Goal:** Run [ponytail](https://github.com/dietrichgebert/ponytail) ladder on Mag; caveman density on plan docs.
+
+| # | Deliverable | Done when |
+|---|-------------|-----------|
+| 3.8.1 | `ponytail-audit` CLI | `python main.py ponytail-audit` |
+| 3.8.2 | Baseline doc | `docs/ref/PONYTAIL_CAVEMAN_AUDIT.md` |
+| 3.8.3 | Pre-merge gate | ponytail-audit medium/high = 0 |
+| 3.8.4 | Single-law constants | `DEPTH_JOB_MAP` from `mag.router` only |
+
+**Ladder (code):** YAGNI → reuse → stdlib → native → installed dep → one line → minimum.  
+**Never cut:** tiers, gates, FKB, residual, validation at trust boundary.
 
 **Improve cycle (existing):**
 
@@ -445,6 +478,7 @@ python main.py autorun
 | `MAG_v2_PLAN.md` (this) | Roadmap + phases + acceptance |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Master agent/operator queue |
 | `AGENTIC_LANDSCAPE_2026.md` | Industry steals mapped to Mag |
+| `PONYTAIL_CAVEMAN_AUDIT.md` | Ponytail ladder + caveman doc discipline |
 | `MAG_OS_v2.md` | Governance surface + Phoenix |
 | `PRODUCT_VISION_AUTORUN.md` | Product one-liner + gates |
 | `OPERATOR_CARD.md` | Layman FIND/FILE/LOAD |

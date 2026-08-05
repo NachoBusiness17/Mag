@@ -25,13 +25,7 @@ if str(ROOT) not in sys.path:
 
 TRAIL = ROOT / "memory" / "runs" / "governor_autorun_trail.jsonl"
 
-DEPTH_JOB_MAP: dict[str, str] = {
-    "scut": "scut",
-    "simple_code": "hard_code",
-    "heavy_code": "hard_code",
-    "plan": "hard_reason",
-    "overview": "hard_reason",
-}
+from mag.router import DEPTH_JOB_MAP  # single law — ponytail: no duplicate maps
 
 DEPTH_COST_MULT: dict[str, int] = {
     "scut": 1,
