@@ -159,11 +159,16 @@ v3 graduates in **waves**. Each wave = one frozen BUILD epic, dispatched cheap a
 **Operator habit after merge:**
 
 ```text
+mag_kill.cmd                              # kill switch — everything down
+mag_on.cmd                                # turn on — supervisor + dashboard
+mag.cmd power status                      # CLI stack glance
 launch_cursor_seat.cmd                    # registers ext-* task automatically
 python watch/cursor_bridge.py register    # or from Cursor terminal when lab up
 mag.cmd switchboard peers --live          # see cursor + orchestrator children
 mag.cmd seats list --live                 # external seats only
 ```
+
+**Power panel:** Dashboard → Body tab → Power card (Stop all / Turn on).
 
 Improve / autopilot: prefer `cursor_bridge task "…" --mode queue` over raw `agent` REPL.
 

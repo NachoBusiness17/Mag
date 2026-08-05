@@ -981,6 +981,19 @@ def main(argv: list[str] | None = None) -> int:
     p_seats.add_argument("--live", action="store_true")
     p_seats.add_argument("--json", action="store_true")
 
+    p_power = sub.add_parser(
+        "power",
+        help="Kill switch / turn-on / stack status (no whack-a-mole)",
+    )
+    p_power.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["status", "stop", "start"],
+    )
+    p_power.add_argument("--json", action="store_true")
+    p_power.add_argument("--browser", action="store_true", help="open dashboard after start")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1669,6 +1682,21 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  {r.get('task_id')} {r.get('seat')} {r.get('status')} {str(r.get('goal',''))[:50]}")
             return 0
         return 2
+    if args.cmd == "power":
+        from mag.power import format_status_text, stack_status, start_all, stop_all
+
+        action = getattr(args, "action", "status") or "status"
+        if action == "stop":
+            res = stop_all()
+        elif action == "start":
+            res = start_all(open_browser=bool(getattr(args, "browser", False)))
+        else:
+            res = stack_status()
+        if getattr(args, "json", False) or action != "status":
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(format_status_text(res))
+        return 0 if res.get("ok", True) else 1
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 

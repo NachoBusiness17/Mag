@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title MAG - Stop Everything
+title MAG - Kill Switch
 color 0C
 
 set "PY=%~dp0.venv\Scripts\python.exe"
@@ -12,15 +12,15 @@ if not exist "%PY%" (
 )
 
 echo ============================================================
-echo   MAG - Stop Everything (kill switch)
-echo   Stops supervisor, backend, dashboard, workers, seat-guard
+echo   MAG KILL SWITCH
+echo   Stops supervisor, dashboard, backend, workers, seat-guard
+echo   No respawn until you run start_everything.cmd or mag_on.cmd
 echo ============================================================
 echo.
 
-"%PY%" "%~dp0main.py" power stop
+"%PY%" "%~dp0main.py" power stop --json
 echo.
-echo Done. Ports 8000, 8765, and 8743 should be free.
-echo Run "mag_on.cmd" or "start_everything.cmd" to bring the stack back.
+echo Done. If anything lingers: Task Manager -^> python.exe under this repo.
 echo.
 pause
 endlocal

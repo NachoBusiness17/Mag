@@ -900,11 +900,20 @@
               <div class="row" id="statusPills" style="margin-top:0.45rem;flex-wrap:wrap;gap:0.35rem"></div>
             </div>
             <div class="row">
+              <button type="button" class="btn danger" id="btnPowerStop" title="Kill switch — stop entire Mag stack">Stop all</button>
+              <button type="button" class="btn primary" id="btnPowerStart" title="Boot supervisor + dashboard">Turn on</button>
               <button type="button" class="btn ghost" id="btnStatusCatchUp">Catch up</button>
-              <button type="button" class="btn primary" id="btnStatusReload">Reload</button>
+              <button type="button" class="btn ghost" id="btnStatusReload">Reload</button>
               <button type="button" class="btn ghost" id="btnOpenWorkers">Workers tab</button>
             </div>
           </div>
+          <article class="card full" id="powerCard">
+            <h2>Power — stack on/off</h2>
+            <p class="muted sm" id="powerHeadline">Loading stack status…</p>
+            <div class="row" id="powerPills" style="margin:0.35rem 0;flex-wrap:wrap;gap:0.35rem"></div>
+            <table class="kv"><tbody id="powerServices"></tbody></table>
+            <p class="muted sm" id="powerHint"></p>
+          </article>
           <div class="status-bands body-top-bands">
             <article class="card">
               <h2>Inbound seats</h2>

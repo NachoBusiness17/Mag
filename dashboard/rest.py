@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
@@ -212,6 +213,38 @@ def h_seats_unregister(_p: dict[str, str], body: dict[str, Any] | None) -> tuple
     detail = str(data.get("detail") or "").strip()
     rec = unregister(task_id, status=status, detail=detail)
     return (200 if rec.get("ok") else 404), rec
+
+
+def h_power(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.power import stack_status
+
+    return 200, stack_status()
+
+
+def h_power_stop(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Kill switch — stops stack (may terminate this dashboard process)."""
+    import threading
+
+    from mag.power import stop_all
+
+    def _run() -> None:
+        time.sleep(0.3)
+        stop_all()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return 200, {
+        "ok": True,
+        "action": "stopping",
+        "hint": "Stack shutting down — refresh will fail until mag.cmd power start",
+    }
+
+
+def h_power_start(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.power import start_all
+
+    data = dict(body or {})
+    open_browser = bool(data.get("browser") or data.get("open_browser"))
+    return 200, start_all(open_browser=open_browser)
 
 
 def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2120,6 +2153,9 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "POST /api/v1/seats/register": "Register desktop/cloud seat → MAG_TASK_ID",
             "POST /api/v1/seats/heartbeat": "Refresh registered seat liveness",
             "POST /api/v1/seats/unregister": "Mark registered seat done/failed",
+            "GET /api/v1/power": "Stack status — kill switch / turn-on glance",
+            "POST /api/v1/power/stop": "Kill switch — stop entire Mag stack",
+            "POST /api/v1/power/start": "Turn-on — boot supervisor + core services",
             "GET /api/v1/governance": "Steering + behavioral loop + autonomy prefs",
             "POST /api/v1/governance": "Toggle drainer/behavioral pack or broadcast steer",
             "GET /api/v1/operator-inbox": "Deferred guidance queue (process at checkpoint)",
@@ -2228,6 +2264,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("POST", "/api/v1/seats/register", h_seats_register),
     ("POST", "/api/v1/seats/heartbeat", h_seats_heartbeat),
     ("POST", "/api/v1/seats/unregister", h_seats_unregister),
+    ("GET", "/api/v1/power", h_power),
+    ("POST", "/api/v1/power/stop", h_power_stop),
+    ("POST", "/api/v1/power/start", h_power_start),
     ("GET", "/api/v1/governance", h_governance),
     ("POST", "/api/v1/governance", h_post_governance),
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),

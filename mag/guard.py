@@ -27,6 +27,18 @@ def doctor_print(s: dict[str, Any]) -> None:
 
 
 def ensure_lab(restart: bool = False) -> dict[str, Any]:
+    try:
+        from mag.power import is_off
+
+        if is_off():
+            return {
+                "ok": True,
+                "action": "power_off",
+                "hint": "Stack intentionally off — mag.cmd power start",
+                "sanity": sanity(),
+            }
+    except Exception:
+        pass
     s = sanity()
     if s.get("status") == "up" and not s.get("recording", {}).get("live_stale"):
         return {"ok": True, "action": "healthy", "sanity": s}
