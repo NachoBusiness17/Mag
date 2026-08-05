@@ -500,6 +500,7 @@ python main.py autorun
 | `OPERATOR_CARD.md` | Layman FIND/FILE/LOAD |
 | `DNA.md` | Residual constitution |
 | `CONTAINER.md` | Freedom cage install |
+| `MAG_v3_RESEARCH_PLAN.md` | **v3 only** — spider, resonance, L-exp, workstation research (not v2 ship) |
 | `DECISION_LAYERS.md` | Router stack |
 | `strike_origin.md` | Spore spine history |
 | `memory/improve/HABIT.md` | Token bleed seats |
