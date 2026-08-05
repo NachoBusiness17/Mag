@@ -148,6 +148,19 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
             injected.append(tid)
 
     _trail("tick", dry=dry, n_signals=len(signals), injected=injected)
+    try:
+        from mag.training_events import emit
+
+        for sig in signals:
+            emit(
+                "spider_signal",
+                input_data={"message": sig.get("message", "")[:200]},
+                action={"kind": sig.get("kind"), "severity": sig.get("severity")},
+                outcome={"injected": sig.get("task_id") in injected if injected else False},
+                pattern_tags=[str(sig.get("kind") or "signal")],
+            )
+    except Exception:
+        pass
     return {
         "schema": "spider_tick.v1",
         "ts": _now(),

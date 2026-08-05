@@ -39,6 +39,24 @@ def _trail(goal: str, phase: str, route: dict[str, Any]) -> None:
     }
     with CONDUCTOR_TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "route_decision",
+            join={},
+            input_data={"goal": goal[:200], "phase": phase},
+            action={
+                "seat": route.get("seat"),
+                "provider": route.get("provider"),
+                "depth": route.get("depth"),
+                "route_schema": route.get("schema", "route.v2"),
+            },
+            outcome={"label_source": "heuristic"},
+            pattern_tags=[f"phase_{phase}"],
+        )
+    except Exception:
+        pass
 
 
 def detect_phase(goal: str) -> str:

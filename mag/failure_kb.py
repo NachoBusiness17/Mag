@@ -107,6 +107,20 @@ def log_failure(
     except OSError:
         pass
 
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "fkb_failure",
+            join={"session_id": session_id or ""},
+            input_data={"kind": kind, "detail": (detail or "")[:200]},
+            action={"tool": tool, "provider": provider, "sig": sig},
+            outcome={"count": None},
+            pattern_tags=[kind, tool or "unknown"],
+        )
+    except Exception:
+        pass
+
     idx = _load_index()
     sigs: dict[str, Any] = idx.setdefault("signatures", {})
     rec = sigs.get(sig) or {

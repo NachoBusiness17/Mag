@@ -93,6 +93,15 @@ LOOPS: list[dict[str, Any]] = [
         "status": "pilot",
         "cli": "docs/ref/MAG_BUILD_PIPELINE.md",
     },
+    {
+        "id": "training_events",
+        "layer": "cold_edge",
+        "loop": "emit → export → republic train",
+        "trail": "memory/training/events.jsonl",
+        "promote_gate": True,
+        "status": "research",
+        "cli": "main.py training-events",
+    },
 ]
 
 

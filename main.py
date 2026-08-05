@@ -907,6 +907,15 @@ def main(argv: list[str] | None = None) -> int:
     p_grove.add_argument("--list", action="store_true", help="List recent nodes")
     p_grove.add_argument("--json", action="store_true", help="JSON output")
 
+    p_train = sub.add_parser(
+        "training-events",
+        help="Unified orchestration training events (v3-005)",
+    )
+    p_train.add_argument("--stats", action="store_true", help="Event counts by pattern")
+    p_train.add_argument("--export", action="store_true", help="Export T2-redacted JSONL")
+    p_train.add_argument("--pattern", default="", help="Filter by pattern type")
+    p_train.add_argument("--json", action="store_true", help="JSON output")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1428,6 +1437,20 @@ def main(argv: list[str] | None = None) -> int:
         res = build(dry=bool(getattr(args, "dry", False)))
         print(json.dumps(res, indent=2, default=str)[:12000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "training-events":
+        from mag.training_events import export_jsonl, read_events, stats
+
+        if getattr(args, "export", False):
+            res = export_jsonl(pattern=(getattr(args, "pattern", "") or None) or None)
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if getattr(args, "stats", False) or getattr(args, "json", False):
+            print(json.dumps(stats(), indent=2, default=str)[:12000])
+            return 0
+        rows = read_events(limit=20, pattern=(getattr(args, "pattern", "") or None) or None)
+        for r in rows:
+            print(f"{r.get('ts', '')[:19]} [{r.get('pattern')}] tags={r.get('pattern_tags')}")
+        return 0
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
