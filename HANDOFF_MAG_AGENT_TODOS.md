@@ -203,4 +203,39 @@ Ledger: `memory/improve/candidates.jsonl` (created on first scout).
 
 ---
 
+## 9. Seat transition (2026-08-05 — cloud agent ending)
+
+**Reality:** Cursor cloud agent access ending. Grok meter resets ~1–2 days. **Forward stack: DeepSeek + Grok + local Ollama only.**
+
+| Job | Seat | Not |
+|-----|------|-----|
+| Scut, ask, brief, improve scout, routing | **L0 Ollama** (`gemma:2b`) | Grok |
+| Tool loop, multi-file code, `[mag]` autorun | **DeepSeek** (`agent --provider deepseek`) | Grok |
+| Architecture, promote, `[priority]` judgment | **Grok TUI** + pack | Default drain |
+| IDE edits while you code | **Cursor local** + `MAG_OPERATOR_ACTIVE=1` | Autorun |
+| This cloud agent | **Done** | Do not depend |
+
+**Before meter / access loss — freeze on disk:**
+
+```powershell
+mag.cmd context-pack
+mag.cmd agent-state --load
+python main.py verkle-audit --dry
+python main.py ponytail-audit
+# Merge #8→#11 when green; pull main on home PC
+```
+
+**Activate any remote seat (stateless):**
+
+```text
+1. python main.py context-pack
+2. Paste memory/handoff/ACTIVATION.md + pack (not full chat)
+3. One job per session
+4. FILE → residual / trail / queue — chat dies
+```
+
+**Token law:** Grok = scarce judgment only. DeepSeek = heavy code + autorun. Ollama = everything else. Never re-litigate v2 plan in Grok — point at `HANDOFF_MAG_AGENT_TODOS.md` + `MAG_v2_PLAN.md`.
+
+---
+
 *End handoff — update after each merge and weekly verkle-audit.*
