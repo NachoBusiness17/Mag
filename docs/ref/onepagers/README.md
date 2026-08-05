@@ -12,6 +12,7 @@
 | 6 | [06-layered-law.md](06-layered-law.md) | Constitution vs emergence; stop dumb shit |
 | 7 | [07-engine-handoff.md](07-engine-handoff.md) | Paste block + file list for any external AI |
 | 8 | [08-seat-intelligence.md](08-seat-intelligence.md) | Model/seat pick without test farm |
+| 9 | [09-v3-v4-research-brief.md](09-v3-v4-research-brief.md) | **Copy to external LLM for research** |
 
 **Law:** One ask + one deliverable per session. Do not attach chat scroll.
 
