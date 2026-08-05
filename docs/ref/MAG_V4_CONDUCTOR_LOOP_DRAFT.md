@@ -9,6 +9,39 @@
 
 ---
 
+## v4-first doctrine (direction before volume)
+
+**v4 is built before v3 finishes** — not as a sequel, but as the **mold** v3 work must fit.
+
+| v4-first (process before incident) | v3-last (bloat trap) |
+|-----------------------------------|----------------------|
+| Eval cases + patterns **before** new loops | Ship loop, mine waste later |
+| RUN row defines outcome gate **before** code | Feature merges, audit someday |
+| `training_patterns.yaml` slot for every new behavior | Ad-hoc spider rule in prompt |
+| Conductor tier: auto / draft / human **before** autonomy | “Smarter model will fix it” |
+| One leaf outcome required to call work done | Green checks, chat summaries |
+
+**Growth rule:** New capability is allowed only if it answers:
+
+1. Which **pattern** does it file under?  
+2. Which **eval case** proves it?  
+3. Which **join keys** land on disk?  
+4. What is **auto vs promote**?
+
+If those four are blank, it’s bloat — defer regardless of how clever the idea sounds.
+
+**v3’s job:** Be **substrate** (orchestrator, seats, pack, Office) that v4 process runs on — not a parallel roadmap of extra features. Swarm vision, dispatch waves, backlog rows are **inputs** to v4 patterns, not a checklist to complete.
+
+```text
+v4 spec + eval + patterns  →  sets direction
+v3/substrate code          →  only what the spec needs to run
+promote gate               →  habits enter law after evidence
+```
+
+We are **coding process before failures happen** — loop theater, verkle fan-out, and churn are already in eval case 1–4 so the harness cannot “discover” them again as surprises.
+
+---
+
 ## North star
 
 > Automatic handling = **typed reflexes with trails**.  
