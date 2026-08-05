@@ -203,6 +203,44 @@ cursor / composer      → defer to operator console
 | 3.4 | Habit docs current | `memory/improve/HABIT.md` · `SEATS.md` match live seats |
 | 3.5 | Behavioral events → FKB | `operator_inbox.log_behavioral_event` feeds signatures |
 
+---
+
+### Phase 3.6 — Verkle intelligence (exit: chain history informs product)
+
+**Goal:** Full Verkle analysis on schedule; gaps feed autorun; tickets reconciled.
+
+| # | Deliverable | Done when |
+|---|-------------|-----------|
+| 3.6.1 | `main.py verkle-audit` | Deterministic audit + reconcile + `--dry` |
+| 3.6.2 | `lattice-backfill` on schedule | Saturday `verkle-audit --full` |
+| 3.6.3 | Local synth leaf | `memory/improve/daily/{date}-verkle.md` |
+| 3.6.4 | Autorun fill from gaps | `governor_autorun` enqueues `[verkle]` warn/error |
+| 3.6.5 | Dashboard graph | `graph_viewport` in lattice dashboard payload |
+| 3.6.6 | Handoff doc | `HANDOFF_MAG_AGENT_TODOS.md` at repo root |
+
+**Timing (home PC):** 6 leaves full pass ~15–25 min; deterministic <1s.
+
+```bash
+python main.py verkle-audit --dry
+python main.py verkle-audit --full    # Saturday
+```
+
+---
+
+### Phase 3.7 — Agentic contracts (exit: industry patterns stolen, not forked)
+
+**Goal:** Map 2025–2026 SDK advances to Mag modules without second orchestrator.
+
+| # | Deliverable | Done when |
+|---|-------------|-----------|
+| 3.7.1 | Landscape doc | `docs/ref/AGENTIC_LANDSCAPE_2026.md` |
+| 3.7.2 | Steal list in handoff | A1–A12 table with status |
+| 3.7.3 | Evaluator hook (P2) | pytest after heavy_code queue item |
+| 3.7.4 | Resume contract test | trail + handoff survive kill |
+| 3.7.5 | MCP bridge (optional) | Mag REST as MCP for external seats |
+
+**Steal, don't import:** OpenAI sessions → residual; Anthropic evaluator → pytest; ADK typed state → route.v2 schema.
+
 **Improve cycle (existing):**
 
 ```text
@@ -405,6 +443,8 @@ python main.py autorun
 | Doc | Role in v2 |
 |-----|------------|
 | `MAG_v2_PLAN.md` (this) | Roadmap + phases + acceptance |
+| `HANDOFF_MAG_AGENT_TODOS.md` | Master agent/operator queue |
+| `AGENTIC_LANDSCAPE_2026.md` | Industry steals mapped to Mag |
 | `MAG_OS_v2.md` | Governance surface + Phoenix |
 | `PRODUCT_VISION_AUTORUN.md` | Product one-liner + gates |
 | `OPERATOR_CARD.md` | Layman FIND/FILE/LOAD |

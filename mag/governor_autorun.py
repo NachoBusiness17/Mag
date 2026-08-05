@@ -251,12 +251,14 @@ def fill_queue(
     max_improve: int = 2,
     max_state: int = 2,
     max_handoff: int = 2,
+    max_verkle: int = 2,
 ) -> dict[str, Any]:
     """Intelligently seed orchestrator queue + todo from real sources."""
     filled: dict[str, Any] = {
         "improve": [],
         "agent_state": [],
         "handoff": [],
+        "verkle": [],
         "skipped": [],
     }
 
@@ -313,10 +315,42 @@ def fill_queue(
             rec = enqueue_routed(goal, tag=f"handoff-{p.stem[:12]}", depth=h.get("depth"))
             filled["handoff"].append({**rec, "handoff_file": p.name})
 
+    try:
+        from mag.verkle_audit import verkle_gaps
+
+        for gap in verkle_gaps():
+            if len(filled["verkle"]) >= max_verkle:
+                break
+            if gap.get("severity") not in ("warn", "error"):
+                continue
+            act = str(gap.get("action") or "").strip()
+            detail = str(gap.get("detail") or "")[:200]
+            if not act:
+                continue
+            goal = f"[verkle] {detail} — run: {act}"
+            if queue_has_goal(goal):
+                filled["skipped"].append(goal[:60])
+                continue
+            rec = enqueue_routed(goal, tag="verkle-gap", depth="scut")
+            filled["verkle"].append({**rec, "gap": gap})
+    except Exception as e:
+        filled["verkle_error"] = str(e)
+
     filled["total_queued"] = (
-        len(filled["improve"]) + len(filled["agent_state"]) + len(filled["handoff"])
+        len(filled["improve"])
+        + len(filled["agent_state"])
+        + len(filled["handoff"])
+        + len(filled["verkle"])
     )
-    _log_trail({"phase": "fill", **{k: filled[k] for k in ("improve", "agent_state", "handoff", "total_queued", "skipped")}})
+    _log_trail(
+        {
+            "phase": "fill",
+            **{
+                k: filled[k]
+                for k in ("improve", "agent_state", "handoff", "verkle", "total_queued", "skipped")
+            },
+        }
+    )
     return filled
 
 

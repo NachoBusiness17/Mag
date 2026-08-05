@@ -809,6 +809,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_lbf.add_argument("--dry-run", action="store_true", help="Report counts only")
 
+    p_va = sub.add_parser(
+        "verkle-audit",
+        help="Verkle chain audit, ticket reconcile, optional local synth",
+    )
+    p_va.add_argument("--full", action="store_true", help="Backfill lattice + synth + reconcile")
+    p_va.add_argument("--synth", action="store_true", help="Local clerk pass per residual session")
+    p_va.add_argument("--backfill", action="store_true", help="Run lattice-backfill first")
+    p_va.add_argument("--dry", action="store_true", help="Plan only; no writes or LLM")
+    p_va.add_argument("--no-reconcile", action="store_true", help="Skip ticket reconciliation")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1251,6 +1261,18 @@ def main(argv: list[str] | None = None) -> int:
         from mag.lattice_backfill import run_backfill
 
         res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "verkle-audit":
+        from mag.verkle_audit import run_audit
+
+        res = run_audit(
+            full=bool(getattr(args, "full", False)),
+            synth=bool(getattr(args, "synth", False)),
+            reconcile=not bool(getattr(args, "no_reconcile", False)),
+            backfill_lattice=bool(getattr(args, "backfill", False) or getattr(args, "full", False)),
+            dry=bool(getattr(args, "dry", False)),
+        )
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
     if args.cmd == "field-steal":
