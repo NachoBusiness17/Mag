@@ -15,9 +15,10 @@
 ```text
 LOAD Mag framework — read in order:
   1. docs/FRAMEWORK_LOAD.md (this file — navigation + metaphors)
-  2. docs/ref/MAG_PROJECT_PROPOSAL.md (where we are / where we're going)
-  3. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
-  4. AGENTS.md (python env + commands — do not skip)
+  2. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md (direction v2 — where we are / going / v3 gate)
+  3. docs/ref/MAG_PROJECT_PROPOSAL.md (full proposal depth — problem, inventory)
+  4. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
+  5. AGENTS.md (python env + commands — do not skip)
 
 Then run: mag.cmd context-pack (or python main.py context-pack)
 Then: ONE job from queue/todo.md or operator goal.
@@ -61,7 +62,8 @@ Mag is a **private records office** on your computer — not a chat app.
 | # | File | Function |
 |---|------|----------|
 | 0 | **`docs/FRAMEWORK_LOAD.md`** | This navigation map |
-| 1 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal: alpha status, v2/v3 path |
+| 1 | **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** | Direction v2 — been / are / going / v3 gate / v4–v5 mold |
+| 2 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal depth |
 | 2 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
 | 3 | **`AGENTS.md`** | Python env law + command cheatsheet |
 | 4 | **`docs/DNA.md`** | What "filed" means — residual constitution |

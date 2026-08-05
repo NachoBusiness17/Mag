@@ -22,6 +22,7 @@
 | `docs/ref/MAG_v5_PIPE.md` | v5 umbrella — GSTD + Vast train + XRPL |
 | `docs/ref/MAG_v5_VAST_TRAINING.md` | Vast.ai agent training pipeline |
 | `docs/ref/MAG_v5_XRPL.md` | XRPL via Mag tools (read T2, pay L3) |
+| `docs/ref/MAG_DIRECTION_ARTIFACT_v2.md` | Direction artifact v2 — v3 gate + v4/v5 mold |
 | `docs/ref/MAG_FACTORY_PILOT.md` | Factory epic ritual + prompts |
 | `configs/modules.yaml` | Module registry + upgrade contracts |
 
