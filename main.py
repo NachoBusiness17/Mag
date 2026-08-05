@@ -394,6 +394,27 @@ def main(argv: list[str] | None = None) -> int:
         help="Re-ingest residual bonds before packing",
     )
     p_cp.add_argument(
+        "--mode",
+        default="full",
+        choices=["janitor", "route", "build", "audit", "plan", "full"],
+        help="Pack depth: janitor (ask/steward) · route · build · audit · plan · full",
+    )
+    p_cp.add_argument(
+        "--job",
+        default="",
+        help="Skill job id for skills.yaml (default from mode)",
+    )
+    p_cp.add_argument(
+        "--build",
+        default="",
+        help="Path to frozen BUILD markdown (build/audit modes)",
+    )
+    p_cp.add_argument(
+        "--scope",
+        default="",
+        help="Scope card slug under memory/steward/scope_cards/",
+    )
+    p_cp.add_argument(
         "--agent",
         action="store_true",
         help="Blind-men agent preamble (coarse elephant for subagents/workflows)",
@@ -901,6 +922,26 @@ def main(argv: list[str] | None = None) -> int:
         help="v3 loop registry + research module health",
     )
     p_v3.add_argument("--json", action="store_true", help="JSON output")
+
+    p_steward = sub.add_parser(
+        "steward",
+        help="Local steward jobs — scope cards, pattern digests (janitor clerk)",
+    )
+    p_steward.add_argument(
+        "--job",
+        default="steward-scope",
+        choices=["steward-scope", "steward-patterns", "steward-prompts"],
+        help="Steward job id",
+    )
+    p_steward.add_argument("--slug", default="", help="BUILD slug for steward-scope")
+    p_steward.add_argument("--dry", action="store_true", help="Plan only; no writes")
+    p_steward.add_argument("--no-llm", action="store_true", help="Heuristic only (no Ollama)")
+    p_steward.add_argument("--json", action="store_true", help="JSON output")
+    p_steward.add_argument(
+        "--fill",
+        action="store_true",
+        help="Enqueue steward jobs not yet run today",
+    )
 
     p_spider = sub.add_parser(
         "spider",
@@ -1521,6 +1562,36 @@ def main(argv: list[str] | None = None) -> int:
         from mag.spider import tick
 
         res = tick(dry=bool(getattr(args, "dry", False)), inject=bool(getattr(args, "inject", False)))
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(json.dumps(res, indent=2, default=str))
+        return 0
+    if args.cmd == "steward":
+        if getattr(args, "fill", False):
+            from mag.steward import fill_steward_queue
+
+            rows = fill_steward_queue(max_jobs=2)
+            if getattr(args, "json", False):
+                print(json.dumps({"ok": True, "queued": rows}, indent=2, default=str))
+            else:
+                print(f"queued {len(rows)} steward job(s)")
+            return 0
+        from mag.steward import run_job
+
+        job = getattr(args, "job", "steward-scope") or "steward-scope"
+        slug = (getattr(args, "slug", None) or "").strip() or None
+        res = run_job(
+            job,
+            dry=bool(getattr(args, "dry", False)),
+            slug=slug,
+            use_llm=not bool(getattr(args, "no_llm", False)),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok", True) else 1
         print(json.dumps(res, indent=2, default=str)[:12000])
         return 0 if res.get("ok") else 1
     if args.cmd == "resonance":
@@ -1785,11 +1856,20 @@ def main(argv: list[str] | None = None) -> int:
             format_context_pack_text,
         )
 
-        # text for humans/Grok; also write latest for hooks
-        pack = build_context_pack(refresh_bonds=bool(getattr(args, "refresh_bonds", False)))
+        mode = getattr(args, "mode", "full") or "full"
+        job = (getattr(args, "job", None) or "").strip() or None
+        build_path = (getattr(args, "build", None) or "").strip() or None
+        scope_slug = (getattr(args, "scope", None) or "").strip() or ""
+        pack = build_context_pack(
+            mode=mode,
+            job=job,
+            build_path=build_path or None,
+            scope_slug=scope_slug,
+            refresh_bonds=bool(getattr(args, "refresh_bonds", False)),
+        )
         out = ROOT / "memory" / "context_pack_latest.md"
         out.parent.mkdir(parents=True, exist_ok=True)
-        text = format_context_pack_text(pack)
+        text = format_context_pack_text(pack, mode=mode)
         out.write_text(text, encoding="utf-8")
         (ROOT / "memory" / "context_pack_latest.json").write_text(
             json.dumps(pack, indent=2, default=str), encoding="utf-8"

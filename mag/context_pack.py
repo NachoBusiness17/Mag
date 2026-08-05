@@ -10,6 +10,135 @@ from typing import Any
 
 from config import ROOT
 
+VALID_PACK_MODES = frozenset({"janitor", "route", "build", "audit", "plan", "full"})
+
+# Layer budgets per mode — janitor default for ask/steward
+MODE_CONFIG: dict[str, dict[str, Any]] = {
+    "janitor": {
+        "max_brief": 400,
+        "max_bonds": 500,
+        "max_live": 0,
+        "max_chars": 1200,
+        "default_job": "ask",
+        "include_resonance": False,
+        "include_trail": False,
+        "include_skills": False,
+        "include_ijl": False,
+        "include_heat": False,
+        "include_coordination": False,
+        "include_mirror_clue": False,
+        "compact_nervous": True,
+    },
+    "route": {
+        "max_brief": 600,
+        "max_bonds": 800,
+        "max_live": 200,
+        "max_chars": 1800,
+        "default_job": "route",
+        "include_resonance": True,
+        "include_trail": False,
+        "include_skills": True,
+        "include_ijl": False,
+        "include_heat": False,
+        "include_coordination": True,
+        "include_mirror_clue": False,
+        "compact_nervous": True,
+    },
+    "build": {
+        "max_brief": 900,
+        "max_bonds": 1200,
+        "max_live": 400,
+        "max_chars": 5500,
+        "default_job": "build",
+        "include_resonance": True,
+        "include_trail": True,
+        "include_skills": True,
+        "include_ijl": True,
+        "include_heat": False,
+        "include_coordination": True,
+        "include_mirror_clue": False,
+        "include_build": True,
+        "include_scope": True,
+        "compact_nervous": False,
+    },
+    "audit": {
+        "max_brief": 600,
+        "max_bonds": 600,
+        "max_live": 200,
+        "max_chars": 7500,
+        "default_job": "audit",
+        "include_resonance": False,
+        "include_trail": True,
+        "include_skills": True,
+        "include_ijl": False,
+        "include_heat": False,
+        "include_coordination": True,
+        "include_mirror_clue": False,
+        "include_build": True,
+        "compact_nervous": False,
+    },
+    "plan": {
+        "max_brief": 1200,
+        "max_bonds": 1600,
+        "max_live": 600,
+        "max_chars": 11000,
+        "default_job": "plan",
+        "include_resonance": True,
+        "include_trail": False,
+        "include_skills": True,
+        "include_ijl": True,
+        "include_heat": True,
+        "include_coordination": True,
+        "include_mirror_clue": True,
+        "compact_nervous": False,
+    },
+    "full": {
+        "max_brief": 1200,
+        "max_bonds": 1600,
+        "max_live": 800,
+        "max_chars": 4500,
+        "default_job": "default",
+        "include_resonance": True,
+        "include_trail": True,
+        "include_skills": True,
+        "include_ijl": True,
+        "include_heat": True,
+        "include_coordination": True,
+        "include_mirror_clue": True,
+        "compact_nervous": False,
+    },
+}
+
+
+def _normalize_mode(mode: str | None) -> str:
+    m = (mode or "full").strip().lower()
+    return m if m in VALID_PACK_MODES else "full"
+
+
+def _read_build_excerpt(path: str | Path | None, *, max_chars: int = 4000) -> str:
+    if not path:
+        return ""
+    p = Path(path)
+    if not p.is_file():
+        p = ROOT / str(path)
+    if not p.is_file():
+        return ""
+    return p.read_text(encoding="utf-8", errors="replace")[:max_chars]
+
+
+def _latest_scope_card(*, slug: str = "") -> str:
+    scope_dir = ROOT / "memory" / "steward" / "scope_cards"
+    if not scope_dir.is_dir():
+        return ""
+    if slug:
+        p = scope_dir / f"{slug}.md"
+        if p.is_file():
+            return p.read_text(encoding="utf-8", errors="replace")[:2500]
+    cards = sorted(scope_dir.glob("*.md"), key=lambda x: x.stat().st_mtime, reverse=True)
+    if not cards:
+        return ""
+    return cards[0].read_text(encoding="utf-8", errors="replace")[:2500]
+
 
 def _env_on(name: str, *, default: bool = False) -> bool:
     raw = os.environ.get(name, "").strip().lower()
@@ -101,11 +230,22 @@ def _clip(path: Path, n: int) -> str:
 
 def build_context_pack(
     *,
-    max_brief: int = 1200,
-    max_live: int = 800,
-    max_bonds: int = 1600,
+    mode: str = "full",
+    job: str | None = None,
+    build_path: str | Path | None = None,
+    scope_slug: str = "",
+    goal: str = "",
+    max_brief: int | None = None,
+    max_live: int | None = None,
+    max_bonds: int | None = None,
     refresh_bonds: bool = False,
 ) -> dict[str, Any]:
+    cfg = MODE_CONFIG[_normalize_mode(mode)]
+    mode = _normalize_mode(mode)
+    job = (job or cfg.get("default_job") or "default").strip()
+    max_brief = max_brief if max_brief is not None else int(cfg["max_brief"])
+    max_live = max_live if max_live is not None else int(cfg["max_live"])
+    max_bonds = max_bonds if max_bonds is not None else int(cfg["max_bonds"])
     from mag.health import sanity
     from mag.lanes import latest_brief_text
     from models.multi_smoke import last_smoke
@@ -143,16 +283,19 @@ def build_context_pack(
 
     resonance_cards: list[dict[str, Any]] = []
     resonance_l0e = ""
-    try:
-        from mag.resonance import format_l0e, top_cards
+    if cfg.get("include_resonance", True):
+        try:
+            from mag.resonance import format_l0e, top_cards
 
-        goal_hint = (brief or "")[:200] + " " + " ".join(
-            ln for ln in todo.splitlines() if ln.strip().startswith("- [ ]")
-        )[:200]
-        resonance_cards = top_cards(goal_hint, n=3)
-        resonance_l0e = format_l0e(resonance_cards)
-    except Exception:
-        pass
+            goal_hint = (brief or "")[:200] + " " + " ".join(
+                ln for ln in todo.splitlines() if ln.strip().startswith("- [ ]")
+            )[:200]
+            if goal:
+                goal_hint = f"{goal[:200]} {goal_hint}"[:400]
+            resonance_cards = top_cards(goal_hint, n=3)
+            resonance_l0e = format_l0e(resonance_cards)
+        except Exception:
+            pass
 
     # open loops: prefer bonds, else crude from brief
     loops = list(bj.get("open_loops") or [])[:8]
@@ -164,39 +307,39 @@ def build_context_pack(
                 loops.append(line.strip()[:160])
         loops = loops[:8]
 
-    # Live run trail (mid-run continuity; pack-first, not full chat)
     trail_excerpt: dict[str, Any] = {"active": False}
-    try:
-        from mag.run_trail import trail_pack_excerpt
+    if cfg.get("include_trail", True):
+        try:
+            from mag.run_trail import trail_pack_excerpt
 
-        trail_excerpt = trail_pack_excerpt(max_events=12, max_chars=1600)
-    except Exception as e:
-        trail_excerpt = {"active": False, "error": str(e)}
+            trail_excerpt = trail_pack_excerpt(max_events=12, max_chars=1600)
+        except Exception as e:
+            trail_excerpt = {"active": False, "error": str(e)}
 
-    # Progressive skills excerpts (configs/skills.yaml) — not full skill flood
     skills_excerpt = ""
-    try:
-        from mag.skills_pack import skills_for_job
+    if cfg.get("include_skills", True):
+        try:
+            from mag.skills_pack import skills_for_job
 
-        skills_excerpt = skills_for_job("default", max_chars=600)
-    except Exception:
-        skills_excerpt = ""
+            skills_excerpt = skills_for_job(job, max_chars=600)
+        except Exception:
+            skills_excerpt = ""
 
-    # IJL skill beads (learned episodes) — residual pins, not chat
     ijl_skills = ""
-    try:
-        from ijl_core import skill_excerpt_for_goal
+    if cfg.get("include_ijl", True):
+        try:
+            from ijl_core import skill_excerpt_for_goal
 
-        # prefer open loop / todo keywords as soft goal for LOAD
-        soft_goal = " ".join(
-            [
-                " ".join(loops[:3]) if loops else "",
-                (brief or "")[:200],
-            ]
-        ).strip() or "general harness dig"
-        ijl_skills = skill_excerpt_for_goal(soft_goal, max_chars=500)
-    except Exception as e:
-        ijl_skills = f"(ijl skills: {e})"
+            soft_goal = " ".join(
+                [
+                    goal[:200] if goal else "",
+                    " ".join(loops[:3]) if loops else "",
+                    (brief or "")[:200],
+                ]
+            ).strip() or "general harness dig"
+            ijl_skills = skill_excerpt_for_goal(soft_goal, max_chars=500)
+        except Exception as e:
+            ijl_skills = f"(ijl skills: {e})"
 
     # Verkle tip badge — prove chain is live (LOAD continuity)
     tip_badge: dict[str, Any] = {"ok": False}
@@ -284,15 +427,17 @@ def build_context_pack(
         pass
 
     coordination_excerpt = ""
-    try:
-        from mag.coordination import format_activity_excerpt
+    if cfg.get("include_coordination", True):
+        try:
+            from mag.coordination import format_activity_excerpt
 
-        coordination_excerpt = format_activity_excerpt(limit=6, max_chars=900)
-    except Exception:
-        coordination_excerpt = ""
+            coordination_excerpt = format_activity_excerpt(limit=6, max_chars=900)
+        except Exception:
+            coordination_excerpt = ""
 
     soft_goal = " ".join(
         [
+            goal[:200] if goal else "",
             " ".join(loops[:3]) if loops else "",
             (brief or "")[:200],
         ]
@@ -307,11 +452,30 @@ def build_context_pack(
                 behavioral_excerpt = (behavioral_excerpt + "\n\n" + tips_block).strip()[:1400]
     except Exception:
         pass
-    mirror_voice_excerpt = _mirror_voice_excerpt(soft_goal, max_chars=600)
-    clue_chain_excerpt = _clue_chain_excerpt(max_chars=500)
+    mirror_voice_excerpt = ""
+    clue_chain_excerpt = ""
+    if cfg.get("include_mirror_clue", True):
+        mirror_voice_excerpt = _mirror_voice_excerpt(soft_goal, max_chars=600)
+        clue_chain_excerpt = _clue_chain_excerpt(max_chars=500)
+
+    build_excerpt = ""
+    if cfg.get("include_build"):
+        build_excerpt = _read_build_excerpt(build_path, max_chars=4000)
+        if not build_excerpt and scope_slug:
+            slug = scope_slug
+            for p in (ROOT / "docs" / "ref").glob(f"BUILD-{slug}.md"):
+                build_excerpt = _read_build_excerpt(p, max_chars=4000)
+                break
+
+    scope_excerpt = ""
+    if cfg.get("include_scope"):
+        scope_excerpt = _latest_scope_card(slug=scope_slug)
 
     pack = {
         "schema": "mag_context_pack.v1",
+        "mode": mode,
+        "job": job,
+        "pack_max_chars": cfg.get("max_chars"),
         "ts": datetime.now(timezone.utc).isoformat(),
         "for": "grok_tui_router",
         "token_note": "Use this instead of chat_history. Escalate only hard work.",
@@ -341,6 +505,8 @@ def build_context_pack(
         "ijl_skills": ijl_skills,
         "mirror_voice_excerpt": mirror_voice_excerpt,
         "clue_chain_excerpt": clue_chain_excerpt,
+        "build_excerpt": build_excerpt,
+        "scope_excerpt": scope_excerpt,
         "behavioral_excerpt": behavioral_excerpt,
         "compass_framework": compass_framework,
         "coordination_excerpt": coordination_excerpt,
@@ -367,13 +533,35 @@ def build_context_pack(
     return pack
 
 
+def infer_pack_mode(goal: str = "", *, depth: str = "") -> str:
+    """Pick pack mode from goal tags and route depth."""
+    g = (goal or "").lower()
+    d = (depth or "").lower()
+    if g.startswith("[steward]") or d == "scut":
+        return "janitor"
+    if "[build]" in g or d in ("heavy_code", "simple_code"):
+        return "build"
+    if "audit" in g or d == "audit":
+        return "audit"
+    if "[priority]" in g or d == "plan":
+        return "plan"
+    if d in ("overview", "route"):
+        return "route"
+    return "full"
+
+
 def format_context_pack_text(
     pack: dict[str, Any] | None = None,
     *,
-    max_chars: int = 4500,
+    mode: str | None = None,
+    max_chars: int | None = None,
 ) -> str:
     """Layered pack: policy → bonds → trail cores → task → heat (drop heat first)."""
     p = pack or build_context_pack()
+    mode = _normalize_mode(mode or p.get("mode"))
+    cfg = MODE_CONFIG[mode]
+    max_chars = max_chars if max_chars is not None else int(cfg.get("max_chars") or 4500)
+    compact_ns = bool(cfg.get("compact_nervous"))
     tip = p.get("tip") or {}
     tip_line = (
         f"- tip: {tip.get('root_short')} · leaves={tip.get('n_leaves')} · "
@@ -403,96 +591,131 @@ def format_context_pack_text(
         f"- dash:8765={'UP' if body.get('dashboard_8765') else 'DOWN'} · "
         f"ollama={'UP' if body.get('ollama_11434') else 'DOWN'} · "
         f"smoke={'PASS' if body.get('multi_smoke_ok') else 'FAIL'}",
-        f"- session tip: {(ns.get('session_tip') or {}).get('root_short')}… "
-        f"leaves={(ns.get('session_tip') or {}).get('n_leaves')}",
-        f"- agent tip: {(ns.get('agent_tip') or {}).get('root_short')}… "
-        f"commit={(ns.get('agent_tip') or {}).get('commit8')}",
-        f"- keys: {keys_line or '(none)'}",
-        f"- note: {ns.get('note') or 'probe before claim seats'}",
-        f"- face: {ns.get('path') or 'memory/nervous_system.md'} · CLI: main.py nervous",
-        "",
     ]
+    if not compact_ns:
+        ns_lines.extend([
+            f"- session tip: {(ns.get('session_tip') or {}).get('root_short')}… "
+            f"leaves={(ns.get('session_tip') or {}).get('n_leaves')}",
+            f"- agent tip: {(ns.get('agent_tip') or {}).get('root_short')}… "
+            f"commit={(ns.get('agent_tip') or {}).get('commit8')}",
+            f"- keys: {keys_line or '(none)'}",
+            f"- note: {ns.get('note') or 'probe before claim seats'}",
+            f"- face: {ns.get('path') or 'memory/nervous_system.md'} · CLI: main.py nervous",
+        ])
+    ns_lines.append("")
     policy = [
-        f"# Mag context pack ({p.get('ts', '')[:19]})",
+        f"# Mag context pack · mode={mode} ({p.get('ts', '')[:19]})",
         "",
         "## L0 Policy (stable — pack-first, residual DNA, seat purity)",
         f"- path: {p.get('operator_path') or 'FIND → FILE → LOAD'}",
         "- Use this pack only; do not reload full chat.",
         "- Remotes: pack+goal only. T0/T1 never remote.",
-        "- Active run: re-inject trail cores; do not swap seat mid-run.",
-        "- Process lessons → playbook; case facts → residual; mid-goal → trail.",
-        "- Kimi-style: trail integrity + artifact>transcript (contracts, not remote seat).",
-        "- **Do not reinvent:** LOAD agent_state before redesigning Mag/republic loops.",
-        "- **Nervous system first:** L0a glance before inventing keys/online/status.",
         tip_line,
-        as_line,
         f"- health: {p.get('health')}",
-        f"- models: {p.get('models')}",
-        f"- bonds_meta: {p.get('bonds_meta')}",
         "",
         *ns_lines,
-        "### L0b Agent state (versioned self — Verkle agent tip)",
-        p.get("agent_state") or "(none)",
-        "",
-        "### L0c Operator directives (autonomy contract \u2014 operator-set, stable)",
-        p.get("directives") or "(none yet \u2014 memory/operator_directives.md)",
     ]
-    if p.get("compass_framework"):
-        policy.extend(["", "### L0d Compass framework (steering + autonomous continue)", p.get("compass_framework")])
-    if p.get("behavioral_excerpt"):
+    if mode != "janitor":
+        policy.extend([
+            as_line,
+            f"- models: {p.get('models')}",
+            f"- bonds_meta: {p.get('bonds_meta')}",
+        ])
+    if mode not in ("janitor", "route"):
+        policy.extend([
+            "",
+            "### L0b Agent state (versioned self — Verkle agent tip)",
+            p.get("agent_state") or "(none)",
+        ])
+    if p.get("directives") and mode in ("plan", "full"):
+        policy.extend([
+            "",
+            "### L0c Operator directives (autonomy contract — operator-set, stable)",
+            p.get("directives") or "(none yet — memory/operator_directives.md)",
+        ])
+    if p.get("behavioral_excerpt") and mode not in ("janitor",):
         policy.extend(["", p.get("behavioral_excerpt")])
-    if p.get("coordination_excerpt"):
+    if p.get("coordination_excerpt") and mode in ("route", "build", "audit", "plan", "full"):
         policy.extend(["", p.get("coordination_excerpt")])
-    if p.get("resonance_l0e"):
+    if p.get("resonance_l0e") and cfg.get("include_resonance"):
         policy.extend(["", p.get("resonance_l0e")])
-    bonds = [
-        "",
-        "## L1 Bonds (next-session / residual edges)",
-        p.get("bonds") or "(none — run: python main.py bonds)",
-    ]
-    skills = [
-        "",
-        "## L1b Skills (progressive — not MCP flood)",
-        p.get("skills_excerpt") or "(none — configs/skills.yaml)",
-        "",
-        "### L1b IJL skill beads (episode distill)",
-        p.get("ijl_skills") or "(none yet — successful runs FILE beads under memory/improve/pins/skills/)",
-    ]
+    bonds = []
+    if mode != "janitor" or (p.get("bonds") and "(no bonds" not in str(p.get("bonds"))):
+        bonds = [
+            "",
+            "## L1 Bonds (next-session / residual edges)",
+            (p.get("bonds") or "(none — run: python main.py bonds)")[:800 if mode == "janitor" else 5000],
+        ]
+    skills = []
+    if cfg.get("include_skills") and p.get("skills_excerpt"):
+        skills = [
+            "",
+            "## L1b Skills (progressive — not MCP flood)",
+            p.get("skills_excerpt") or "(none — configs/skills.yaml)",
+        ]
+        if cfg.get("include_ijl") and p.get("ijl_skills"):
+            skills.extend([
+                "",
+                "### L1b IJL skill beads (episode distill)",
+                p.get("ijl_skills") or "(none yet)",
+            ])
     if p.get("mirror_voice_excerpt"):
         skills.extend(["", "### L1c Mirror voice (operator corpus)", p.get("mirror_voice_excerpt")])
     if p.get("clue_chain_excerpt"):
         skills.extend(["", "### L1c Clue chain", p.get("clue_chain_excerpt")])
-    trail = [
-        "",
-        "## L2 Trail cores (mid-run continuity — re-inject)",
-        (p.get("run_trail") or {}).get("text")
-        or "(no open run — python main.py trail start \"goal\")",
-    ]
+
+    build_block = []
+    if p.get("build_excerpt"):
+        build_block = [
+            "",
+            "## L2b Frozen BUILD (builder seat — do not mutate spec)",
+            p.get("build_excerpt") or "",
+        ]
+    scope_block = []
+    if p.get("scope_excerpt"):
+        scope_block = [
+            "",
+            "## L2c Scope card (steward — dumb-agent brief)",
+            p.get("scope_excerpt") or "",
+        ]
+
+    trail = []
+    if cfg.get("include_trail"):
+        trail = [
+            "",
+            "## L2 Trail cores (mid-run continuity — re-inject)",
+            (p.get("run_trail") or {}).get("text")
+            or "(no open run — python main.py trail start \"goal\")",
+        ]
     task = [
         "",
         "## L3 Task (brief + loops + todo)",
         "### Brief",
-        p.get("brief") or "",
+        (p.get("brief") or "")[:400 if mode == "janitor" else 5000],
         "",
         "### Open loops",
-        "\n".join(p.get("open_loops") or ["(none extracted)"]),
-        "",
-        "### Todo open",
-        "\n".join(p.get("todo_open") or ["(none)"]),
+        "\n".join(p.get("open_loops") or ["(none extracted)"])[:400 if mode == "janitor" else 2000],
     ]
-    heat = [
-        "",
-        "## L4 Heat (drop first under compaction)",
-        "### Live tail",
-        p.get("live_tail") or "",
-        "",
-        "### Attention",
-        p.get("attention_tail") or "",
-        "",
-        "_Grok: answer from this. Re-inject trail cores if run active._",
-    ]
-    # Assemble; drop heat then shrink task if over max_chars
-    parts = [policy, bonds, skills, trail, task, heat]
+    if mode not in ("janitor",):
+        task.extend([
+            "",
+            "### Todo open",
+            "\n".join(p.get("todo_open") or ["(none)"]),
+        ])
+    heat = []
+    if cfg.get("include_heat"):
+        heat = [
+            "",
+            "## L4 Heat (drop first under compaction)",
+            "### Live tail",
+            p.get("live_tail") or "",
+            "",
+            "### Attention",
+            p.get("attention_tail") or "",
+            "",
+            "_Grok: answer from this. Re-inject trail cores if run active._",
+        ]
+    parts = [policy, bonds, skills, build_block, scope_block, trail, task, heat]
     text = "\n".join("\n".join(x) for x in parts)
     if len(text) > max_chars:
         parts = [policy, bonds, skills, trail, task]  # drop L4 heat

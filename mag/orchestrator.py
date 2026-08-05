@@ -486,6 +486,33 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+
+    if goal.lower().startswith("[steward]"):
+        try:
+            from mag.steward import execute_steward_goal
+
+            res = execute_steward_goal(goal, dry=False)
+            tid = "t-steward-" + uuid.uuid4().hex[:8]
+            status = "done" if res.get("ok") else "failed"
+            rec: dict[str, Any] = {
+                "ok": res.get("ok", False),
+                "task_id": tid,
+                "goal": goal,
+                "status": status,
+                "provider": "ollama",
+                "tag": tag or "steward",
+                "detail": str(res.get("path") or res.get("reason") or res.get("error") or "")[:300],
+                "steward_result": res,
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec)
+            _trail("steward-inline", tid, goal=goal[:120], ok=res.get("ok"))
+            return rec
+        except Exception as exc:
+            return {"ok": False, "error": f"steward: {exc}"}
+
     timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     for t in _running_tasks():
         if t.get("goal") == goal:
