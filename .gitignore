@@ -59,6 +59,11 @@ memory/improve/**
 !memory/improve/HABIT.md
 !memory/improve/SEATS.md
 !memory/improve/MIRROR.md
+!memory/improve/pins/
+!memory/improve/pins/spine_posts.json
+!memory/improve/releases/
+!memory/improve/releases/README.md
+memory/improve/releases/gates.jsonl
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -75,6 +80,9 @@ memory/handoff/**
 !memory/handoff/DEEPSEEK_START.md
 memory/remedies/**
 !memory/remedies/.gitkeep
+!memory/remedies/rem-write-file-shape.md
+memory/failure_kb/**
+!memory/failure_kb/.gitkeep
 memory/working/**
 memory/working_*.py
 memory/portable_bags/**
@@ -123,6 +131,9 @@ _tmp*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local reference clones (third-party inspiration — see reference/README.md)
+reference/gstdcoin/
 
 # Android build artifacts (source tracked; builds not)
 android/**/build/

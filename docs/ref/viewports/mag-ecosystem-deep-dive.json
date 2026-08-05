@@ -1,0 +1,277 @@
+{
+  "schema": "canvas_viewport.v1",
+  "id": "mag-ecosystem-deep-dive",
+  "title": "Mag / Sovereign Mirror — ecosystem map",
+  "source_tsx": "docs/ref/viewports/mag-ecosystem-deep-dive.canvas.tsx",
+  "synced_at": "2026-08-05T13:31:32.716751+00:00",
+  "sections": [
+    {
+      "kind": "stats",
+      "title": "Ports",
+      "items": [
+        {
+          "label": "Mag dashboard",
+          "value": ":8765"
+        },
+        {
+          "label": "Tool backend",
+          "value": ":8000"
+        },
+        {
+          "label": "Mirror desk",
+          "value": ":8743"
+        }
+      ]
+    },
+    {
+      "kind": "stats",
+      "title": "Progress by layer",
+      "items": [
+        {
+          "label": "Stabilize body",
+          "value": "85%"
+        },
+        {
+          "label": "Seat coherence",
+          "value": "70%"
+        },
+        {
+          "label": "Republic soil",
+          "value": "25%"
+        }
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Repository puzzle pieces",
+      "columns": [
+        "Repo",
+        "Role",
+        "Port",
+        "Status"
+      ],
+      "rows": [
+        [
+          "local_sovereign_agent",
+          "Product home — Mag harness",
+          ":8765 / :8000",
+          "done"
+        ],
+        [
+          "sovereign-mirror-scaffold",
+          "Strike desk — lattice / chord / 3D",
+          ":8743",
+          "done"
+        ],
+        [
+          "mag-sovereign-kit",
+          "Public fork kit (law + skeleton)",
+          "—",
+          "done"
+        ],
+        [
+          "mycelial-republic",
+          "Training soil — QLoRA / seed-mirror",
+          "—",
+          "partial"
+        ]
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Seat matrix",
+      "columns": [
+        "Lane",
+        "Seat",
+        "Provider",
+        "Job",
+        "Wired"
+      ],
+      "rows": [
+        [
+          "L0",
+          "Janitor",
+          "Ollama gemma:2b",
+          "Route, ask, status",
+          "yes"
+        ],
+        [
+          "L0",
+          "Worker",
+          "Ollama gemma4",
+          "Short bursts",
+          "yes"
+        ],
+        [
+          "L2",
+          "Grok TUI",
+          "xAI harness",
+          "Scarce judgment",
+          "yes"
+        ],
+        [
+          "L2",
+          "DeepSeek agent",
+          "DeepSeek + tools",
+          "REPL + orchestrator",
+          "yes"
+        ],
+        [
+          "L2",
+          "Cursor IDE",
+          "Composer",
+          "Multi-file + hooks",
+          "partial"
+        ],
+        [
+          "L2",
+          "Hermes",
+          "Parked",
+          "Long autonomous",
+          "no"
+        ],
+        [
+          "L3",
+          "Human",
+          "wait",
+          "Secrets",
+          "yes"
+        ]
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Launch topology",
+      "columns": [
+        "Slot",
+        "Command",
+        "Note"
+      ],
+      "rows": [
+        [
+          "backend",
+          "python -m backend.server",
+          ":8000"
+        ],
+        [
+          "dashboard",
+          "python main.py dashboard",
+          ":8765"
+        ],
+        [
+          "scribe",
+          "synthesis_agent.py",
+          "commentary"
+        ],
+        [
+          "drainer",
+          "orchestrator drain",
+          "MAG_DRAINER=1"
+        ]
+      ]
+    },
+    {
+      "kind": "todos",
+      "title": "Done",
+      "items": [
+        {
+          "id": "a",
+          "content": "Phase A–D steering engine (streaming, steer, collapse guard)",
+          "status": "completed"
+        },
+        {
+          "id": "b",
+          "content": "Launch stack — mag_launch, stop_mag, dashboard :8765",
+          "status": "completed"
+        },
+        {
+          "id": "c",
+          "content": "Mirror mag_bridge — read Mag verkle on :8743",
+          "status": "completed"
+        },
+        {
+          "id": "d",
+          "content": "Cursor seat — hooks, preamble, dispatch route",
+          "status": "completed"
+        },
+        {
+          "id": "e",
+          "content": "12h sovereign run — 70+ pytest passed",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "kind": "todos",
+      "title": "Open",
+      "items": [
+        {
+          "id": "t1",
+          "content": "multi-smoke PASS after lanes fix (clerk gemma:2b)",
+          "status": "pending"
+        },
+        {
+          "id": "t2",
+          "content": "Manual REPL verify — !steer / !pause in terminal",
+          "status": "pending"
+        },
+        {
+          "id": "t3",
+          "content": "W0.0 X archive → mycelial-republic/data/raw/",
+          "status": "pending"
+        },
+        {
+          "id": "t4",
+          "content": "Wire governor.py into CLI loop (B5 seam)",
+          "status": "pending"
+        },
+        {
+          "id": "t5",
+          "content": "Co-launch Mirror :8743 from Start Everything",
+          "status": "pending"
+        },
+        {
+          "id": "t6",
+          "content": "Verify Cursor hooks → Verkle leaf on session end",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Integration gaps",
+      "columns": [
+        "Gap",
+        "From",
+        "To",
+        "Priority"
+      ],
+      "rows": [
+        [
+          "Governor not wired",
+          "mag/governor.py",
+          "agent_cli loop",
+          "high"
+        ],
+        [
+          "Two desks manual",
+          ":8765 Mag",
+          ":8743 Mirror",
+          "medium"
+        ],
+        [
+          "Republic blocked",
+          "mycelial-republic",
+          "W0.0 archive",
+          "high"
+        ],
+        [
+          "Drainer opt-in",
+          "orchestrator queue",
+          "MAG_DRAINER=1",
+          "medium"
+        ]
+      ]
+    }
+  ]
+}

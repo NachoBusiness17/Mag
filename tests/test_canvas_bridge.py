@@ -46,6 +46,39 @@ def canvas_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return {"src": src, "viewports": viewports, "lattice": lattice}
 
 
+def test_seed_bundled_viewports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import mag.canvas_bridge as cb
+
+    bundled = tmp_path / "docs" / "ref" / "viewports"
+    bundled.mkdir(parents=True)
+    runtime = tmp_path / "memory" / "viewports"
+    lattice = tmp_path / "memory" / "lattice"
+    lattice.mkdir(parents=True)
+
+    (bundled / "seed-board.json").write_text(
+        json.dumps(
+            {
+                "schema": "canvas_viewport.v1",
+                "id": "seed-board",
+                "title": "Seed",
+                "sections": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cb, "BUNDLED_VIEWPORTS_DIR", bundled)
+    monkeypatch.setattr(cb, "VIEWPORTS_DIR", runtime)
+    monkeypatch.setattr(cb, "LATTICE_NODES", lattice / "nodes.jsonl")
+
+    res = cb.seed_bundled_viewports()
+    assert res["seeded_n"] == 1
+    assert (runtime / "seed-board.json").is_file()
+
+    again = cb.seed_bundled_viewports()
+    assert again["seeded_n"] == 0
+
+
 def test_sync_dry_run(canvas_env):
     from mag.canvas_bridge import sync_canvases
 

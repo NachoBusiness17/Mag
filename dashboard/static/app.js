@@ -121,11 +121,11 @@ const MIRROR_GUIDE_STEPS = [
     highlight: "#operatorInboxDock",
   },
   {
-    title: "Pulse — honest activity",
+    title: "Canvas — synced boards",
     body:
-      "What actually happened: attention.md, seat feed, workers. Labels say when something is sourced vs inferred — no invented commentary.",
-    tab: "chronicle",
-    highlight: '.dock-btn[data-win="chronicle"]',
+      "Cursor Canvas boards land here as JSON viewports — stats, tables, todos. Live pulse on the right cites files, not chat invention.",
+    tab: "viewports",
+    highlight: '.dock-btn[data-win="viewports"]',
   },
   {
     title: "Strike desk (optional mirror)",
@@ -137,7 +137,7 @@ const MIRROR_GUIDE_STEPS = [
   {
     title: "You're set",
     body:
-      "Replay this tour anytime from the Mirror button in the header. Queue steering in Chat; Body and Pulse stay honest. Go build.",
+      "Replay this tour anytime from the Mirror button in the header. Queue steering in Chat; Status and Canvas stay honest. Go build.",
     tab: "home",
     highlight: "#btnMirrorReplay",
   },
@@ -392,13 +392,12 @@ function setTab(name) {
   if (name === "blast") loadBlast();
   if (name === "flow") loadFlow();
   if (name === "verkle") loadVerkle();
-  if (name === "viewports") loadViewports();
+  if (name === "viewports") loadCanvas();
   if (name === "ingest") loadIngest();
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
   if (name === "ideas") loadIdeas();
   if (name === "status") loadStatus();
-  if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
     if (fr && !fr.dataset.loaded) {
@@ -589,6 +588,24 @@ async function loadHome() {
 
   if ($("#homeHeadline")) {
     $("#homeHeadline").textContent = h.headline || "Your last filed day";
+  }
+
+  const ar = h.autorun || {};
+  if ($("#homeAutorunHeadline")) {
+    $("#homeAutorunHeadline").textContent = ar.headline || "Autorun — check queue/todo.md";
+  }
+  if ($("#homeAutorunMeta")) {
+    const parts = [];
+    if (ar.state) parts.push(ar.state);
+    if (ar.open_todo_mag != null) parts.push(`${ar.open_todo_mag} queued`);
+    if (ar.last_action) parts.push(String(ar.last_action));
+    if (ar.last_tick_ts) parts.push(String(ar.last_tick_ts).slice(0, 19));
+    $("#homeAutorunMeta").textContent = parts.length ? parts.join(" · ") : "Drainer off unless MAG_DRAINER=1";
+  }
+  const arCard = $("#homeAutorunCard");
+  if (arCard) {
+    arCard.classList.toggle("autorun-active", ar.state === "active");
+    arCard.classList.toggle("autorun-queued", ar.state === "queued");
   }
 
   const lp = h.launch_pad || {};
@@ -876,8 +893,11 @@ async function loadHome() {
 
 /* --- Chat-first home --- */
 const CHAT_KEY = "mag_chat_v1";
-let chatMode = "agent"; // agent | ask | dispatch | tangent
+const CHAT_HISTORY_MAX = 24;
+const CHAT_MSG_MAX_CHARS = 6000;
+let chatMode = "ask"; // ask default — agent/tools → Sovereign Shell
 let chatBusy = false;
+let chatPendingEl = null;
 const AGENT_SESSION = "dashboard";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
@@ -964,14 +984,14 @@ function loadChatHistory() {
   try {
     const raw = localStorage.getItem(CHAT_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.slice(-80) : [];
+    return Array.isArray(arr) ? arr.slice(-CHAT_HISTORY_MAX) : [];
   } catch {
     return [];
   }
 }
 
 function saveChatHistory(msgs) {
-  localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-80)));
+  localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-CHAT_HISTORY_MAX)));
 }
 
 async function refreshEconomy() {
@@ -1103,10 +1123,12 @@ function renderChat() {
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> = DeepSeek + Mag tools (Grok-like hands, no Grok tokens) · <b>Ask/Dispatch</b> = talk only · <b>Copy pack</b> for DeepSeek web · paste multi-line in the box.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Simple chat</b> — local Ask over your filed memory (briefs, bonds, pack).<br/><br/>
+      <b>For tools + file edits</b> use <a href="/shell" target="_blank" rel="noopener">Sovereign Shell</a> — same agent engine, streams plain text (won't crash Chrome).</div>`;
     return;
   }
   log.innerHTML = msgs
+    .filter((m) => m.meta !== "pending")
     .map((m) => {
       const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
       const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
@@ -1117,14 +1139,56 @@ function renderChat() {
           m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
           `</div>`;
       }
+      const raw = (m.text || "").slice(0, CHAT_MSG_MAX_CHARS);
       const body =
         role === "mag" || role === "sys"
-          ? lightMd(m.text || "")
-          : esc(m.text || "").replace(/\n/g, "<br/>");
+          ? lightMd(raw)
+          : esc(raw).replace(/\n/g, "<br/>");
       return `<div class="chat-msg ${role}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
     })
     .join("");
+  if (chatPendingEl && chatPendingEl.parentNode === log) {
+    log.appendChild(chatPendingEl);
+  }
   log.scrollTop = log.scrollHeight;
+}
+
+function beginPendingBubble() {
+  const log = $("#chatLog");
+  if (!log) return;
+  if (chatPendingEl) chatPendingEl.remove();
+  chatPendingEl = document.createElement("div");
+  chatPendingEl.className = "chat-msg mag pending";
+  chatPendingEl.innerHTML = `<span class="meta">thinking…</span><div class="chat-body">…</div>`;
+  log.appendChild(chatPendingEl);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updatePendingBubble(text) {
+  if (!chatPendingEl) beginPendingBubble();
+  const body = chatPendingEl?.querySelector(".chat-body");
+  if (body) {
+    body.textContent = (text || "…").slice(-CHAT_MSG_MAX_CHARS);
+    const log = $("#chatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+function endPendingBubble(finalText, meta, tools) {
+  if (chatPendingEl) {
+    chatPendingEl.remove();
+    chatPendingEl = null;
+  }
+  const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
+  msgs.push({
+    role: "mag",
+    text: (finalText || "").slice(0, CHAT_MSG_MAX_CHARS),
+    meta: meta || "",
+    tools: tools || null,
+    ts: Date.now(),
+  });
+  saveChatHistory(msgs);
+  renderChat();
 }
 
 function pushChat(role, text, meta, tools) {
@@ -1462,15 +1526,7 @@ async function sendChat() {
   renderComposeAttach();
   pushChat("user", userShow, `${chatMode} · ${seat}`);
   if ($("#chatStatus")) $("#chatStatus").textContent = `Thinking (${seat})…`;
-  const pending = { role: "mag", text: "…", meta: "pending", ts: Date.now() };
-  const hist = loadChatHistory();
-  hist.push(pending);
-  saveChatHistory(hist);
-  renderChat();
-  // mark last as pending visually
-  const log = $("#chatLog");
-  const last = log?.lastElementChild;
-  if (last) last.classList.add("pending");
+  beginPendingBubble();
 
   try {
     let text = "";
@@ -1478,25 +1534,18 @@ async function sendChat() {
     let tools = null;
     if (chatMode === "agent") {
       const provider = isRemoteSeat(seat) ? seat : seat === "local" ? "ollama" : "deepseek";
-      // Live streaming window: update the pending bubble as deltas arrive.
       let acc = "";
-      const updatePending = (delta) => {
-        acc += delta;
-        const msgs = loadChatHistory();
-        const p = msgs.find((m) => m.meta === "pending");
-        if (p) {
-          p.text = acc || "…";
-          saveChatHistory(msgs);
-          renderChat();
-        }
-      };
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
-        updatePending
+        (delta) => {
+          acc += delta;
+          updatePendingBubble(acc);
+        }
       );
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
-      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length} · live`;
+      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length}`;
+      endPendingBubble(text, meta, tools);
     } else if (chatMode === "tangent") {
       const res = await postJSON("/api/v1/tangent", {
         prompt: q,
@@ -1512,6 +1561,7 @@ async function sendChat() {
         (r.summary || res.error || JSON.stringify(res).slice(0, 600)) +
         `\n\n_File:_ \`${r.path || "memory/tangents/latest.md"}\`\n` +
         `_Elevate to Grok only if useful — pack path, not full chat._`;
+      endPendingBubble(text, meta, null);
     } else if (chatMode === "dispatch" || isRemoteSeat(seat) || (chatMode === "ask" && seat !== "local")) {
       // Remote seats always dispatch pack-first with seat=remote (must hit real API).
       const body = { goal: q };
@@ -1536,6 +1586,7 @@ async function sendChat() {
       if (res.economy_last) {
         meta += ` · saved ~${res.economy_last.tokens_saved ?? "?"} tok`;
       }
+      endPendingBubble(text, meta, null);
     } else {
       const res = await postJSON("/api/v1/ask", { question: q, use_llm: true });
       text = res.answer || res.error || JSON.stringify(res, null, 2);
@@ -1544,24 +1595,13 @@ async function sendChat() {
       meta =
         res.ok === false
           ? "ask · fail"
-          : `ask · L0 · 0 Grok · ~${last.local_tokens ?? "?"} local · ~${last.tokens_saved ?? "?"} saved · ${nsrc} sources`;
+          : `ask · L0 · ${nsrc} sources · memory/briefs`;
+      endPendingBubble(text, meta, null);
     }
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({ role: "mag", text, meta, tools: tools || null, ts: Date.now() });
-    saveChatHistory(msgs);
-    renderChat();
     refreshEconomy();
     refreshChatQuota();
   } catch (e) {
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({
-      role: "mag",
-      text: String(e.message || e),
-      meta: "error",
-      ts: Date.now(),
-    });
-    saveChatHistory(msgs);
-    renderChat();
+    endPendingBubble(String(e.message || e), "error", null);
   } finally {
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
@@ -1582,7 +1622,7 @@ let tapestryReady = null;
 function ensureTapestryModule() {
   if (window.MagTapestry) return Promise.resolve();
   if (tapestryReady) return tapestryReady;
-  tapestryReady = import(`/static/tapestry.js?v=days-v2`).catch((e) => {
+  tapestryReady = import(`/static/tapestry.js?v=days-v3`).catch((e) => {
     console.error(e);
     if ($("#tapCaption")) {
       $("#tapCaption").textContent =
@@ -2853,9 +2893,25 @@ async function patchIdeaStatus(status) {
   }
 }
 
+const IDEAS_BOARD_ENABLED = false; // v3 — honest placeholder until card→brief→agent handoff ships
+let ideasPeekMode = false;
+
 async function loadIdeas() {
   const list = $("#ideasList");
   const stats = $("#ideasStats");
+  if (!IDEAS_BOARD_ENABLED && !ideasPeekMode) {
+    if (stats) {
+      stats.innerHTML = `
+        <div class="stat"><b>—</b><span>board paused</span></div>
+        <div class="stat"><b>v3</b><span>next iteration</span></div>`;
+    }
+    if (list) {
+      list.innerHTML = `<p class="muted empty-hint">Ideas UI is parked for v3. Files still live under <code>memory/ideas/</code>. Use Shell or Office bonds for open threads today.</p>`;
+    }
+    const pack = $("#ideasPack");
+    if (pack) pack.textContent = "Board peek disabled — click “Peek board” after v3 ships.";
+    return;
+  }
   try {
     let d = await getJSON(`${API}/ideas`);
     ideasCache = d.nodes || [];
@@ -3671,46 +3727,132 @@ async function loadSeatsPanel() {
   }
 }
 
-let chronicleTimer = null;
-async function loadChronicle() {
-  const meta = $("#chronicle-meta");
-  const content = $("#chronicle-content");
-  const events = $("#chronicleEvents");
-  const sources = $("#chronicleSources");
-  const honesty = $("#chronicleHonesty");
+let canvasTimer = null;
+let canvasViewportId = null;
+let canvasViewportCache = [];
+
+async function loadCanvasPulse() {
+  const meta = $("#canvasPulseMeta");
+  const events = $("#canvasPulseEvents");
+  const commentary = $("#canvasPulseCommentary");
+  const sources = $("#canvasPulseSources");
   try {
     const d = await getJSON("/api/v1/chronicle");
     if (meta) {
       meta.textContent = d.updated
         ? `Updated ${d.updated}${d.bonds_updated ? " · bonds " + d.bonds_updated : ""}`
-        : d.workers_layman || "Pulse";
+        : d.workers_layman || "Waiting for seat activity";
     }
-    if (content) content.textContent = d.content || "(empty)";
-    if (honesty && d.honesty) {
-      honesty.textContent = d.honesty.layman || honesty.textContent;
-    }
+    if (commentary) commentary.textContent = (d.content || "").slice(0, 1200);
     if (events) {
       events.innerHTML = (d.events || [])
+        .slice(0, 12)
         .map((ev) => {
           const lay = ev.layman || ev.preview || ev.technical || "?";
-          const proof = ev.proof ? `<span class="muted sm"> · ${esc(ev.proof)}</span>` : "";
-          return `<li><strong>${esc(lay)}</strong>${proof}</li>`;
+          const proof = ev.proof ? `<code class="mono sm">${esc(ev.proof)}</code>` : "";
+          return `<li><strong>${esc(lay)}</strong>${proof ? `<br/>${proof}` : ""}</li>`;
         })
-        .join("") || `<li class="muted">No events — file a session or run synthesis_agent</li>`;
+        .join("") || `<li class="muted">No events yet — file a session or run synthesis_agent</li>`;
     }
     if (sources && d.sources) {
-      sources.textContent = "Sources: " + d.sources.join(" · ");
+      sources.textContent = "Sources: " + d.sources.slice(0, 4).join(" · ");
     }
   } catch (e) {
-    if (meta) meta.textContent = "Pulse fetch failed — is dashboard + synthesis_agent running?";
+    if (meta) meta.textContent = "Pulse unavailable";
     if (events) events.innerHTML = `<li class="muted">${esc(e.message || e)}</li>`;
   }
 }
 
+function startCanvasPoll() {
+  if (canvasTimer) return;
+  loadCanvasPulse();
+  canvasTimer = setInterval(loadCanvasPulse, 15000);
+}
+
+async function loadChronicle() {
+  await loadCanvasPulse();
+}
+
 function startChroniclePoll() {
-  if (chronicleTimer) return;
-  loadChronicle();
-  chronicleTimer = setInterval(loadChronicle, 10000);
+  startCanvasPoll();
+}
+
+async function selectCanvasViewport(id) {
+  canvasViewportId = id;
+  const host = $("#viewportsHost");
+  const picker = $("#canvasPicker");
+  if (picker) {
+    picker.querySelectorAll("[data-vp]").forEach((btn) => {
+      btn.classList.toggle("on", btn.dataset.vp === id);
+    });
+  }
+  const row = canvasViewportCache.find((r) => r.id === id);
+  if (!host || !row) return;
+  host.innerHTML = `<p class="muted">Loading ${esc(row.title || id)}…</p>`;
+  try {
+    const one = await getJSON(`/api/v1/viewports/${encodeURIComponent(id)}`);
+    const vp = one.viewport || one;
+    host.innerHTML = _renderViewport(vp);
+  } catch (e) {
+    host.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
+  }
+}
+
+async function loadCanvas() {
+  startCanvasPoll();
+  await loadViewportsList();
+}
+
+async function loadViewportsList() {
+  const host = $("#viewportsHost");
+  const meta = $("#viewportsMeta");
+  const picker = $("#canvasPicker");
+  const setup = $("#canvasSetupHint");
+  if (!host) return;
+  host.innerHTML = `<p class="muted">Loading canvases…</p>`;
+  try {
+    const data = await getJSON("/api/v1/viewports");
+    canvasViewportCache = data.viewports || [];
+    const n = canvasViewportCache.length;
+    if (meta) {
+      meta.textContent = `${n} viewport(s) · ${data.runtime_dir || "memory/viewports/"}`;
+    }
+    if (setup) {
+      setup.innerHTML = data.canvas_sources_set
+        ? `<strong>CANVAS_SOURCES set.</strong> Sync pulls <code>*.canvas.tsx</code> → <code>${esc(data.runtime_dir || "memory/viewports/")}</code>`
+        : `<strong>Using bundled boards.</strong> Set <code>CANVAS_SOURCES</code> to your Cursor canvases folder, then Sync — <span class="muted">${esc(data.sync_hint || "")}</span>`;
+    }
+    if (!n) {
+      if (picker) picker.innerHTML = "";
+      host.innerHTML = `<p class="muted">No viewports yet. Bundled seeds should appear after refresh — or run <code>python main.py canvas-sync</code>.</p>`;
+      return;
+    }
+    if (picker) {
+      picker.innerHTML = canvasViewportCache
+        .map(
+          (row) =>
+            `<button type="button" class="btn ghost chip canvas-vp-chip" data-vp="${esc(row.id)}" role="tab">${esc(row.title || row.id)}</button>`
+        )
+        .join("");
+      picker.querySelectorAll("[data-vp]").forEach((btn) => {
+        btn.addEventListener("click", () => selectCanvasViewport(btn.dataset.vp));
+      });
+    }
+    const prefer =
+      canvasViewportCache.find((r) => r.id === "mag-office-canvas") ||
+      canvasViewportCache[0];
+    const pick = canvasViewportId && canvasViewportCache.find((r) => r.id === canvasViewportId)
+      ? canvasViewportId
+      : prefer?.id;
+    if (pick) await selectCanvasViewport(pick);
+  } catch (e) {
+    host.innerHTML = `<p class="muted" style="color:var(--warn)">${esc(e.message || e)}</p>`;
+    if (meta) meta.textContent = "error";
+  }
+}
+
+async function loadViewports() {
+  await loadCanvas();
 }
 
 async function loadSeatFeed() {
@@ -3805,6 +3947,105 @@ async function onAutopilotOnce() {
   }
 }
 
+async function loadPowerPanel() {
+  const head = $("#powerHeadline");
+  const pills = $("#powerPills");
+  const svc = $("#powerServices");
+  const hint = $("#powerHint");
+  try {
+    const p = await getJSON("/api/v1/power");
+    const hl = p.headline || (p.stack_up ? "UP" : "DOWN");
+    const tone =
+      hl === "UP" ? "ok" : hl === "STOPPED" ? "muted" : hl === "ZOMBIES" ? "warn" : "warn";
+    if (head) {
+      head.textContent = `Stack ${hl}${p.power_off ? " (kill switch engaged)" : ""}`;
+      head.className = `muted sm power-head-${tone}`;
+    }
+    if (pills) {
+      pills.innerHTML = [
+        `<span class="pill ${tone}">${esc(hl)}</span>`,
+        p.power_off ? `<span class="pill warn">OFF flag</span>` : "",
+        p.supervisor?.running ? `<span class="pill ok">supervisor</span>` : `<span class="pill">supervisor off</span>`,
+        (p.fleet?.running || 0) > 0
+          ? `<span class="pill warn">${p.fleet.running} worker(s)</span>`
+          : "",
+        (p.seat_guards_running || 0) > 0
+          ? `<span class="pill warn">${p.seat_guards_running} seat-guard</span>`
+          : "",
+        (p.registered_seats || 0) > 0
+          ? `<span class="pill ok">${p.registered_seats} registered seat(s)</span>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
+    }
+    if (svc) {
+      const sv = p.services || {};
+      kvRows(svc, [
+        ["Backend :8000", sv.backend ? "UP" : "down", sv.backend ? "ok" : "warn"],
+        ["Dashboard :8765", sv.dashboard ? "UP" : "down", sv.dashboard ? "ok" : "warn"],
+        ["Mirror :8743", sv.mirror ? "UP" : "down", sv.mirror ? "ok" : ""],
+        ["Mag processes", String(p.mag_processes ?? "—"), (p.mag_processes || 0) > 3 ? "warn" : ""],
+        ["Fleet running", String(p.fleet?.running ?? 0), (p.fleet?.running || 0) > 0 ? "warn" : ""],
+      ]);
+    }
+    if (hint) {
+      hint.textContent =
+        p.actions?.stop && p.actions?.start
+          ? `CLI: ${p.actions.stop} · ${p.actions.start}`
+          : "mag_kill.cmd to exit · mag_on.cmd to boot";
+    }
+  } catch (e) {
+    if (head) head.textContent = "Power status unavailable (stack may be down)";
+    if (hint) hint.textContent = String(e.message || e);
+  }
+}
+
+async function onImproveCycle() {
+  const btn = $("#btnImproveCycle");
+  if (btn) btn.disabled = true;
+  toast("Improve cycle running…");
+  try {
+    const res = await postJSON("/api/v1/improve/cycle", { source: "dashboard", drain: true, max_improve: 2 });
+    toast(res.ok ? "Improve cycle OK — check Body + Workers" : "Improve cycle incomplete");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Improve cycle failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function onPowerStop() {
+  if (!confirm("Stop entire Mag stack? Dashboard will go down.")) return;
+  const btn = $("#btnPowerStop");
+  if (btn) btn.disabled = true;
+  toast("Kill switch — shutting down…");
+  try {
+    await postJSON("/api/v1/power/stop", {});
+    toast("Stack stopping — window may lose connection");
+  } catch (e) {
+    toast("Stop sent (connection may drop): " + (e.message || e));
+  }
+}
+
+async function onPowerStart() {
+  const btn = $("#btnPowerStart");
+  if (btn) btn.disabled = true;
+  toast("Turning Mag on…");
+  try {
+    const res = await postJSON("/api/v1/power/start", { browser: false });
+    toast(res.ok ? "Stack up — reloading status" : "Start incomplete — check mag_on.cmd");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Start failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function loadStatus() {
   const body = $("#statusBody");
   const spend = $("#statusSpend");
@@ -3819,8 +4060,79 @@ async function loadStatus() {
   const ingestList = $("#ingestUrlList");
   const ingestSum = $("#ingestSummary");
   const officeHead = $("#statusOfficeHeadline");
+  const layHead = $("#statusLaymanHeadline");
+  const layList = $("#statusLaymanList");
+
+  function populateStatusLayman(h, router) {
+    if (!layHead || !layList) return;
+    const ship = h.ship || {};
+    const health = h.health || {};
+    const ar = h.autorun || {};
+    const tip = h.tip || {};
+    const prov = h.provenance || {};
+    const mem = router.memory || {};
+    const conns = router.connections || [];
+    const live = conns.filter((c) => c.live);
+    const remoteLive = live.filter((c) => !c.local);
+    const hints = ar.hints || {};
+
+    const shipOk = ship.status === "OK";
+    const ollamaOk = !!health.ollama;
+    const stale = !!health.live_stale;
+
+    if (!shipOk) layHead.textContent = "Mag needs attention — ship is not OK";
+    else if (stale) layHead.textContent = "Memory is stale — run catch-up";
+    else if (ar.state === "active") layHead.textContent = "Mag is working away in the background";
+    else if (!ollamaOk) layHead.textContent = "Local brain (Ollama) is off";
+    else layHead.textContent = "Mag looks OK";
+
+    const rows = [
+      {
+        tone: shipOk ? "ok" : "warn",
+        label: `Ship: ${ship.status || "unknown"}`,
+        path: ship.why?.length ? "see Ship section below" : "residual + registry on disk",
+      },
+      {
+        tone: ollamaOk ? "ok" : "warn",
+        label: `Ollama (local janitor): ${ollamaOk ? "ON" : "OFF"}`,
+        path: "configs/providers.yaml · http://127.0.0.1:11434",
+      },
+      {
+        tone: ar.state === "active" ? "ok" : ar.state === "queued" ? "warn" : "",
+        label: `Overnight autorun: ${ar.headline || ar.state || "unknown"}`,
+        path: hints.trail_autorun || "memory/runs/governor_autorun_trail.jsonl",
+      },
+      {
+        tone: live.length ? "ok" : "warn",
+        label: `${live.length} live route(s) · ${remoteLive.length} remote API seat(s)`,
+        path: "configs/providers.yaml",
+      },
+      {
+        tone: "",
+        label: `${mem.sessions_filed ?? "—"} workdays filed · ${mem.idea_open ?? "—"} idea cards open`,
+        path: "registry.jsonl · memory/ideas/",
+      },
+      {
+        tone: stale ? "warn" : "ok",
+        label: stale ? "Live memory stale — catch-up recommended" : "Live memory fresh",
+        path: prov.residual_rel || prov.pack_rel || "memory/briefs/latest.md",
+      },
+      {
+        tone: "",
+        label: `Tip: ${tip.root_short || "—"} (${tip.n_leaves ?? "?"} leaves)`,
+        path: "memory/verkle_tip.json",
+      },
+    ];
+    layList.innerHTML = rows
+      .map(
+        (r) =>
+          `<li class="${esc(r.tone || "muted")}"><strong>${esc(r.label)}</strong><br/><code class="mono sm">${esc(r.path)}</code></li>`
+      )
+      .join("");
+  }
 
   try {
+    await loadPowerPanel();
     const [router, h, seatsReg] = await Promise.all([
       getJSON("/api/v1/router-status").catch((e) => ({
         ok: false,
@@ -3836,6 +4148,7 @@ async function loadStatus() {
     if (officeHead) {
       officeHead.textContent = seatsReg?.headline || router.headline || "";
     }
+    populateStatusLayman(h, router);
     if (honesty) {
       const hnote = seatsReg?.honesty?.layman || router.honesty;
       honesty.textContent =
@@ -4051,6 +4364,8 @@ const recent = ingest.recent_urls || [];
     }
   } catch (e) {
     if (head) head.textContent = "Router status failed";
+    if (layHead) layHead.textContent = "Could not load status";
+    if (layList) layList.innerHTML = `<li class="warn">${esc(e.message || e)}</li>`;
     if (connHost) connHost.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
     kvRows(body, [["Error", e.message || e]]);
   }
@@ -4804,32 +5119,6 @@ function _renderViewport(vp) {
   </article>`;
 }
 
-async function loadViewports() {
-  const host = $("#viewportsHost");
-  const meta = $("#viewportsMeta");
-  if (!host) return;
-  host.innerHTML = `<p class="muted">Loading viewports…</p>`;
-  try {
-    const data = await getJSON("/api/v1/viewports");
-    const list = data.viewports || [];
-    if (meta) meta.textContent = `${list.length} viewport(s)`;
-    if (!list.length) {
-      host.innerHTML = `<p class="muted">No viewports synced yet. Run <code>python main.py canvas-sync</code>.</p>`;
-      return;
-    }
-    const parts = [];
-    for (const row of list) {
-      const one = await getJSON(`/api/v1/viewports/${encodeURIComponent(row.id)}`);
-      const vp = one.viewport || one;
-      parts.push(_renderViewport(vp));
-    }
-    host.innerHTML = parts.join("");
-  } catch (e) {
-    host.innerHTML = `<p class="muted" style="color:var(--warn)">${esc(e.message || e)}</p>`;
-    if (meta) meta.textContent = "error";
-  }
-}
-
 async function syncViewportsFromDesk() {
   const meta = $("#viewportsMeta");
   if (meta) meta.textContent = "syncing…";
@@ -4841,7 +5130,7 @@ async function syncViewportsFromDesk() {
     });
     const data = await r.json();
     if (meta) meta.textContent = `synced ${data.written_n ?? 0}`;
-    await loadViewports();
+    await loadViewportsList();
     toast(`Canvas sync: ${data.written_n ?? 0} viewport(s)`, 2200);
   } catch (e) {
     if (meta) meta.textContent = "sync failed";
@@ -4899,7 +5188,7 @@ async function refresh() {
       await loadTapestry();
     } else if (active === "ideas") await loadIdeas();
     else if (active === "status") await loadStatus();
-    else if (active === "chronicle") await loadChronicle();
+    else if (active === "viewports") await loadCanvas();
     else if (active === "diary") await loadDiary();
     else if (active === "board") await loadBoard();
     else if (active === "operate") await loadOperate();
@@ -4907,7 +5196,6 @@ async function refresh() {
       renderChat();
       await refreshEconomy();
     } else if (active === "verkle") await loadVerkle();
-    else if (active === "viewports") await loadViewports();
     else if (active === "flow") await loadFlow();
     else if (active === "orchestrate") await loadOrchestrate();
     else if (active === "visual") await loadVisual();
@@ -4994,9 +5282,8 @@ async function bind() {
   });
   window.addEventListener("mag:win-open", (e) => {
     const id = e.detail?.id;
-    if (id === "chronicle") startChroniclePoll();
+    if (id === "viewports") loadCanvas();
     if (id === "status") loadStatus();
-    if (id === "viewports") loadViewports();
     if (id === "tapestry" || id === "sessions") {
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 80);
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 300);
@@ -5053,12 +5340,21 @@ async function bind() {
     if (selectedId) openSessionVisual(selectedId);
     else setTab("visual");
   });
-  $("#btnIdeasRefresh")?.addEventListener("click", () => loadIdeas());
+  $("#btnIdeasRefresh")?.addEventListener("click", () => {
+    if (!IDEAS_BOARD_ENABLED) {
+      ideasPeekMode = !ideasPeekMode;
+      toast(ideasPeekMode ? "Peeking raw board (experimental)" : "Board peek off");
+    }
+    loadIdeas();
+  });
   $("#btnIdeasSeed")?.addEventListener("click", () => seedIdeas());
   $("#btnIdeaDone")?.addEventListener("click", () => patchIdeaStatus("done"));
   $("#btnIdeaShelf")?.addEventListener("click", () => patchIdeaStatus("held"));
   $("#btnIdeaReopen")?.addEventListener("click", () => patchIdeaStatus("open"));
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
+  $("#btnPowerStop")?.addEventListener("click", () => onPowerStop());
+  $("#btnPowerStart")?.addEventListener("click", () => onPowerStart());
+  $("#btnImproveCycle")?.addEventListener("click", () => onImproveCycle());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
@@ -5074,7 +5370,13 @@ async function bind() {
       sendGovernanceSteer($("#govSteerInput")?.value);
     }
   });
-  $("#btnOpenWorkers")?.addEventListener("click", () => setTab("agents"));
+  $("#btnOpenWorkers")?.addEventListener("click", () => {
+    window.location.href = "/static/agents.html";
+  });
+  $("#btnDockMore")?.addEventListener("click", () => {
+    document.body.classList.toggle("dock-expanded");
+    document.querySelectorAll(".dock-depth").forEach((el) => el.classList.toggle("hidden"));
+  });
   $("#btnProbeChains")?.addEventListener("click", async () => {
     const hint = $("#chainsHint");
     if (hint) hint.textContent = "probing (can take ~minutes for many keys)...";
@@ -5116,7 +5418,7 @@ async function bind() {
     }
     toast("Pack loaded into Chat compose");
   });
-  setChatMode("agent");
+  setChatMode("ask");
   renderChat();
   $("#btnChatSend")?.addEventListener("click", () => sendChat());
   $("#btnSteer")?.addEventListener("click", () => sendSteer());

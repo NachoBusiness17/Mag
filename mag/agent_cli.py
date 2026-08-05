@@ -16,13 +16,26 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from collections import deque
 if os.name == "nt":  # B1 non-blocking stdin listener (Windows)
     import msvcrt
 
 from config import ROOT
 from mag.context_pack import build_context_pack, format_context_pack_text
+
+
+def _agent_event(on_event: Callable[[dict[str, Any]], None] | None, **fields: Any) -> None:
+    """Fire a small SSE-friendly trace event (Shell verbose rail)."""
+    if not on_event:
+        return
+    kind = str(fields.pop("kind", fields.pop("type", "note")))
+    payload: dict[str, Any] = {"type": kind, **fields}
+    try:
+        on_event(payload)
+    except Exception:
+        pass
+
 from mag.compass import (
     FRAMEWORK_BLOCK,
     build_compass,
@@ -33,7 +46,7 @@ from mag.compass import (
 from mag import remedy  # at-will error toolkit: lookup cards from memory/remedies/
 from mag import rails  # deterministic hard rails: configs/constitutional_rails.json (Maelstrom V2)
 from models.providers import _looks_degenerate, chat_messages
-from tools import TOOL_MAP, dispatch as tool_dispatch
+from tools import TOOL_MAP, _normalize_args, dispatch as tool_dispatch
 
 # --- HTTP backend (FastAPI) -------------------------------------------------
 # The agent dispatches tools over HTTP to the FastAPI backend instead of
@@ -434,7 +447,14 @@ def _safe_tool_args(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
 def _preflight_tool(name: str, args: dict[str, Any]) -> tuple[bool, str]:
     """Layer 1 (failure defense): reject obviously-failing tool calls before they hit the OS."""
     if name == "write_file":
-        path = str(args.get("path") or "")
+        path = str(args.get("path") or "").strip()
+        if not path:
+            msg = (
+                "write_file missing path= — emit flat JSON "
+                '{"path": "relative/file.py", "content": "..."} '
+                "(sibling keys, not nested arguments/parameters blob)"
+            )
+            return False, _with_remedy(msg, name)
         if path:
             ok, rmsg = rails.check_write_file(path, str(args.get("content") or ""))
             if not ok:
@@ -504,6 +524,9 @@ def _run_tool_http(name: str, args: dict[str, Any]) -> dict[str, Any]:
 def _run_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name not in TOOL_MAP:
         return {"ok": False, "error": f"unknown tool: {name}", "tools": list(TOOL_MAP)}
+    normalized = _normalize_args(name, args)
+    if normalized is not None:
+        args = normalized
     safe = _safe_tool_args(name, args)
     if safe is None:
         return {"ok": False, "error": f"blocked write/target for tool {name}: {args.get('path')}"}
@@ -721,6 +744,7 @@ def run_turn(
     model: str | None,
     messages: list[dict[str, Any]],
     on_stream=None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[str, list[dict[str, Any]], list[str]]:
     """One user turn: tool loop until final text. Mutates/returns messages.
 
@@ -749,6 +773,13 @@ def run_turn(
     last_tool = "-"
     while True:
         rnd += 1
+        _agent_event(
+            on_event,
+            type="phase",
+            phase="round",
+            round=rnd,
+            detail=f"Turn {rnd} · calling {provider}",
+        )
         _steer_interrupt.clear()  # T1: fresh round = fresh interrupt budget
         # B2/B3 (T1 fix 2026-08-03): act on steer commands IMMEDIATELY when they
         # arrive, not only at the next round boundary. _handle_steer_cmd sets
@@ -759,6 +790,7 @@ def run_turn(
             if steer_text:
                 messages = apply_steer(messages, steer_text)
                 traces.append(f"steer:{steer_text[:30]}")
+                _agent_event(on_event, type="trace", line=f"Steer absorbed: {steer_text[:80]}")
                 print(dim(f"  → operator steer absorbed: {steer_text[:60]}"), flush=True)
             elif cmd.strip().lower() in ("!continue", "!c"):
                 _paused.clear()
@@ -789,6 +821,11 @@ def run_turn(
             repacks += 1
             est2 = _estimate_tokens(messages)
             traces.append(f"repack#{repacks}: {est}→{est2} tok (budget~{budget})")
+            _agent_event(
+                on_event,
+                type="trace",
+                line=f"Repack #{repacks} — context trimmed ({est}→{est2} tokens)",
+            )
             print(
                 dim(f"  ↻ auto-repack #{repacks}  est {est}→{est2} / ~{budget}  ({provider})"),
                 flush=True,
@@ -805,6 +842,7 @@ def run_turn(
                 traces,
             )
 
+        _agent_event(on_event, type="phase", phase="thinking", round=rnd, detail="Model streaming…")
         res = chat_messages(
             provider,
             messages,
@@ -875,6 +913,33 @@ def run_turn(
                     traces.append(
                         f"error: {(res.get('error') or 'degenerate again')[:100]}"
                     )
+                    if degenerate_retries >= 2:
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="degenerate",
+                                detail="model lock-loop after 2 retries",
+                                phase="degenerate_escalate",
+                                provider=provider,
+                            )
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                detail="degenerate model output",
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Degenerate loop — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception:
+                            pass
                     continue
             if not retried_ok and "tool" in err_l and "tool_calls" in err_l:
                 sys_m = messages[0] if messages and messages[0].get("role") == "system" else None
@@ -918,6 +983,13 @@ def run_turn(
             )
 
         if tool_calls:
+            _agent_event(
+                on_event,
+                type="phase",
+                phase="tools",
+                round=rnd,
+                detail=f"Model requested {len(tool_calls)} tool call(s)",
+            )
             # Normalize assistant tool-call message for DeepSeek/OpenAI
             asst: dict[str, Any] = {
                 "role": "assistant",
@@ -939,6 +1011,13 @@ def run_turn(
                     args = {}
                 tc_id = tc.get("id") or f"call_{rnd}_{name}"
                 arg_s = json.dumps(args, ensure_ascii=False)[:120]
+                _agent_event(
+                    on_event,
+                    type="tool",
+                    status="start",
+                    name=name,
+                    args=arg_s,
+                )
                 print(f"  {cyan('→')} {yellow(name)}{dim(f'({arg_s})')}", flush=True)
                 # T1: catch commands typed while the previous tool was running
                 messages = _absorb_steer(messages, traces, wait_s=0.02)
@@ -956,6 +1035,13 @@ def run_turn(
                 if not pre_ok:
                     out = {"ok": False, "error": f"preflight: {pre_reason}"}
                     traces.append(f"{name}: preflight-blocked")
+                    _agent_event(
+                        on_event,
+                        type="tool",
+                        status="blocked",
+                        name=name,
+                        preview=pre_reason[:100],
+                    )
                     try:
                         from mag.operator_inbox import log_behavioral_event
 
@@ -971,6 +1057,32 @@ def run_turn(
                         pass
                 else:
                     out = _run_tool(name, args)
+                    preview = str(
+                        out.get("path") or out.get("text") or out.get("error") or ""
+                    ).replace("\n", " ")[:100]
+                    _agent_event(
+                        on_event,
+                        type="tool",
+                        status="done" if out.get("ok") else "fail",
+                        name=name,
+                        preview=preview,
+                    )
+                    if not out.get("ok"):
+                        err_msg = str(out.get("error") or "tool failed")[:200]
+                        traces.append(f"{name}: failed")
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="tool_fail",
+                                detail=err_msg,
+                                tool=name,
+                                error=err_msg,
+                                phase=str(_activity.get("phase") or "tool"),
+                                **normalize_seat(load_run()),
+                            )
+                        except Exception:
+                            pass
                 # T1 pause gate INSIDE the tool loop: if the operator typed
                 # !pause/!escape while a tool was executing, freeze here and
                 # wait for !continue (or absorb any steer that landed too).
@@ -1008,6 +1120,13 @@ def run_turn(
                         print(dim("  \u2192 collapse detector: 5 identical tool calls - injecting nudge"), flush=True)
                         rem = remedy.prevent(name, json.dumps(args, default=str)[:200])
                         rem_txt = ("\n\nRemedy card:\n" + remedy.card_md(rem)) if rem else ""
+                        try:
+                            from mag.failure_kb import format_block, lookup
+
+                            fkb = lookup(name, json.dumps(args, default=str)[:120])
+                            fkb_txt = ("\n\n" + format_block(fkb)) if fkb else ""
+                        except Exception:
+                            fkb_txt = ""
                         messages.append(
                             {
                                 "role": "user",
@@ -1016,6 +1135,7 @@ def run_turn(
                                     "arguments 5 times in a row. Stop. Re-anchor:\n\n"
                                     + build_compass(reason="loop")
                                     + rem_txt
+                                    + fkb_txt
                                 ),
                             }
                         )
@@ -1023,7 +1143,37 @@ def run_turn(
                         collapse_window.clear()
                         traces.append("collapse_stop")
                         _mail(phase="collapse_stop", step=_activity["step"], last_tool=_activity["last_tool"])
-                        print(dim("  \u2192 collapse detector: hard stop after 2 nudges"), flush=True)
+                        print(dim("  → collapse detector: escalating to smarter seat"), flush=True)
+                        try:
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                tool=name,
+                                detail=f"5x identical {name}",
+                                session_id=str(normalize_seat(load_run()).get("session_id") or ""),
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("action") == "file_for_grok":
+                                return (
+                                    "**Loop detected — escalated to Grok TUI (pack).**\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Local seat stopped burning tokens._",
+                                    messages,
+                                    traces,
+                                )
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Loop detected — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Reset agent or check orchestrator drain._",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception as exc:
+                            traces.append(f"escalate_failed:{str(exc)[:60]}")
                         return (
                             "**Stopped: collapse detector.** The same tool call repeated 5x twice "
                             "despite nudges - degenerate loop. Reset or /pack and re-state the goal.",
@@ -1063,6 +1213,7 @@ def run_turn(
         if text:
             _activity["phase"] = "answered"
             _mail(phase="answered")
+            _agent_event(on_event, type="phase", phase="answered", detail="Writing final answer")
             messages.append({"role": "assistant", "content": text})
             return text, messages, traces
 
@@ -1600,6 +1751,27 @@ def run_agent(
     except Exception:
         pass
 
+    # Restful contract: queued/orchestrator seats must be one-shot, not REPL.
+    if not one_shot:
+        noninteractive = os.environ.get("MAG_NONINTERACTIVE", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        allow_repl = os.environ.get("MAG_ALLOW_REPL", "").strip().lower() in ("1", "true", "yes")
+        if noninteractive:
+            print(
+                "MAG_NONINTERACTIVE=1 — pass --query \"goal\" (restful one-shot seat).",
+                file=sys.stderr,
+            )
+            return 2
+        if not sys.stdin.isatty() and not allow_repl:
+            print(
+                "stdin is not a tty — use --query for one-shot work (or MAG_ALLOW_REPL=1 for REPL).",
+                file=sys.stderr,
+            )
+            return 2
+
     system = _system_prompt(pack_text)
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     last_answer = ""
@@ -1918,6 +2090,7 @@ def api_agent_turn(
     session_id: str = "dashboard",
     reset: bool = False,
     on_stream=None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """One multi-tool turn for dashboard. Continues session messages on disk.
 
@@ -1947,10 +2120,14 @@ def api_agent_turn(
     if reset:
         api_agent_reset(session_id)
 
+    _agent_event(on_event, type="phase", phase="pack", detail="Building context pack…")
     sess = load_session(session_id)
     if reset or not sess.get("messages"):
-        pack = build_context_pack(max_brief=900, max_live=400)
-        pack_text = format_context_pack_text(pack)
+        from mag.context_pack import build_context_pack, infer_pack_mode
+
+        mode = infer_pack_mode(goal, depth=depth if depth else "")
+        pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+        pack_text = format_context_pack_text(pack, mode=mode)
         try:
             (ROOT / "memory" / "context_pack_latest.md").write_text(pack_text, encoding="utf-8")
         except Exception:
@@ -1959,13 +2136,18 @@ def api_agent_turn(
             {"role": "system", "content": _system_prompt(pack_text)}
         ]
         tip = _tip_line(pack)
+        _agent_event(on_event, type="phase", phase="start", detail="Fresh session · pack loaded")
     else:
         messages = list(sess.get("messages") or [])
         # ensure system present
         if not messages or messages[0].get("role") != "system":
-            pack = build_context_pack(max_brief=900, max_live=400)
-            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack))}] + messages
+            from mag.context_pack import infer_pack_mode
+
+            mode = infer_pack_mode(goal, depth=depth)
+            pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack, mode=mode))}] + messages
         tip = "session-continued"
+        _agent_event(on_event, type="phase", phase="start", detail="Continuing session on disk")
 
     if on_stream is None:
         def _on_stream(delta: str) -> None:
@@ -1979,6 +2161,7 @@ def api_agent_turn(
         model=model,
         messages=messages,
         on_stream=_on_stream,
+        on_event=on_event,
     )
     sess.update(
         {

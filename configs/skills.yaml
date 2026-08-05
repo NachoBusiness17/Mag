@@ -55,12 +55,26 @@ skills:
     pack_excerpt: true
     note: "Mined 2026-08-03: 18/20 run_python calls in one edit session were hand-rolled read->patch->verify->compile. This weave is the 2-call recipe."
 
+  - id: ponytail-ladder
+    when: [hard_code, code, fix, edit, refactor, audit, build]
+    path: docs/ref/weaves/W8-ponytail-ladder.md
+    pack_excerpt: true
+    note: "Coding agent skill — YAGNI ladder; run ponytail-audit before merge."
+
+  - id: caveman-prose
+    when: [plan, spec, handoff, docs, priority, architecture]
+    path: docs/ref/weaves/W9-caveman-prose.md
+    pack_excerpt: true
+    note: "Plan/doc agent skill — terse specs; run caveman-audit on output."
+
 job_to_skills:
   scut: []
   recall: [sovereign-mag]
   public_summarize: []
-  hard_code: [sovereign-mag, run-trail-lattice, patch-verify]
-  hard_reason: [sovereign-mag, strike-chord]
+  hard_code: [ponytail-ladder, sovereign-mag, run-trail-lattice, patch-verify]
+  hard_reason: [caveman-prose, sovereign-mag, strike-chord]
   research: [feature-compose, memory-verkle]
   improve: [feature-compose, model-tesuji, memory-verkle]
-  default: [memory-verkle]
+  plan: [caveman-prose, memory-verkle]
+  audit: [ponytail-ladder, patch-verify]
+  default: [memory-verkle, ponytail-ladder]

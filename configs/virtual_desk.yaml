@@ -1,0 +1,17 @@
+# Mag virtual desk research loop — DeepSeek cycles on RESEARCH_MAG_VIRTUAL_DESK.txt
+schema: virtual_desk.v1
+
+provider: deepseek
+model: ""  # empty = providers.yaml default (deepseek-v4-flash)
+tier: T2
+max_tokens: 4096
+temperature: 0.2
+
+cycle_seconds: 120
+max_cycles: 0  # 0 = until --stop or all units done
+
+brief_paths:
+  - docs/ref/RESEARCH_MAG_VIRTUAL_DESK.txt
+  - memory/research_packs/mag_virtual_desk/RESEARCH_BRIEF.txt
+
+report_path: memory/research_packs/mag_virtual_desk/REPORT.txt

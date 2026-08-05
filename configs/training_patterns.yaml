@@ -1,0 +1,251 @@
+# Mag training patterns — loop discipline (PLANNING DRAFT)
+# Status: v4-first — patterns lead implementation; not promoted law until promote --apply
+# Parent: docs/ref/MAG_V4_CONDUCTOR_LOOP_DRAFT.md
+# Events: extend mag_training_event.v1 — do not fork schema
+
+schema: training_patterns.v0
+as_of: "2026-08-05"
+
+patterns:
+  plan_theater:
+    description: Autorun or conductor replans without queue drain or leaf outcome
+    trail_rule: replan_count >= 24 and drain_delta == 0
+    min_count: 24
+    join_keys: [queue_id, plan_fingerprint]
+    chord_loops: [metric_theater, plan_inflation]
+    fkb_signatures: []
+    waste_kind: plan_theater
+    conductor_hint: Pause fill; do not enqueue plan depth; check pause_reason
+    spider_hint: Emit plan_theater; defer proactive steer if operator_active
+    safe_action: pause_fill
+    action_tier: auto
+    eval_case: eval-001
+
+  verkle_fanout:
+    description: Per-orphan summarize-session instead of batch cold backfill
+    trail_rule: verkle_summarize_count > 1 for same session_id
+    min_count: 2
+    join_keys: [session_id, queue_id]
+    chord_loops: [scope_creep]
+    fkb_signatures: []
+    waste_kind: verkle_fanout
+    conductor_hint: Coalesce to [verkle] backfill-sessions --all
+    spider_hint: Surface verkle_fanout when gaps > 3
+    safe_action: batch_backfill_draft
+    action_tier: draft
+    batch_action: python main.py backfill-sessions --all
+    eval_case: eval-002
+
+  agent_churn:
+    description: High tool/retry volume without terminal task or disk outcome
+    trail_rule: tool_round_delta > 30 and knot_filed == false and queue_terminal == false
+    min_count: 1
+    join_keys: [task_id, session_id]
+    chord_loops: [polish_theater, scope_creep]
+    fkb_signatures: []
+    waste_kind: agent_churn
+    conductor_hint: Escalate seat; stop identical-tool loop; one outcome gate
+    spider_hint: Steer after stall_threshold_s; link collapse events
+    safe_action: escalate
+    action_tier: auto
+    eval_case: eval-004
+
+  silent_mutation:
+    description: Router/skills/rails changed without promote_gate event
+    trail_rule: config_hash changed and promote_gate absent in window
+    min_count: 1
+    join_keys: [commitment]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: silent_mutation
+    conductor_hint: Block apply; emit improve candidate with diff path
+    spider_hint: Surface to operator; never auto-revert
+    safe_action: draft_only
+    action_tier: human
+    eval_case: eval-003
+
+  drainer_pause_blindspot:
+    description: Replan continues while operator_active or drainer paused
+    trail_rule: pause_reason != null and replan_count >= 6
+    min_count: 6
+    join_keys: [plan_fingerprint]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: plan_theater
+    conductor_hint: Stop fill entirely until pause clears
+    spider_hint: info only — not an agent failure
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-005
+
+  fkb_hot_goal:
+    description: Recurring failure signature blocks autorun enqueue
+    trail_rule: fkb_count >= 8 on goal prefix
+    min_count: 8
+    join_keys: [queue_id]
+    chord_loops: []
+    fkb_signatures: ["*"]
+    waste_kind: agent_churn
+    conductor_hint: Require [mag] tag or remedy applied first
+    spider_hint: surface_remedy
+    safe_action: dedupe_refused
+    action_tier: auto
+    eval_case: eval-007
+
+  duplicate_queue_goal:
+    description: Same normalized goal enqueued twice
+    trail_rule: normalized_goal collision in queued or running
+    min_count: 1
+    join_keys: [queue_id]
+    chord_loops: [metric_theater]
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Refuse enqueue; return existing queue_id
+    spider_hint: null
+    safe_action: dedupe_refused
+    action_tier: auto
+    eval_case: eval-006
+
+  estimate_miss:
+    description: Actual cost or tokens far above route estimate
+    trail_rule: estimate_error > 0.5 and leaf landed
+    min_count: 3
+    join_keys: [queue_id, task_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Widen thin pack or prefer janitor for similar goals
+    spider_hint: null
+    safe_action: draft_only
+    action_tier: draft
+    eval_case: eval-economics-003
+
+  ilap_cycle:
+    description: ILAP aiming ritual completed — research, route test, build/wire/defer decision before code volume
+    trail_rule: ilap_proposal_status in (aimed, frozen) and routing_matrix_pass_rate >= 0.9
+    min_count: 1
+    join_keys: [build_slug, commitment, run_id, session_id]
+    chord_loops: [metric_theater]
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Proceed to factory freeze only if eval case filed
+    spider_hint: Surface ilap defer if overlap redundant repeats
+    safe_action: observe
+    action_tier: draft
+    eval_case: eval-ilap-001
+
+  research_dive:
+    description: Scout deep dive on arxiv/reddit/openclaw/X filed one leaf — FEATURE_COMPOSE or research_pack
+    trail_rule: research_leaf_kind in (feature_compose_card, research_pack, field_steal_row)
+    min_count: 1
+    join_keys: [source, steal_card_id, session_id, build_slug]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Map field signal to memory_verkle_map slot before BUILD
+    spider_hint: Link resonance if backlog rhymes
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-ilap-002
+
+  steal_compose:
+    description: Foreign contract passed zeitgeist filter — improve candidate or playbook draft
+    trail_rule: compose_status in (candidate, draft) and zeitgeist_filter == pass
+    min_count: 1
+    join_keys: [commitment, pattern_tags]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Wire to existing Mag slot; reject throne patterns
+    spider_hint: Never auto-promote — L3 gate only
+    safe_action: observe
+    action_tier: draft
+    eval_case: eval-ilap-003
+
+  steward_job:
+    description: Local janitor curator job completed or failed
+    trail_rule: goal starts with [steward]
+    min_count: 1
+    join_keys: [session_id, queue_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: One leaf per steward job; no REPL
+    spider_hint: null
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-steward-001
+
+  release_milestone:
+    description: Version graduation gate recorded via release registry
+    trail_rule: pattern == release_milestone and join.version set
+    min_count: 1
+    join_keys: [version, gate_id]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Check configs/releases.yaml gates before claiming version shipped
+    spider_hint: null
+    safe_action: observe
+    action_tier: auto
+    eval_case: null
+
+labels:
+  accept:
+    - delegation_success
+    - phase_correct
+    - seat_efficient
+    - steer_effective
+    - remedy_applied
+  reject:
+    - voice_match
+    - persona
+    - chat_tone
+    - raw_t0_export
+
+eval_cases:
+  - id: eval-001
+    pattern: plan_theater
+    fixture: autorun_replan_2000_no_drain
+  - id: eval-002
+    pattern: verkle_fanout
+    fixture: five_orphans_five_summarize
+  - id: eval-003
+    pattern: silent_mutation
+    fixture: router_change_no_promote
+  - id: eval-004
+    pattern: agent_churn
+    fixture: hundred_rounds_no_leaf
+  - id: eval-005
+    pattern: drainer_pause_blindspot
+    fixture: operator_active_replan
+  - id: eval-006
+    pattern: duplicate_queue_goal
+    fixture: duplicate_enqueue_refused
+  - id: eval-007
+    pattern: fkb_hot_goal
+    fixture: fkb_block_eight
+  - id: eval-008
+    pattern: phase_correct
+    fixture: factory_build_no_spec_refused
+  - id: eval-009
+    pattern: phase_correct
+    fixture: plan_depth_not_queued
+  - id: eval-010
+    pattern: ok
+    fixture: batch_backfill_one_knot_delta
+  - id: eval-economics-003
+    pattern: estimate_miss
+    fixture: build_estimate_180pct_actual
+  - id: eval-steward-001
+    pattern: steward_job
+    fixture: steward_prompts_catalog_leaf
+  - id: eval-ilap-001
+    pattern: ilap_cycle
+    fixture: v3_entry_matrix_90pct_routing_smoke_green
+  - id: eval-ilap-002
+    pattern: research_dive
+    fixture: openclaw_memory_compose_card_filed
+  - id: eval-ilap-003
+    pattern: steal_compose
+    fixture: reddit_harness_contract_candidate_not_dna

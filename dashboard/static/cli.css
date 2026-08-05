@@ -3479,6 +3479,15 @@ body.cyber .btn {
   letter-spacing: 0.08em !important;
   font-family: var(--mono-ui) !important;
 }
+.btn.danger {
+  background: #3b120f;
+  border-color: #6b1f1a;
+  color: #ff9d9d;
+}
+.btn.danger:hover {
+  background: #4a1814;
+  border-color: #8b2a24;
+}
 body.cyber .btn.primary {
   background: rgba(57, 255, 154, 0.12) !important;
   box-shadow: var(--glow) !important;
@@ -4228,4 +4237,85 @@ ul.viewport-todo-list .todo-completed .todo-status {
 }
 ul.viewport-todo-list .todo-pending .todo-status {
   color: var(--warn, #e8c468);
+}
+
+/* Dashboard iteration — core dock + More depth tabs */
+body.cli.desk-tabs .dock-depth.hidden {
+  display: none;
+}
+body.cli.desk-tabs.dock-expanded .dock-more-toggle {
+  color: var(--accent, #39ff9a);
+}
+article.card.autorun-card.autorun-active {
+  border-color: rgba(57, 255, 154, 0.35);
+}
+article.card.autorun-card.autorun-queued {
+  border-color: rgba(232, 196, 104, 0.35);
+}
+
+/* === Canvas platform (viewports + pulse rail) === */
+.canvas-platform .canvas-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.canvas-lead {
+  max-width: 42rem;
+  margin: 0.35rem 0 0;
+  line-height: 1.5;
+}
+.canvas-toolbar {
+  align-items: center;
+  margin: 0;
+}
+.canvas-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+}
+.canvas-vp-chip.on {
+  border-color: var(--accent, #39ff9a);
+  color: var(--accent, #39ff9a);
+}
+.canvas-layout {
+  display: grid;
+  grid-template-columns: 1fr min(18rem, 32%);
+  gap: 1rem;
+  align-items: start;
+}
+.canvas-pulse {
+  position: sticky;
+  top: 0.5rem;
+  padding: 0.75rem;
+  max-height: calc(100vh - 8rem);
+  overflow: auto;
+}
+.canvas-pulse-h {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+.canvas-pulse-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+.canvas-pulse-more {
+  margin-top: 0.75rem;
+}
+.chronicle-pre.sm {
+  max-height: 8rem;
+  font-size: 0.75rem;
+  margin-top: 0.35rem;
+}
+@media (max-width: 900px) {
+  .canvas-layout {
+    grid-template-columns: 1fr;
+  }
+  .canvas-pulse {
+    position: static;
+    max-height: none;
+  }
 }

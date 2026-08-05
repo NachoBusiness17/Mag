@@ -22,6 +22,7 @@ UI, specialist seats, and lab are **viewports**. Residual is **DNA**.
 **Lessig 1-6:** `docs/ref/lessig_1_6.md` · bag `memory/portable_bags/`.  
 **Mirror product law:** `docs/ref/MIRROR_PRESENTED.md` — corpus **as presented**, not interpreted.  
 **Mag OS v2:** `docs/ref/MAG_OS_v2.md` · card `MAG_Card.md` · activation `MAG_Activation.md` · API `GET /api/v1/mag-os`.  
+**Mag v2 roadmap:** `docs/ref/MAG_v2_PLAN.md` — freedom lattice phases + acceptance.  
 **Self-analysis pin:** `memory/improve/pins/LATEST.md` (sticker + residual `edges.pins`; not tip).
 
 ---

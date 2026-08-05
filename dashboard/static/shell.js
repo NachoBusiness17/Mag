@@ -1,7 +1,89 @@
-/* Mag Sovereign Shell — Tier 4 chrome MVP */
+/* Mag Sovereign Shell — curated tree, SSE agent stream (low RAM) */
 (function () {
   let editor = null;
   let currentPath = "";
+  let streamAbort = null;
+  const TRACE_MAX = 36;
+  const TRACE_LINE_MAX = 200;
+  let traceLines = [];
+
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function isVerbose() {
+    const el = document.getElementById("agentVerbose");
+    return el ? el.checked : true;
+  }
+
+  function formatTrace(ev) {
+    if (ev.type === "phase") {
+      const r = ev.round ? ` [${ev.round}]` : "";
+      return { text: `${ev.phase || "phase"}${r}: ${ev.detail || ""}`, cls: "trace-phase" };
+    }
+    if (ev.type === "tool") {
+      if (ev.status === "start") {
+        return { text: `→ ${ev.name}(${ev.args || "…"})`, cls: "trace-tool" };
+      }
+      const mark = ev.status === "fail" || ev.status === "blocked" ? "✗" : "✓";
+      const cls = ev.status === "fail" || ev.status === "blocked" ? "trace-fail" : "trace-tool";
+      const tail = ev.preview ? ` — ${ev.preview}` : "";
+      return { text: `${mark} ${ev.name}${tail}`, cls };
+    }
+    if (ev.type === "trace") {
+      return { text: ev.line || "", cls: "trace-note" };
+    }
+    return null;
+  }
+
+  function pushTrace(ev) {
+    if (!isVerbose()) return;
+    const row = formatTrace(ev);
+    if (!row || !row.text) return;
+    traceLines.push({ text: row.text.slice(0, TRACE_LINE_MAX), cls: row.cls });
+    if (traceLines.length > TRACE_MAX) traceLines.shift();
+    renderTrace();
+    const st = ev.type === "tool" && ev.status === "start"
+      ? `Tool: ${ev.name}`
+      : ev.type === "phase" && ev.detail
+        ? ev.detail.slice(0, 48)
+        : null;
+    if (st) setAgentStatus(st);
+  }
+
+  function renderTrace() {
+    const wrap = document.getElementById("agentTraceWrap");
+    const el = document.getElementById("agentTrace");
+    if (!wrap || !el) return;
+    if (!isVerbose()) {
+      wrap.classList.add("hidden");
+      return;
+    }
+    wrap.classList.remove("hidden");
+    el.innerHTML = traceLines.length
+      ? traceLines.map((r) => `<div class="trace-line ${r.cls}">${esc(r.text)}</div>`).join("")
+      : `<div class="trace-line trace-note">Waiting for turn…</div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearTrace() {
+    traceLines = [];
+    renderTrace();
+  }
+
+  const QUICK = [
+    { label: "Context pack", path: "memory/context_pack_latest.md" },
+    { label: "Brief", path: "memory/briefs/latest.md" },
+    { label: "Bonds", path: "memory/bonds_active.md" },
+    { label: "Todo queue", path: "queue/todo.md" },
+    { label: "Operator card", path: "docs/ref/OPERATOR_CARD.md" },
+    { label: "Framework load", path: "docs/FRAMEWORK_LOAD.md" },
+    { label: "Mesh integration brief", path: "memory/research_packs/mesh_forest/INTEGRATION_BRIEF.md" },
+    { label: "Nervous system", path: "memory/nervous_system.json" },
+  ];
 
   async function api(method, path, body) {
     const opts = { method, headers: {} };
@@ -13,21 +95,32 @@
     return r.json();
   }
 
+  function renderQuickFiles() {
+    const host = document.getElementById("quickFiles");
+    if (!host) return;
+    host.innerHTML = QUICK.map(
+      (q) => `<button type="button" data-path="${q.path}">${q.label}</button>`
+    ).join("");
+    host.querySelectorAll("button[data-path]").forEach((btn) => {
+      btn.addEventListener("click", () => openFile(btn.dataset.path));
+    });
+  }
+
   async function loadTree(path) {
     const ul = document.getElementById("fileTree");
     ul.innerHTML = "<li class='muted'>Loading…</li>";
-    const j = await api("GET", `/api/v1/workspace/tree?path=${encodeURIComponent(path || "")}&depth=3`);
+    const j = await api("GET", `/api/v1/workspace/tree?path=${encodeURIComponent(path || "")}&depth=2`);
     if (!j.ok) {
       ul.innerHTML = `<li class='muted'>${j.error || "tree error"}</li>`;
       return;
     }
-    ul.innerHTML = j.entries
-      .filter((e) => e.type === "file")
-      .slice(0, 120)
-      .map(
-        (e) =>
-          `<li data-path="${e.path}" title="${e.path}">${e.path.split("/").pop()}</li>`
-      )
+    const files = (j.entries || []).filter((e) => e.type === "file").slice(0, 80);
+    if (!files.length) {
+      ul.innerHTML = "<li class='muted'>No text files here — try Quick files above.</li>";
+      return;
+    }
+    ul.innerHTML = files
+      .map((e) => `<li data-path="${e.path}" title="${e.path}">${e.path.split("/").pop()}</li>`)
       .join("");
     ul.querySelectorAll("li[data-path]").forEach((li) => {
       li.addEventListener("click", () => openFile(li.dataset.path));
@@ -36,13 +129,16 @@
 
   async function openFile(path) {
     const j = await api("GET", `/api/v1/workspace/file?path=${encodeURIComponent(path)}`);
+    const out = document.getElementById("agentOut");
     if (!j.ok) {
-      document.getElementById("agentOut").textContent = j.error || "open failed";
+      if (out) out.textContent = j.error || "open failed";
       return;
     }
     currentPath = j.path;
     document.getElementById("openPath").textContent = j.path;
     document.getElementById("btnSave").disabled = false;
+    document.getElementById("fidelityNote").textContent =
+      `Artifact: ${j.path} — this file is truth; UI is viewport only.`;
     if (editor) editor.setValue(j.text || "");
   }
 
@@ -57,17 +153,132 @@
       : j.error || "save failed";
   }
 
-  async function runAgent() {
-    const goal = document.getElementById("agentGoal").value.trim();
-    if (!goal) return;
+  async function copyPack() {
     const out = document.getElementById("agentOut");
-    out.textContent = "Running Mag agent turn…";
-    const j = await api("POST", "/api/v1/agent", {
-      goal,
-      session_id: "sovereign-shell",
-      provider: document.getElementById("agentProvider").value,
-    });
-    out.textContent = JSON.stringify(j, null, 2).slice(0, 12000);
+    try {
+      const r = await fetch("/api/v1/context-pack");
+      const j = await r.json();
+      const paste = j.paste || j.text || "";
+      await navigator.clipboard.writeText(paste);
+      out.textContent = `Pack copied (${j.chars || paste.length} chars)\n${j.path || "memory/context_pack_latest.md"}`;
+    } catch (e) {
+      out.textContent = "Copy pack failed: " + (e.message || e);
+    }
+  }
+
+  function setAgentStatus(text) {
+    const el = document.getElementById("agentStatus");
+    if (el) el.textContent = text || "Ready";
+  }
+
+  async function streamAgent(goal, provider) {
+    const out = document.getElementById("agentOut");
+    const stopBtn = document.getElementById("btnAgentStop");
+    const runBtn = document.getElementById("btnAgentRun");
+    out?.classList.add("streaming");
+    runBtn.disabled = true;
+    stopBtn.disabled = false;
+    setAgentStatus(`Running (${provider})…`);
+    clearTrace();
+    pushTrace({ type: "phase", phase: "start", detail: `Goal sent · ${provider}` });
+
+    const ac = new AbortController();
+    streamAbort = ac;
+
+    let acc = "";
+    let turnPrefix = "";
+    if (out) {
+      const prior = out.textContent && !out.textContent.startsWith("Ready") ? out.textContent + "\n\n" : "";
+      turnPrefix = prior + "You: " + goal + "\n\nMag: ";
+      out.textContent = turnPrefix;
+    }
+    function paintReply() {
+      if (!out) return;
+      out.textContent = (turnPrefix + acc).slice(-80000);
+      out.scrollTop = out.scrollHeight;
+    }
+    try {
+      const res = await fetch("/api/v1/agent/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goal,
+          provider,
+          session_id: "sovereign-shell",
+          reset: false,
+        }),
+        signal: ac.signal,
+      });
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) !== -1) {
+          const chunk = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          let ev;
+          try {
+            ev = JSON.parse(line.slice(5).trim());
+          } catch {
+            continue;
+          }
+          if (ev.type === "delta" && typeof ev.text === "string") {
+            acc += ev.text;
+            paintReply();
+          } else if (ev.type === "phase" || ev.type === "tool" || ev.type === "trace") {
+            pushTrace(ev);
+          } else if (ev.type === "error") {
+            throw new Error(ev.error || "stream error");
+          } else if (ev.type === "done") {
+            acc = ev.answer || acc;
+            paintReply();
+            if (ev.tools && ev.tools.length && out) {
+              out.textContent += `\n\n— ${ev.tools.length} tool step(s) —`;
+            }
+            setAgentStatus("Done");
+            pushTrace({ type: "phase", phase: "done", detail: "Turn complete" });
+          }
+        }
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") {
+        acc += "\n\nError: " + (e.message || e);
+        paintReply();
+        setAgentStatus("Error");
+      } else {
+        setAgentStatus("Stopped");
+      }
+    } finally {
+      out?.classList.remove("streaming");
+      runBtn.disabled = false;
+      stopBtn.disabled = true;
+      streamAbort = null;
+      if (document.getElementById("agentStatus")?.textContent?.startsWith("Running")) {
+        setAgentStatus("Ready");
+      }
+    }
+  }
+
+  async function runAgent() {
+    const input = document.getElementById("agentGoal");
+    const goal = input?.value.trim();
+    if (!goal) return;
+    if (input) input.value = "";
+    await streamAgent(goal, document.getElementById("agentProvider").value);
+    input?.focus();
+  }
+
+  function stopAgent() {
+    if (streamAbort) streamAbort.abort();
   }
 
   async function runAutopilot() {
@@ -82,19 +293,31 @@
   });
   require(["vs/editor/editor.main"], function () {
     editor = monaco.editor.create(document.getElementById("editor"), {
-      value: "# Mag Sovereign Shell\n# Open a file from the tree, or run agent on the right.\n",
+      value: "# Mag Sovereign Shell\n#\n# 1. Pick a Quick file (left) or browse docs/ref\n# 2. Run agent (right) — streams plain text, files artifacts\n# 3. Save edits — truth stays on disk\n",
       language: "markdown",
       theme: "vs-dark",
       automaticLayout: true,
       fontSize: 13,
       minimap: { enabled: false },
     });
-    loadTree("memory");
+    renderQuickFiles();
+    loadTree("docs/ref");
+    document.getElementById("agentGoal")?.focus();
   });
 
-  document.getElementById("btnTreeRoot").addEventListener("click", () => loadTree("memory"));
-  document.getElementById("btnTreeMag").addEventListener("click", () => loadTree(""));
+  document.getElementById("btnTreeDocs").addEventListener("click", () => loadTree("docs/ref"));
+  document.getElementById("btnTreeMemory").addEventListener("click", () => loadTree("memory"));
+  document.getElementById("btnTreeQueue").addEventListener("click", () => loadTree("queue"));
   document.getElementById("btnSave").addEventListener("click", saveFile);
   document.getElementById("btnAgentRun").addEventListener("click", runAgent);
+  document.getElementById("btnAgentStop").addEventListener("click", stopAgent);
+  document.getElementById("agentGoal")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      runAgent();
+    }
+  });
+  document.getElementById("agentVerbose")?.addEventListener("change", renderTrace);
+  document.getElementById("btnCopyPack").addEventListener("click", copyPack);
   document.getElementById("btnAutopilot").addEventListener("click", runAutopilot);
 })();

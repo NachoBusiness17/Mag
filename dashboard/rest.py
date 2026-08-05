@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
@@ -150,9 +151,140 @@ def h_chronicle(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
 
 def h_seats(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """Inbound clients (Cursor, dashboard, Grok TUI) + outbound API providers."""
+    from mag.seat_registry import list_registered
     from mag.seats import build_seats_registry
 
-    return 200, build_seats_registry()
+    reg = build_seats_registry()
+    reg["registered"] = list_registered(limit=40, live_only=True)
+    return 200, reg
+
+
+def h_seats_register(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Register desktop/cloud seat with orchestrator mesh — returns MAG_TASK_ID."""
+    from mag.seat_registry import register
+
+    data = dict(body or {})
+    seat = str(data.get("seat") or "cursor").strip() or "cursor"
+    goal = str(data.get("goal") or data.get("detail") or "").strip()
+    mode = str(data.get("mode") or "interactive").strip() or "interactive"
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or "").strip() or None
+    pid = data.get("pid")
+    try:
+        pid = int(pid) if pid is not None else None
+    except (TypeError, ValueError):
+        pid = None
+    rec = register(
+        seat=seat,
+        goal=goal,
+        mode=mode,
+        task_id=task_id,
+        pid=pid,
+        tag=str(data.get("tag") or "").strip(),
+        parent=str(data.get("parent") or "api").strip() or "api",
+    )
+    return 200, rec
+
+
+def h_seats_heartbeat(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Refresh liveness for a registered seat."""
+    from mag.seat_registry import heartbeat
+
+    data = dict(body or {})
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or _p.get("id") or "").strip()
+    if not task_id:
+        return _err(400, "task_id required")
+    rec = heartbeat(
+        task_id,
+        phase=str(data.get("phase") or "").strip() or None,
+        goal=str(data.get("goal") or "").strip() or None,
+        seat=str(data.get("seat") or "").strip() or None,
+    )
+    return (200 if rec.get("ok") else 404), rec
+
+
+def h_seats_unregister(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.seat_registry import unregister
+
+    data = dict(body or {})
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or _p.get("id") or "").strip()
+    if not task_id:
+        return _err(400, "task_id required")
+    status = str(data.get("status") or "done").strip() or "done"
+    detail = str(data.get("detail") or "").strip()
+    rec = unregister(task_id, status=status, detail=detail)
+    return (200 if rec.get("ok") else 404), rec
+
+
+def h_power(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.power import stack_status
+
+    return 200, stack_status()
+
+
+def h_power_stop(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Kill switch — stops stack (may terminate this dashboard process)."""
+    import threading
+
+    from mag.power import stop_all
+
+    def _run() -> None:
+        time.sleep(0.3)
+        stop_all()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return 200, {
+        "ok": True,
+        "action": "stopping",
+        "hint": "Stack shutting down — refresh will fail until mag.cmd power start",
+    }
+
+
+def h_power_start(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.power import start_all
+
+    data = dict(body or {})
+    open_browser = bool(data.get("browser") or data.get("open_browser"))
+    return 200, start_all(open_browser=open_browser)
+
+
+def h_improve_cloud(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Cloud agent files handoff + optional improve cycle enqueue."""
+    from mag.improve_loop import write_cloud_handoff
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    claim = str(data.get("claim") or "").strip()
+    brief = str(data.get("brief") or data.get("body") or "").strip()
+    if not (goal or claim or brief):
+        return _err(400, "goal, claim, or brief required")
+    enqueue = bool(data.get("enqueue") or data.get("queue"))
+    res = write_cloud_handoff(
+        goal=goal,
+        claim=claim,
+        brief=brief,
+        source=str(data.get("source") or "cursor-cloud").strip(),
+        depth=str(data.get("depth") or "simple_code").strip(),
+        enqueue=enqueue,
+        run_id=str(data.get("run_id") or "").strip() or None,
+        meta=data.get("meta") if isinstance(data.get("meta"), dict) else None,
+    )
+    return (200 if res.get("ok") else 422), res
+
+
+def h_improve_cycle(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Run one improve cycle — behavioral + queue + nervous + spider."""
+    from mag.improve_loop import run_improve_cycle
+
+    data = dict(body or {})
+    source = str(data.get("source") or "api").strip() or "api"
+    res = run_improve_cycle(
+        source=source,
+        max_improve=int(data.get("max_improve") or 2),
+        drain_one=bool(data.get("drain") or data.get("drain_one")),
+        spider_inject=bool(data.get("spider_inject")),
+        scout=bool(data.get("scout")),
+    )
+    return (200 if res.get("ok") else 500), res
 
 
 def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -164,7 +296,7 @@ def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, di
 def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Toggle autonomy prefs or broadcast steer to chat + running workers."""
     from mag.governance import broadcast_steer
-    from mag.preferences import set_drainer, set_inject_behavioral_pack
+    from mag.preferences import set_drainer, set_inject_behavioral_pack, set_operator_active
 
     data = body or {}
     if "steer" in data or data.get("cmd"):
@@ -176,6 +308,9 @@ def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
     if "drainer" in data:
         set_drainer(bool(data["drainer"]))
         out["drainer"] = True
+    if "operator_active" in data:
+        set_operator_active(bool(data["operator_active"]))
+        out["operator_active"] = True
     if "inject_behavioral_pack" in data:
         set_inject_behavioral_pack(bool(data["inject_behavioral_pack"]))
         out["inject_behavioral_pack"] = True
@@ -593,6 +728,38 @@ def h_home_summary(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, 
         payload["launch_pad"] = build_launch_pad(n_sessions=n_sessions, ship=ship)
     except Exception:
         payload["launch_pad"] = {"show": False}
+    try:
+        from mag.autorun_status import autorun_dashboard_status
+
+        ar = autorun_dashboard_status()
+        gov = ar.get("governor") or {}
+        last_auto = (ar.get("autorun") or {}).get("last_tick") or {}
+        drainer_on = bool(gov.get("drainer_enabled"))
+        alive = bool(gov.get("autorun_alive"))
+        open_mag = int(gov.get("open_todo_mag") or 0)
+        if not drainer_on:
+            autorun_headline = "Autorun off — add queue lines or set MAG_DRAINER=1"
+            autorun_state = "idle"
+        elif alive:
+            autorun_headline = "Mag is working away"
+            autorun_state = "active"
+        elif open_mag:
+            autorun_headline = f"Queued — {open_mag} [mag] item(s) waiting"
+            autorun_state = "queued"
+        else:
+            autorun_headline = "Drainer on — nothing queued"
+            autorun_state = "idle"
+        payload["autorun"] = {
+            "state": autorun_state,
+            "headline": autorun_headline,
+            "drainer_enabled": drainer_on,
+            "open_todo_mag": open_mag,
+            "last_tick_ts": last_auto.get("ts"),
+            "last_action": last_auto.get("action") or (gov.get("last_cycle") or {}).get("action"),
+            "hints": (ar.get("hints") or {}),
+        }
+    except Exception as e:
+        payload["autorun"] = {"state": "unknown", "headline": "Autorun status unavailable", "error": str(e)[:120]}
     return 200, payload
 
 
@@ -1066,6 +1233,56 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
     return 200, {"ok": True, "activity": row}
 
 
+def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Unified routing decision — classify + seat + provider + honest failure."""
+    from mag.router import route
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal:
+        return _err(400, "goal required")
+    depth = str(data.get("depth") or "").strip() or None
+    force_seat = str(data.get("force_seat") or "").strip() or None
+    force_provider = str(data.get("force_provider") or "").strip() or None
+    res = route(
+        goal,
+        depth=depth,
+        force_seat=force_seat,
+        force_provider=force_provider,
+    )
+    launch = data.get("launch", False)
+    if isinstance(launch, str):
+        launch = launch.lower() not in ("0", "false", "no")
+    if launch:
+        from mag.coordination import coordinate
+
+        exec_res = coordinate(
+            goal,
+            depth=depth,
+            seat=str(data.get("caller_seat") or data.get("seat") or "api"),
+            actor=str(data.get("actor") or "api"),
+            launch=True,
+            background=bool(data.get("background")),
+            session_id=str(data.get("session_id") or "").strip() or None,
+        )
+        return (200 if exec_res.get("ok") else 500), {"route": res, "execution": exec_res}
+    return 200, res
+
+
+def h_decide(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Framework decision: route + behavioral tips + breadcrumb interference status."""
+    from mag.decision_framework import decide
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    if not goal and not _p.get("goal"):
+        return _err(400, "goal required")
+    goal = goal or str(_p.get("goal") or "").strip()
+    depth = str(data.get("depth") or _p.get("depth") or "").strip() or None
+    res = decide(goal, depth=depth)
+    return (200 if res.get("ok") else 422), res
+
+
 def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Classify depth + optionally launch the appropriate seat."""
     from mag.coordination import coordinate
@@ -1302,6 +1519,27 @@ def h_nervous(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]
     return 200, build_glance(write=True)
 
 
+def h_grove(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Tesuji Grove — poem skill tree nodes (v3-012)."""
+    from mag.grove import build, list_nodes
+
+    limit = 20
+    try:
+        limit = max(1, min(100, int(_p.get("limit") or "20")))
+    except ValueError:
+        pass
+    refresh = str(_p.get("refresh") or "").lower() in ("1", "true", "yes")
+    build_report = build(dry=False) if refresh else None
+    nodes = list_nodes(limit=limit)
+    return 200, {
+        "ok": True,
+        "schema": "grove_list.v1",
+        "nodes": nodes,
+        "count": len(nodes),
+        "build": build_report,
+    }
+
+
 def h_lattice_history(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """Verkle lattice history + planning summary for dashboard."""
     from mag.lattice_dashboard import build_lattice_summary
@@ -1311,10 +1549,25 @@ def h_lattice_history(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[in
 
 def h_viewports(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """List synced Cursor Canvas viewports."""
-    from mag.canvas_bridge import list_viewports
+    import os
 
+    from mag.canvas_bridge import BUNDLED_VIEWPORTS_DIR, list_viewports, seed_bundled_viewports
+
+    seed = seed_bundled_viewports()
     rows = list_viewports()
-    return _ok({"viewports": rows, "count": len(rows)}, schema="viewports_list.v1")
+    sources = os.environ.get("CANVAS_SOURCES", "").strip()
+    return _ok(
+        {
+            "viewports": rows,
+            "count": len(rows),
+            "seed": seed,
+            "bundled_dir": str(BUNDLED_VIEWPORTS_DIR.relative_to(ROOT)).replace("\\", "/"),
+            "runtime_dir": "memory/viewports/",
+            "canvas_sources_set": bool(sources),
+            "sync_hint": "Set CANVAS_SOURCES to your Cursor canvases folder, then canvas-sync",
+        },
+        schema="viewports_list.v1",
+    )
 
 
 def h_viewport_one(p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1979,6 +2232,7 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             # --- Body / router ---
             "GET /api/v1/health": "Is the lab up?",
             "GET /api/v1/nervous": "Containment glance (no secrets)",
+            "GET /api/v1/grove": "Tesuji Grove nodes ?limit=20&refresh=1",
             "GET /api/v1/status": "Router: providers, quota, honesty",
             "GET /api/v1/providers": "Provider status",
             "GET /api/v1/quota": "Quota budgets",
@@ -2004,7 +2258,15 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "POST /api/v1/agents/{id}/cmd": "Live knot cmd: steer|pause|continue|escape",
             "POST /api/v1/agents/reap": "Mark dead-pid tasks as died",
             "POST /api/v1/agents/heal": "Watchdog: mark dead died + auto-respawn (bounded)",
-            "GET /api/v1/seats": "Inbound + outbound seats (Cursor, APIs) with file proof",
+            "GET /api/v1/seats": "Inbound + outbound seats + live registered external seats",
+            "POST /api/v1/seats/register": "Register desktop/cloud seat → MAG_TASK_ID",
+            "POST /api/v1/seats/heartbeat": "Refresh registered seat liveness",
+            "POST /api/v1/seats/unregister": "Mark registered seat done/failed",
+            "GET /api/v1/power": "Stack status — kill switch / turn-on glance",
+            "POST /api/v1/power/stop": "Kill switch — stop entire Mag stack",
+            "POST /api/v1/power/start": "Turn-on — boot supervisor + core services",
+            "POST /api/v1/improve/cloud": "Cloud handoff JSON → behavioral + optional queue",
+            "POST /api/v1/improve/cycle": "Improve cycle → queue + nervous + spider",
             "GET /api/v1/governance": "Steering + behavioral loop + autonomy prefs",
             "POST /api/v1/governance": "Toggle drainer/behavioral pack or broadcast steer",
             "GET /api/v1/operator-inbox": "Deferred guidance queue (process at checkpoint)",
@@ -2050,6 +2312,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/overview", h_overview),
     ("GET", "/api/v1/nervous", h_nervous),
     ("GET", "/api/nervous", h_nervous),
+    ("GET", "/api/v1/grove", h_grove),
+    ("GET", "/api/grove", h_grove),
     ("GET", "/api/v1/lattice-history", h_lattice_history),
     ("GET", "/api/lattice-history", h_lattice_history),
     ("GET", "/api/v1/viewports", h_viewports),
@@ -2110,6 +2374,14 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     # Tripartite Chronicle (Synthesis Agent running commentary)
     ("GET", "/api/v1/chronicle", h_chronicle),
     ("GET", "/api/v1/seats", h_seats),
+    ("POST", "/api/v1/seats/register", h_seats_register),
+    ("POST", "/api/v1/seats/heartbeat", h_seats_heartbeat),
+    ("POST", "/api/v1/seats/unregister", h_seats_unregister),
+    ("GET", "/api/v1/power", h_power),
+    ("POST", "/api/v1/power/stop", h_power_stop),
+    ("POST", "/api/v1/power/start", h_power_start),
+    ("POST", "/api/v1/improve/cloud", h_improve_cloud),
+    ("POST", "/api/v1/improve/cycle", h_improve_cycle),
     ("GET", "/api/v1/governance", h_governance),
     ("POST", "/api/v1/governance", h_post_governance),
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),
@@ -2118,6 +2390,10 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/coordination", h_coordination),
     ("POST", "/api/v1/coordination", h_coordination_post),
     ("POST", "/api/v1/coordinate", h_coordinate),
+    ("POST", "/api/v1/route", h_route),
+    ("GET", "/api/v1/route", h_route),
+    ("POST", "/api/v1/decide", h_decide),
+    ("GET", "/api/v1/decide", h_decide),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),

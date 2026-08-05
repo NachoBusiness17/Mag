@@ -31,68 +31,15 @@ REMOTE_PROVIDERS = frozenset(
 
 
 def _classify_job(goal: str) -> tuple[str, str, str]:
-    """
-    Returns (job, tier, seat)
-    seat: local | remote | grok_tui | hermes | wait
-    """
-    g = (goal or "").lower()
-    if any(k in g for k in ("secret", "password", ".env", "private", "data/raw", "intimate")):
-        return "recall", "T1", "local"
-    # Hermes is parked: only explicit opt-in (never skill-loop keywords alone)
-    if any(
-        k in g
-        for k in (
-            "via hermes",
-            "hermes agent",
-            "use hermes",
-            "with hermes",
-            "seat hermes",
-            "hermes seat",
-            "--seat hermes",
-        )
-    ):
-        return "hermes_agent", "T2", "hermes"
-    if any(k in g for k in ("what was i", "recall", "brief", "open loop", "session", "biograph")):
-        return "recall", "T1", "local"
-    if any(k in g for k in ("doctor", "health", "multi-smoke", "quota", "providers", "status")):
-        return "scut", "T2", "local"
-    if any(
-        k in g
-        for k in (
-            "via cursor",
-            "cursor ide",
-            "cursor seat",
-            "seat cursor",
-            "--seat cursor",
-            "[cursor]",
-        )
-    ):
-        return "hard_code", "T2", "cursor"
-    if any(k in g for k in ("implement", "refactor", "architecture", "multi-file", "design system")):
-        return "hard_code", "T2", "grok_tui"
-    if any(k in g for k in ("reason", "analyze deeply", "tradeoff", "critique plan")):
-        return "hard_reason", "T2", "remote"
-    if any(k in g for k in ("summarize", "translate", "draft", "public", "readme")):
-        return "public_summarize", "T2", "remote"
-    if any(
-        k in g
-        for k in (
-            "research",
-            "scrape",
-            "according to",
-            "from the pack",
-            "research pack",
-            "what does the site",
-            "compare sources",
-        )
-    ):
-        return "research", "T2", "local"
-    if len(goal) < 100 and any(k in g for k in ("list", "show", "read ", "ls", "dir")):
-        return "scut", "T2", "local"
-    # default: try local first for short; grok for long hard-looking
-    if len(goal) > 400:
-        return "hard_code", "T2", "grok_tui"
-    return "default", "T2", "local"
+    """Returns (job, tier, seat) via unified router."""
+    from mag.router import route
+
+    r = route(goal)
+    return (
+        str(r.get("job") or "default"),
+        str(r.get("tier") or "T2"),
+        str(r.get("seat") or "local"),
+    )
 
 
 def dispatch(
