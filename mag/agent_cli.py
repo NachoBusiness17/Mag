@@ -16,13 +16,26 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from collections import deque
 if os.name == "nt":  # B1 non-blocking stdin listener (Windows)
     import msvcrt
 
 from config import ROOT
 from mag.context_pack import build_context_pack, format_context_pack_text
+
+
+def _agent_event(on_event: Callable[[dict[str, Any]], None] | None, **fields: Any) -> None:
+    """Fire a small SSE-friendly trace event (Shell verbose rail)."""
+    if not on_event:
+        return
+    kind = str(fields.pop("kind", fields.pop("type", "note")))
+    payload: dict[str, Any] = {"type": kind, **fields}
+    try:
+        on_event(payload)
+    except Exception:
+        pass
+
 from mag.compass import (
     FRAMEWORK_BLOCK,
     build_compass,
@@ -731,6 +744,7 @@ def run_turn(
     model: str | None,
     messages: list[dict[str, Any]],
     on_stream=None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[str, list[dict[str, Any]], list[str]]:
     """One user turn: tool loop until final text. Mutates/returns messages.
 
@@ -759,6 +773,13 @@ def run_turn(
     last_tool = "-"
     while True:
         rnd += 1
+        _agent_event(
+            on_event,
+            type="phase",
+            phase="round",
+            round=rnd,
+            detail=f"Turn {rnd} · calling {provider}",
+        )
         _steer_interrupt.clear()  # T1: fresh round = fresh interrupt budget
         # B2/B3 (T1 fix 2026-08-03): act on steer commands IMMEDIATELY when they
         # arrive, not only at the next round boundary. _handle_steer_cmd sets
@@ -769,6 +790,7 @@ def run_turn(
             if steer_text:
                 messages = apply_steer(messages, steer_text)
                 traces.append(f"steer:{steer_text[:30]}")
+                _agent_event(on_event, type="trace", line=f"Steer absorbed: {steer_text[:80]}")
                 print(dim(f"  → operator steer absorbed: {steer_text[:60]}"), flush=True)
             elif cmd.strip().lower() in ("!continue", "!c"):
                 _paused.clear()
@@ -799,6 +821,11 @@ def run_turn(
             repacks += 1
             est2 = _estimate_tokens(messages)
             traces.append(f"repack#{repacks}: {est}→{est2} tok (budget~{budget})")
+            _agent_event(
+                on_event,
+                type="trace",
+                line=f"Repack #{repacks} — context trimmed ({est}→{est2} tokens)",
+            )
             print(
                 dim(f"  ↻ auto-repack #{repacks}  est {est}→{est2} / ~{budget}  ({provider})"),
                 flush=True,
@@ -815,6 +842,7 @@ def run_turn(
                 traces,
             )
 
+        _agent_event(on_event, type="phase", phase="thinking", round=rnd, detail="Model streaming…")
         res = chat_messages(
             provider,
             messages,
@@ -955,6 +983,13 @@ def run_turn(
             )
 
         if tool_calls:
+            _agent_event(
+                on_event,
+                type="phase",
+                phase="tools",
+                round=rnd,
+                detail=f"Model requested {len(tool_calls)} tool call(s)",
+            )
             # Normalize assistant tool-call message for DeepSeek/OpenAI
             asst: dict[str, Any] = {
                 "role": "assistant",
@@ -976,6 +1011,13 @@ def run_turn(
                     args = {}
                 tc_id = tc.get("id") or f"call_{rnd}_{name}"
                 arg_s = json.dumps(args, ensure_ascii=False)[:120]
+                _agent_event(
+                    on_event,
+                    type="tool",
+                    status="start",
+                    name=name,
+                    args=arg_s,
+                )
                 print(f"  {cyan('→')} {yellow(name)}{dim(f'({arg_s})')}", flush=True)
                 # T1: catch commands typed while the previous tool was running
                 messages = _absorb_steer(messages, traces, wait_s=0.02)
@@ -993,6 +1035,13 @@ def run_turn(
                 if not pre_ok:
                     out = {"ok": False, "error": f"preflight: {pre_reason}"}
                     traces.append(f"{name}: preflight-blocked")
+                    _agent_event(
+                        on_event,
+                        type="tool",
+                        status="blocked",
+                        name=name,
+                        preview=pre_reason[:100],
+                    )
                     try:
                         from mag.operator_inbox import log_behavioral_event
 
@@ -1008,6 +1057,16 @@ def run_turn(
                         pass
                 else:
                     out = _run_tool(name, args)
+                    preview = str(
+                        out.get("path") or out.get("text") or out.get("error") or ""
+                    ).replace("\n", " ")[:100]
+                    _agent_event(
+                        on_event,
+                        type="tool",
+                        status="done" if out.get("ok") else "fail",
+                        name=name,
+                        preview=preview,
+                    )
                     if not out.get("ok"):
                         err_msg = str(out.get("error") or "tool failed")[:200]
                         traces.append(f"{name}: failed")
@@ -1154,6 +1213,7 @@ def run_turn(
         if text:
             _activity["phase"] = "answered"
             _mail(phase="answered")
+            _agent_event(on_event, type="phase", phase="answered", detail="Writing final answer")
             messages.append({"role": "assistant", "content": text})
             return text, messages, traces
 
@@ -2030,6 +2090,7 @@ def api_agent_turn(
     session_id: str = "dashboard",
     reset: bool = False,
     on_stream=None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """One multi-tool turn for dashboard. Continues session messages on disk.
 
@@ -2059,6 +2120,7 @@ def api_agent_turn(
     if reset:
         api_agent_reset(session_id)
 
+    _agent_event(on_event, type="phase", phase="pack", detail="Building context pack…")
     sess = load_session(session_id)
     if reset or not sess.get("messages"):
         from mag.context_pack import build_context_pack, infer_pack_mode
@@ -2074,6 +2136,7 @@ def api_agent_turn(
             {"role": "system", "content": _system_prompt(pack_text)}
         ]
         tip = _tip_line(pack)
+        _agent_event(on_event, type="phase", phase="start", detail="Fresh session · pack loaded")
     else:
         messages = list(sess.get("messages") or [])
         # ensure system present
@@ -2084,6 +2147,7 @@ def api_agent_turn(
             pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
             messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack, mode=mode))}] + messages
         tip = "session-continued"
+        _agent_event(on_event, type="phase", phase="start", detail="Continuing session on disk")
 
     if on_stream is None:
         def _on_stream(delta: str) -> None:
@@ -2097,6 +2161,7 @@ def api_agent_turn(
         model=model,
         messages=messages,
         on_stream=_on_stream,
+        on_event=on_event,
     )
     sess.update(
         {

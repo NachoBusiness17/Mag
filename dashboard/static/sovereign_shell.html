@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mag Sovereign Shell</title>
-  <link rel="stylesheet" href="/static/shell.css?v=4" />
+  <link rel="stylesheet" href="/static/shell.css?v=5" />
 </head>
 <body>
   <header class="top">
@@ -44,6 +44,15 @@
         <button type="button" class="btn ghost btn-sm" id="btnCopyPack" title="Copy context pack">Copy pack</button>
       </div>
       <div class="agent-transcript" id="agentOut" aria-live="polite">Ready — ask below. Output streams here (plain text, low RAM).</div>
+      <div class="agent-trace-wrap" id="agentTraceWrap">
+        <div class="agent-trace-head">
+          <span class="pane-head" style="margin:0">Trace</span>
+          <label class="verbose-toggle" title="Show turn phases and tool steps">
+            <input type="checkbox" id="agentVerbose" checked /> Verbose
+          </label>
+        </div>
+        <div class="agent-trace" id="agentTrace" aria-live="polite"></div>
+      </div>
       <div class="agent-compose">
         <textarea id="agentGoal" rows="3" placeholder="Message Mag…  Enter send · Shift+Enter newline"></textarea>
         <div class="compose-bar">
@@ -71,6 +80,6 @@
     </aside>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/static/shell.js?v=4"></script>
+  <script src="/static/shell.js?v=5"></script>
 </body>
 </html>

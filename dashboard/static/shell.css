@@ -75,6 +75,49 @@ body {
   word-break: break-word;
 }
 .agent-transcript.streaming { border-color: var(--ok); }
+.agent-trace-wrap {
+  flex-shrink: 0;
+  margin: 0 0.5rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.agent-trace-wrap.hidden { display: none; }
+.agent-trace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.verbose-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.agent-trace {
+  max-height: 7.5rem;
+  overflow: auto;
+  padding: 0.35rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.trace-line {
+  padding: 0.12rem 0;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+.trace-line:last-child { border-bottom: 0; }
+.trace-phase { color: var(--accent); }
+.trace-tool { color: #d2a8ff; }
+.trace-note { color: var(--muted); }
+.trace-fail { color: #f85149; }
 .agent-compose {
   flex-shrink: 0;
   margin: 0.5rem;

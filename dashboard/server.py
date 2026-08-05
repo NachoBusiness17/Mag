@@ -649,7 +649,9 @@ class Handler(BaseHTTPRequestHandler):
         POST /api/v1/agent/stream  {goal, provider, model, session_id, reset}
         Events:
           data: {"type":"delta","text":"..."}   -- streamed model text
-          data: {"type":"tool","name":"...","args":"..."}  -- tool call trace
+          data: {"type":"tool","name":"...","status":"start|done|fail","args":"..."}
+          data: {"type":"phase","phase":"round|thinking|tools|answered","detail":"..."}
+          data: {"type":"trace","line":"..."}   -- repack, steer, notes
           data: {"type":"done","answer":"...","tools":[...],"provider":"...","ok":true}
           data: {"type":"error","error":"..."}
         """
@@ -685,6 +687,9 @@ class Handler(BaseHTTPRequestHandler):
         def _on_stream(delta: str) -> None:
             _send({"type": "delta", "text": delta})
 
+        def _on_event(ev: dict[str, Any]) -> None:
+            _send(ev)
+
         try:
             res = api_agent_turn(
                 goal,
@@ -693,6 +698,7 @@ class Handler(BaseHTTPRequestHandler):
                 session_id=session_id,
                 reset=reset,
                 on_stream=_on_stream,
+                on_event=_on_event,
             )
         except Exception as e:  # noqa: BLE001
             _send({"type": "error", "error": str(e)})

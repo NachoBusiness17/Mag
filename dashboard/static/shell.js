@@ -3,6 +3,76 @@
   let editor = null;
   let currentPath = "";
   let streamAbort = null;
+  const TRACE_MAX = 36;
+  const TRACE_LINE_MAX = 200;
+  let traceLines = [];
+
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function isVerbose() {
+    const el = document.getElementById("agentVerbose");
+    return el ? el.checked : true;
+  }
+
+  function formatTrace(ev) {
+    if (ev.type === "phase") {
+      const r = ev.round ? ` [${ev.round}]` : "";
+      return { text: `${ev.phase || "phase"}${r}: ${ev.detail || ""}`, cls: "trace-phase" };
+    }
+    if (ev.type === "tool") {
+      if (ev.status === "start") {
+        return { text: `→ ${ev.name}(${ev.args || "…"})`, cls: "trace-tool" };
+      }
+      const mark = ev.status === "fail" || ev.status === "blocked" ? "✗" : "✓";
+      const cls = ev.status === "fail" || ev.status === "blocked" ? "trace-fail" : "trace-tool";
+      const tail = ev.preview ? ` — ${ev.preview}` : "";
+      return { text: `${mark} ${ev.name}${tail}`, cls };
+    }
+    if (ev.type === "trace") {
+      return { text: ev.line || "", cls: "trace-note" };
+    }
+    return null;
+  }
+
+  function pushTrace(ev) {
+    if (!isVerbose()) return;
+    const row = formatTrace(ev);
+    if (!row || !row.text) return;
+    traceLines.push({ text: row.text.slice(0, TRACE_LINE_MAX), cls: row.cls });
+    if (traceLines.length > TRACE_MAX) traceLines.shift();
+    renderTrace();
+    const st = ev.type === "tool" && ev.status === "start"
+      ? `Tool: ${ev.name}`
+      : ev.type === "phase" && ev.detail
+        ? ev.detail.slice(0, 48)
+        : null;
+    if (st) setAgentStatus(st);
+  }
+
+  function renderTrace() {
+    const wrap = document.getElementById("agentTraceWrap");
+    const el = document.getElementById("agentTrace");
+    if (!wrap || !el) return;
+    if (!isVerbose()) {
+      wrap.classList.add("hidden");
+      return;
+    }
+    wrap.classList.remove("hidden");
+    el.innerHTML = traceLines.length
+      ? traceLines.map((r) => `<div class="trace-line ${r.cls}">${esc(r.text)}</div>`).join("")
+      : `<div class="trace-line trace-note">Waiting for turn…</div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearTrace() {
+    traceLines = [];
+    renderTrace();
+  }
 
   const QUICK = [
     { label: "Context pack", path: "memory/context_pack_latest.md" },
@@ -109,6 +179,8 @@
     runBtn.disabled = true;
     stopBtn.disabled = false;
     setAgentStatus(`Running (${provider})…`);
+    clearTrace();
+    pushTrace({ type: "phase", phase: "start", detail: `Goal sent · ${provider}` });
 
     const ac = new AbortController();
     streamAbort = ac;
@@ -162,10 +234,8 @@
           if (ev.type === "delta" && typeof ev.text === "string") {
             acc += ev.text;
             paintReply();
-          } else if (ev.type === "tool") {
-            acc += `\n[tool ${ev.name}]\n`;
-            setAgentStatus(`Tool: ${ev.name || "…"}`);
-            paintReply();
+          } else if (ev.type === "phase" || ev.type === "tool" || ev.type === "trace") {
+            pushTrace(ev);
           } else if (ev.type === "error") {
             throw new Error(ev.error || "stream error");
           } else if (ev.type === "done") {
@@ -175,6 +245,7 @@
               out.textContent += `\n\n— ${ev.tools.length} tool step(s) —`;
             }
             setAgentStatus("Done");
+            pushTrace({ type: "phase", phase: "done", detail: "Turn complete" });
           }
         }
       }
@@ -246,6 +317,7 @@
       runAgent();
     }
   });
+  document.getElementById("agentVerbose")?.addEventListener("change", renderTrace);
   document.getElementById("btnCopyPack").addEventListener("click", copyPack);
   document.getElementById("btnAutopilot").addEventListener("click", runAutopilot);
 })();
