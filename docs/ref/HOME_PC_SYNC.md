@@ -45,6 +45,15 @@ scripts\home_sync.cmd cursor\mesh-comm-research-e2ce
 6. `.\mag.cmd doctor` (or `.\mag.ps1 doctor`)  
 7. `.\mag.cmd context-pack --mode janitor`  
 
+Optional — full mesh integration pass for local agent:
+
+```powershell
+scripts\mesh_comm_deep_dive.cmd
+.\mag.cmd agent --provider deepseek
+```
+
+See `docs/ref/MESH_LOCAL_AGENT.md`.
+
 ---
 
 ## Manual (only if script fails)
