@@ -10,6 +10,8 @@
 
 Strike desk (`sovereign-mirror-scaffold` :8743) is **optional analysis** of Mag data structures. Mag brand lives here on **:8765**.
 
+**Full project proposal (alpha → v2 → v3):** [docs/ref/MAG_PROJECT_PROPOSAL.md](docs/ref/MAG_PROJECT_PROPOSAL.md)
+
 ## Dashboard (Body · Pulse · Days · Chat)
 
 ```powershell

@@ -491,6 +491,7 @@ python main.py autorun
 
 | Doc | Role in v2 |
 |-----|------------|
+| **`MAG_PROJECT_PROPOSAL.md`** | **Full project proposal — where we are, where we're going (alpha → v2 → v3)** |
 | `MAG_v2_PLAN.md` (this) | Roadmap + phases + acceptance |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Master agent/operator queue |
 | `AGENTIC_LANDSCAPE_2026.md` | Industry steals mapped to Mag |

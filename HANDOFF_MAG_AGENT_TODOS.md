@@ -4,7 +4,7 @@
 **As-of:** 2026-08-05  
 **Job:** Single operational handoff for agents, autorun, and human operator — merges roadmap, open PRs, Verkle audit, agentic steals, and abandoned work.
 
-**Activation:** `python main.py verkle-audit --full` · `docs/ref/MAG_v2_PLAN.md` · this file.
+**Activation:** `python main.py verkle-audit --full` · `docs/ref/MAG_v2_PLAN.md` · **`docs/ref/MAG_PROJECT_PROPOSAL.md`** · this file.
 
 > **Note:** Referenced as `\workspace\HANDOFF_MAG_AGENT_TODOS.md` on Windows home PC — same file at repo root.
 
