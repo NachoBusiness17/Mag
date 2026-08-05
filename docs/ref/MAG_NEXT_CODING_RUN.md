@@ -179,6 +179,8 @@ Priority order — **one subsystem per PR slice:**
 
 **C1–C7 shipped on branch `cursor/v3-deepseek-run-e2ce`** (2026-08-05): orchestrator lifecycle, grove REST, spider→switchboard, switchboard_status, DeepSeek run scripts.
 
+**Wave 1 shipped on branch `cursor/v3-deepseek-run-e2ce`:** `pack mode` on context_pack + `--mode janitor` default path for ask/steward; `steward-scope` job + CLI.
+
 **Explicitly defer (not this run):**
 
 - Mobile `voice/turn` API (v3-013)
