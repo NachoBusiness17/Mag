@@ -88,6 +88,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | **Multi-seat build** | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` · `docs/ref/BUILD-TEMPLATE.md` |
 | **Mobile voice** | `docs/ref/MAG_MOBILE_VOICE_SPEC.md` |
 | **Jones agent fleet** | `docs/ref/JONES_AGENT_FLEET_PACK.md` · `docs/ref/MAG_AGENT_ERROR_CATALOG.md` |
+| **LLM onboarding (paste pack)** | **`docs/ref/MAG_LLM_FEED_PACK.md`** — GitHub links + system prompts |
 | **Ponytail / Caveman skills** | `docs/ref/PONYTAIL_CAVEMAN_SKILLS.md` · `python main.py skill-seat` |
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
