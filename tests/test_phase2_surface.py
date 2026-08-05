@@ -11,7 +11,8 @@ def test_unified_seat_feed_shape():
     assert isinstance(res.get("entries"), list)
 
 
-def test_drainer_pref_toggle():
+def test_drainer_pref_toggle(monkeypatch):
+    monkeypatch.delenv("MAG_DRAINER", raising=False)
     set_drainer(False)
     assert drainer_enabled() is False
     set_drainer(True)

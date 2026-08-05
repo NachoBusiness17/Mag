@@ -369,6 +369,15 @@ def main(argv: list[str] | None = None) -> int:
     p_auto.add_argument("--no-governor", action="store_true", help="skip governor cycle")
     p_auto.add_argument("--drain", action="store_true", help="drain once after queue")
     p_auto.add_argument("--max-queue", type=int, default=2, help="max improve tickets to queue")
+    p_autorun = sub.add_parser(
+        "autorun",
+        help="Intelligent autorun: fill queue, route, drain DeepSeek jobs (drainer loop)",
+    )
+    p_autorun.add_argument("--once", action="store_true", help="single tick then exit")
+    p_autorun.add_argument("--dry", action="store_true", help="plan only, no execute")
+    p_autorun.add_argument("--no-fill", action="store_true", help="skip queue fill")
+    p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
+    p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval seconds")
     p_sg = sub.add_parser(
         "seat-guard",
         help="Supervise the seat REPL: relaunch on crash/glitch/stall/hard-stop",
@@ -1958,6 +1967,21 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(_json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "autorun":
+        from mag.governor_autorun import main as autorun_main
+
+        argv: list[str] = []
+        if getattr(args, "once", False):
+            argv.append("--once")
+        if getattr(args, "dry", False):
+            argv.append("--dry")
+        if getattr(args, "no_fill", False):
+            argv.append("--no-fill")
+        if getattr(args, "fill_only", False):
+            argv.append("--fill-only")
+        if getattr(args, "interval", None):
+            argv.extend(["--interval", str(args.interval)])
+        return autorun_main(argv)
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)

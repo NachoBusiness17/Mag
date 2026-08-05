@@ -164,7 +164,7 @@ def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, di
 def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Toggle autonomy prefs or broadcast steer to chat + running workers."""
     from mag.governance import broadcast_steer
-    from mag.preferences import set_drainer, set_inject_behavioral_pack
+    from mag.preferences import set_drainer, set_inject_behavioral_pack, set_operator_active
 
     data = body or {}
     if "steer" in data or data.get("cmd"):
@@ -176,6 +176,9 @@ def h_post_governance(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
     if "drainer" in data:
         set_drainer(bool(data["drainer"]))
         out["drainer"] = True
+    if "operator_active" in data:
+        set_operator_active(bool(data["operator_active"]))
+        out["operator_active"] = True
     if "inject_behavioral_pack" in data:
         set_inject_behavioral_pack(bool(data["inject_behavioral_pack"]))
         out["inject_behavioral_pack"] = True
