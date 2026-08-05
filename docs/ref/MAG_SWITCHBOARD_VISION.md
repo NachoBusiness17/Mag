@@ -1,9 +1,35 @@
 # Mag Switchboard — telepathic operator mesh (v3-014)
 
-**Status:** Research → pilot  
+**Status:** Research → pilot (v3 **planning** — not a new expensive seat)  
 **Module:** `mag/switchboard.py`  
 **CLI:** `python main.py switchboard status|mesh|peers|reap|drop|route`  
 **Trail:** `memory/runs/switchboard_trail.jsonl`
+
+---
+
+## Why (v3 planning · token economy)
+
+v3 is **not** “more AI.” It is **cheaper coordination**: local harness code tells
+**dumb agents** (janitor, autorun children, seat-guard loops) *where to go*,
+*what phase they're in*, and *what tiny context slice they need* — so frontier
+seats (Grok, DeepSeek, Cursor) fire only when the router says they must.
+
+| Layer | Pays API? | Job |
+|-------|-----------|-----|
+| Switchboard / conductor / spider | **No** | Mesh, route, steer, reap — set directions |
+| Ollama janitor | **~$0** | Classify, pack, scut, echo resonance |
+| DeepSeek / agent children | **L2** | Build when frozen spec exists |
+| Grok / Cursor | **Scarce** | Plan freeze · audit hands |
+
+**Token bleed prevented:** orphan re-spawns, wrong-seat loops, full-pack re-pastes,
+and “smart model figures it out” autoruns. The switchboard is the **PBX** that
+keeps dumb workers on-script via `steer_drop` (tier-bounded spooky context) instead
+of starting a new chat thread.
+
+```text
+Plan locally (0$) → freeze spec on disk → point dumb builder at file → audit once.
+Chat is heat. Directions on disk are law.
+```
 
 ---
 

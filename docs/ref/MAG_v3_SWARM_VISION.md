@@ -258,8 +258,9 @@ Spec: `docs/ref/LAYMAN_OFFICE_VISION.md`
 | Cursor | Audit, your hands when coding | 15–25% audit |
 | Conductor | Local routing — no API $ | 0 API |
 | Spider | Rule tick — no API $ | 0 API |
+| Switchboard | Mesh + tier drops — no API $ | 0 API |
 
-**Bleed guard:** janitor first · consultant scarce · frozen spec before build · audit before merge.
+**Bleed guard:** janitor first · consultant scarce · frozen spec before build · audit before merge · **local directions before dumb agent spawn**.
 
 ---
 
@@ -271,6 +272,7 @@ Spec: `docs/ref/LAYMAN_OFFICE_VISION.md`
 | Resonance + L0e pack | `mag/resonance.py` + `context_pack.py` | research wired |
 | Spider Phase 0 | `mag/spider.py` | research CLI |
 | Conductor overlay | `mag/conductor.py` | research CLI |
+| Switchboard mesh | `mag/switchboard.py` | research CLI — dumb-agent directions, 0 API |
 | Grove builder | `mag/grove.py` | research CLI |
 | REST grove endpoint | `dashboard/rest.py` | not yet |
 | Layman layout JSON | `memory/operator/dashboard_layout.json` | not yet |
