@@ -221,6 +221,128 @@ outcome:
 
 ---
 
+## Seat economics map (estimate → actual → value)
+
+**Goal:** Internal map of **real cost per platform** and **value per outcome** — not billing truth, but honest operator economics for routing.
+
+### What exists (substrate)
+
+| Store | Contents |
+|-------|----------|
+| `logs/provider_usage.jsonl` | Actual prompt/completion tokens per API call |
+| `logs/quota_state.json` | Period rollups (calls, tokens) |
+| `logs/usage.jsonl` | Lane-level chat / L0 events |
+| `configs/cost_rates.yaml` | Operator **estimates** (USD per M tokens) |
+| `cost_simulator` | Pre-blast wave planning |
+
+**Gap:** No join from **route estimate at enqueue** → **actual at terminal** → **outcome** (knot / test / PR). Estimates never calibrate; value never scored.
+
+### v4 ledger: `cost_ledger.v1`
+
+Append-only: `memory/training/cost_ledger.jsonl` (or extend `training/events` with pattern `seat_economics`).
+
+```yaml
+schema: cost_ledger.v1
+join:
+  queue_id: ""
+  task_id: ""
+  session_id: ""
+estimate:
+  task_estimate.v1: { depth, phase, context_need_tokens, price_band_usd, seat, model }
+actual:
+  prompt_tokens: 0
+  completion_tokens: 0
+  usd_est: 0.0          # actual tokens × cost_rates at time of call
+  usd_fixed: 0.0        # cursor fixed_per_call, etc.
+  calls: 1
+outcome:
+  success: true
+  leaf_kind: knot | test | pr | none
+  waste_kind: ok | plan_theater | agent_churn | null
+value:
+  usd_per_leaf: null    # usd_est / 1 if leaf landed
+  estimate_error: 0.0   # (actual - est) / max(est, ε)
+  seat_efficient: true  # label: could janitor have done it?
+platform:
+  provider: deepseek
+  model: deepseek-chat
+  seat: agent
+```
+
+**Emit:** at task terminal (orchestrator reconcile) — one row per completed queue item.
+
+### Calibrated platform map
+
+Rolling file (recomputed weekly, not hot path): `memory/improve/seat_economics_map.json`
+
+```yaml
+schema: seat_economics_map.v1
+platforms:
+  ollama:
+    n_samples: 120
+    median_usd_per_1k_out: 0.0
+    p90_tokens_per_scut: 800
+    value_score: high        # $0 + high success on scut depth
+  deepseek:
+    median_usd_per_build: 0.04
+    estimate_error_median: 0.18
+    best_for: [heavy_code, build]
+  grok:
+    median_usd_per_plan: 0.12
+    best_for: [plan, priority]
+    waste_rate_when_misrouted: 0.35   # plan jobs sent to grok without outcome
+  cursor:
+    fixed_per_run: 0.50
+    best_for: [audit, multi-file]
+routing_hints:
+  - if depth=scut and ollama.budget_ok → never deepseek
+  - if estimate_error_median > 0.4 for seat → widen pack thin mode
+  - if usd_per_leaf > threshold → improve candidate for batch/defer
+```
+
+**Calibration:** `cost_rates.yaml` stays operator-editable **prior**; map **posterior** updates medians from ledger. Promote gate to change routing hints derived from map.
+
+### Maximize value (routing policy)
+
+Value = **outcome quality / all-in USD**, not cheapest tokens.
+
+| Signal | Action |
+|--------|--------|
+| scut + low context_need | Ollama (value ∞ at $0) |
+| build + high context_need | DeepSeek if window fits; else thin pack |
+| plan + `[priority]` | Grok TUI / pack only — never blind enqueue |
+| audit / multi-file | Cursor fixed cost amortized over large diff |
+| estimate ≪ actual repeatedly | FKB-style `estimate_miss` pattern → adjust heuristics |
+| high USD, no leaf | `agent_churn` + downgrade seat on retry |
+
+**Training label:** `seat_efficient` — human or heuristic: “could janitor have done it cheaper with same outcome?”
+
+### Eval cases (economics)
+
+1. Scut goal routed Ollama → leaf in <2k tokens → `seat_efficient: true`, usd ≈ 0  
+2. Same scut sent DeepSeek → ledger flags waste if outcome identical  
+3. Build job: estimate $0.03, actual $0.08 → `estimate_error` filed; map n_samples++  
+4. Grok auto-run without leaf → high waste_rate, conductor refuses next time  
+5. Cursor audit: fixed $0.15 + 0 marginal → value if audit JSON lands  
+
+### Office target (economics one-liner)
+
+> *Today: $0.42 API · 94% janitor · 2 leaves/$0.08 · worst miss: deepseek +180% est*
+
+### Build order (economics — after loop D4)
+
+| Order | Deliverable |
+|-------|-------------|
+| E1 | `task_estimate.v1` on `route.v2` |
+| E2 | `cost_ledger.v1` emit at queue terminal |
+| E3 | `seat_economics_map.json` weekly rollup script |
+| E4 | Dashboard / pack bond: platform value summary |
+| E5 | `estimate_miss` in `training_patterns.yaml` |
+
+**Four questions:** pattern `seat_economics` · eval cases above · join keys queue/task/session · auto route / promote for hint changes.
+
+---
+
 ## Next build order (when leaving planning)
 
 | Order | Deliverable | Seat |
