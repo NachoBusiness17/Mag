@@ -96,19 +96,35 @@
     }
   }
 
+  function setAgentStatus(text) {
+    const el = document.getElementById("agentStatus");
+    if (el) el.textContent = text || "Ready";
+  }
+
   async function streamAgent(goal, provider) {
     const out = document.getElementById("agentOut");
     const stopBtn = document.getElementById("btnAgentStop");
     const runBtn = document.getElementById("btnAgentRun");
-    out.textContent = "";
-    out.classList.add("streaming");
+    out?.classList.add("streaming");
     runBtn.disabled = true;
     stopBtn.disabled = false;
+    setAgentStatus(`Running (${provider})…`);
 
     const ac = new AbortController();
     streamAbort = ac;
 
     let acc = "";
+    let turnPrefix = "";
+    if (out) {
+      const prior = out.textContent && !out.textContent.startsWith("Ready") ? out.textContent + "\n\n" : "";
+      turnPrefix = prior + "You: " + goal + "\n\nMag: ";
+      out.textContent = turnPrefix;
+    }
+    function paintReply() {
+      if (!out) return;
+      out.textContent = (turnPrefix + acc).slice(-80000);
+      out.scrollTop = out.scrollHeight;
+    }
     try {
       const res = await fetch("/api/v1/agent/stream", {
         method: "POST",
@@ -145,38 +161,49 @@
           }
           if (ev.type === "delta" && typeof ev.text === "string") {
             acc += ev.text;
-            out.textContent = acc.slice(-50000);
-            out.scrollTop = out.scrollHeight;
+            paintReply();
           } else if (ev.type === "tool") {
             acc += `\n[tool ${ev.name}]\n`;
-            out.textContent = acc.slice(-50000);
+            setAgentStatus(`Tool: ${ev.name || "…"}`);
+            paintReply();
           } else if (ev.type === "error") {
             throw new Error(ev.error || "stream error");
           } else if (ev.type === "done") {
             acc = ev.answer || acc;
-            out.textContent = acc.slice(-50000);
-            if (ev.tools && ev.tools.length) {
-              out.textContent += `\n\n— tools: ${ev.tools.length} —`;
+            paintReply();
+            if (ev.tools && ev.tools.length && out) {
+              out.textContent += `\n\n— ${ev.tools.length} tool step(s) —`;
             }
+            setAgentStatus("Done");
           }
         }
       }
     } catch (e) {
       if (e.name !== "AbortError") {
-        out.textContent = (acc ? acc + "\n\n" : "") + "Error: " + (e.message || e);
+        acc += "\n\nError: " + (e.message || e);
+        paintReply();
+        setAgentStatus("Error");
+      } else {
+        setAgentStatus("Stopped");
       }
     } finally {
-      out.classList.remove("streaming");
+      out?.classList.remove("streaming");
       runBtn.disabled = false;
       stopBtn.disabled = true;
       streamAbort = null;
+      if (document.getElementById("agentStatus")?.textContent?.startsWith("Running")) {
+        setAgentStatus("Ready");
+      }
     }
   }
 
   async function runAgent() {
-    const goal = document.getElementById("agentGoal").value.trim();
+    const input = document.getElementById("agentGoal");
+    const goal = input?.value.trim();
     if (!goal) return;
+    if (input) input.value = "";
     await streamAgent(goal, document.getElementById("agentProvider").value);
+    input?.focus();
   }
 
   function stopAgent() {
@@ -204,6 +231,7 @@
     });
     renderQuickFiles();
     loadTree("docs/ref");
+    document.getElementById("agentGoal")?.focus();
   });
 
   document.getElementById("btnTreeDocs").addEventListener("click", () => loadTree("docs/ref"));
@@ -212,6 +240,12 @@
   document.getElementById("btnSave").addEventListener("click", saveFile);
   document.getElementById("btnAgentRun").addEventListener("click", runAgent);
   document.getElementById("btnAgentStop").addEventListener("click", stopAgent);
+  document.getElementById("agentGoal")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      runAgent();
+    }
+  });
   document.getElementById("btnCopyPack").addEventListener("click", copyPack);
   document.getElementById("btnAutopilot").addEventListener("click", runAutopilot);
 })();

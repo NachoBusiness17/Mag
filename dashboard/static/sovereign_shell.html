@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mag Sovereign Shell</title>
-  <link rel="stylesheet" href="/static/shell.css?v=3" />
+  <link rel="stylesheet" href="/static/shell.css?v=4" />
 </head>
 <body>
   <header class="top">
@@ -39,27 +39,38 @@
       <p class="fidelity mono" id="fidelityNote">Artifact path appears above when a file is open.</p>
     </main>
     <aside class="agent-pane">
-      <div class="pane-head">Mag agent</div>
-      <p class="muted sm">Tool loop — streams to panel below (plain text, low RAM). Prefer this over dashboard Chat for long runs.</p>
-      <textarea id="agentGoal" rows="5" placeholder="One goal: read INTEGRATION_BRIEF.md and file a wire list to docs/ref/spores/…"></textarea>
-      <div class="row">
-        <select id="agentProvider">
-          <option value="deepseek">DeepSeek</option>
-          <option value="ollama">Ollama local</option>
-        </select>
-        <button type="button" id="btnAgentRun">Run turn</button>
-        <button type="button" id="btnAgentStop" disabled>Stop</button>
+      <div class="agent-head">
+        <div class="pane-head">Mag agent</div>
+        <button type="button" class="btn ghost btn-sm" id="btnCopyPack" title="Copy context pack">Copy pack</button>
       </div>
-      <pre id="agentOut" class="agent-out">Ready.</pre>
-      <div class="row">
-        <button type="button" id="btnCopyPack">Copy context pack</button>
+      <div class="agent-transcript" id="agentOut" aria-live="polite">Ready — ask below. Output streams here (plain text, low RAM).</div>
+      <div class="agent-compose">
+        <textarea id="agentGoal" rows="3" placeholder="Message Mag…  Enter send · Shift+Enter newline"></textarea>
+        <div class="compose-bar">
+          <div class="compose-hints">
+            <span class="hint-key">Enter</span> send
+            <span class="hint-sep">·</span>
+            <span class="hint-key">Shift+Enter</span> newline
+          </div>
+          <div class="compose-actions">
+            <span class="muted sm" id="agentStatus">Ready</span>
+            <select id="agentProvider" title="Provider">
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">Ollama local</option>
+            </select>
+            <button type="button" class="btn ghost" id="btnAgentStop" disabled>Stop</button>
+            <button type="button" class="btn primary" id="btnAgentRun">Send</button>
+          </div>
+        </div>
       </div>
-      <div class="pane-head" style="margin-top:1rem">Autopilot</div>
-      <button type="button" id="btnAutopilot">Run once (improve + governor)</button>
-      <pre id="autopilotOut" class="agent-out small"></pre>
+      <details class="agent-autopilot">
+        <summary class="muted sm">Autopilot (improve + governor)</summary>
+        <button type="button" class="btn ghost btn-sm" id="btnAutopilot">Run once</button>
+        <pre id="autopilotOut" class="agent-out small"></pre>
+      </details>
     </aside>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/static/shell.js?v=3"></script>
+  <script src="/static/shell.js?v=4"></script>
 </body>
 </html>
