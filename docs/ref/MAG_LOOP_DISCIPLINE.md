@@ -2,7 +2,8 @@
 
 **As-of:** 2026-08-05  
 **CLI:** `python main.py loop-audit`  
-**Parents:** `MAG_BEHAVIORAL_COMPOUNDING.md` · `verkle_audit` · `governor_autorun`
+**Parents:** `MAG_BEHAVIORAL_COMPOUNDING.md` · `verkle_audit` · `governor_autorun`  
+**v4 planning:** `docs/ref/MAG_V4_CONDUCTOR_LOOP_DRAFT.md` · `configs/training_patterns.yaml` (draft)
 
 ---
 
