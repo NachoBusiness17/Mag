@@ -3,7 +3,8 @@
 **Status:** Planning only — no auto-promote, no silent config mutation  
 **As-of:** 2026-08-05  
 **Commitment:** `mag-v4-conductor-loop-001`  
-**Parents:** `MAG_LOOP_DISCIPLINE.md` · `MAG_BEHAVIORAL_COMPOUNDING.md` · `MAG_TRAINING_DATA_SPEC.md`
+**Parents:** `MAG_LOOP_DISCIPLINE.md` · `MAG_BEHAVIORAL_COMPOUNDING.md` · `MAG_TRAINING_DATA_SPEC.md`  
+**Related:** `MAG_LOCAL_STEWARD.md` (janitor jobs, Verkle read, actor memory)
 
 **Read when:** feeding Grok / DeepSeek / Cursor a frozen BUILD spec for loop auto-handling.
 
@@ -352,6 +353,7 @@ Value = **outcome quality / all-in USD**, not cheapest tokens.
 | 3 | Conductor `pause_fill` on plan_theater error | Cursor RUN row |
 | 4 | Config hash snapshot (silent mutation) | v4.1 |
 | 5 | Office card: loop health one-liner | dashboard |
+| 6 | E1–E2 seat economics ledger | see Seat economics map § |
 
 ---
 

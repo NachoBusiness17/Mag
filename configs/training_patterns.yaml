@@ -147,6 +147,21 @@ eval_cases:
   - id: eval-009
     pattern: phase_correct
     fixture: plan_depth_not_queued
-  - id: eval-010
-    pattern: ok
-    fixture: batch_backfill_one_knot_delta
+  estimate_miss:
+    description: Actual cost or tokens far above route estimate
+    trail_rule: estimate_error > 0.5 and leaf landed
+    min_count: 3
+    join_keys: [queue_id, task_id]
+    waste_kind: ok
+    conductor_hint: Widen thin pack or prefer janitor for similar goals
+    action_tier: draft
+    eval_case: eval-economics-003
+
+  steward_job:
+    description: Local janitor curator job completed or failed
+    trail_rule: goal starts with [steward]
+    min_count: 1
+    join_keys: [session_id, queue_id]
+    conductor_hint: One leaf per steward job; no REPL
+    action_tier: auto
+    eval_case: eval-steward-001
