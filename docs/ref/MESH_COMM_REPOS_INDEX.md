@@ -77,14 +77,19 @@ Shallow clone (`--depth 1`); re-run to `git pull` existing dirs.
 ## ILAP scout commands
 
 ```powershell
+./scripts/mesh_comm_ilap_run.sh   # full pipeline — pull, steal, pack, improve, smoke, events
+```
+
+Manual slices:
+
+```powershell
 ./scripts/pull_mesh_comm_repos.sh
 mag.cmd improve --once
 mag.cmd research-pack --ask "Bitchat dual transport routing contract" --url "https://github.com/permissionlesstech/bitchat"
-# After clone locally:
 python main.py field-steal --root mine/raw/mesh_comm/permissionlesstech/bitchat --max-files 30
 ```
 
-File FEATURE_COMPOSE cards → `memory/improve/evals/features/`.
+Spores (filed): `docs/ref/spores/mesh/` · ILAP: `docs/ref/proposals/ILAP-mesh-steal-001.md`
 
 ---
 
