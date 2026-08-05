@@ -60,16 +60,14 @@
   <nav class="cli-dock sticky-chrome" aria-label="primary doors">
     <button type="button" class="dock-btn on" data-win="home" title="Where you were, are, and go next">Office</button>
     <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
-    <button type="button" class="dock-btn" data-win="ideas" title="What you still hold — primary board for Mag as OS">Ideas</button>
-    <button type="button" class="dock-btn" data-win="chat" title="Ask Mag from filed memory">Chat</button>
-    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Status</button>
-    <button type="button" class="dock-btn dock-more-toggle" id="btnDockMore" title="Diary, Story, Pulse, Canvas">More ▾</button>
-    <button type="button" class="dock-btn dock-depth hidden" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
-    <button type="button" class="dock-btn dock-depth hidden" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
-    <button type="button" class="dock-btn dock-depth hidden" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
-    <button type="button" class="dock-btn dock-depth hidden" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
-    <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
-    <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
+    <button type="button" class="dock-btn" data-win="chat" title="Simple ask over filed memory">Chat</button>
+    <button type="button" class="dock-btn" data-win="status" title="Is Mag OK? Seats, overnight, governance">Status</button>
+    <button type="button" class="dock-btn dock-more-toggle" id="btnDockMore" title="Diary, Story, Ideas (next), Pulse">More ▾</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="diary" title="Day-by-day story">Diary</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="story" title="Thesis + v1 witness spine">Story</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="ideas" title="Topic board — next iteration">Ideas</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="chronicle" title="Activity pulse">Pulse</button>
+    <a class="dock-btn" href="/shell" title="Files + agent tools (preferred for long runs)">Shell</a>
   </nav>
   <div class="desk" id="desk">
 
@@ -216,36 +214,39 @@
 <div class="chat-shell">
           <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
             <div>
-              <strong>Chat with Mag</strong>
-              <span class="muted" style="font-size:0.95rem"> · one desk · pack stays local · brain = seat below</span>
+              <strong>Chat</strong>
+              <span class="muted" style="font-size:0.95rem"> · simple Ask over filed memory</span>
             </div>
             <div class="row" style="margin:0;align-items:center;gap:0.4rem">
+              <a class="btn primary" href="/shell" target="_blank" rel="noopener" title="Files + streaming agent — use for tools">Open Shell</a>
               <label class="muted" for="chatProvider" style="font-size:0.85rem">Seat</label>
               <select id="chatProvider" title="Where compute runs" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem">
-                <option value="deepseek" selected>DeepSeek (API)</option>
-                <option value="local">Local (Ollama)</option>
+                <option value="local" selected>Local (Ollama)</option>
+                <option value="deepseek">DeepSeek (API)</option>
                 <option value="openrouter">OpenRouter</option>
-                <option value="gemini">Gemini</option>
-                <option value="xai">xAI API</option>
                 <option value="auto">Auto dispatch</option>
               </select>
-              <button type="button" class="btn chat-mode-btn on" data-mode="agent" id="chatModeAgent" title="DeepSeek + Mag tools — when Grok is empty">Agent</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="ask" id="chatModeAsk">Ask</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
-              <button type="button" class="btn ghost" id="btnCopyPack" title="Copy Mag pack for DeepSeek web">Copy pack</button>
-              <button type="button" class="btn ghost" id="btnAgentReset" title="Reset agent tool session + pack">Reset agent</button>
+              <button type="button" class="btn chat-mode-btn on" data-mode="ask" id="chatModeAsk">Ask</button>
+              <button type="button" class="btn ghost chat-mode-btn" data-mode="agent" id="chatModeAgent" title="Heavy — prefer Shell">Agent</button>
+              <details class="chat-adv-inline" style="display:inline-block">
+                <summary class="btn ghost" style="cursor:pointer;list-style:none">More modes</summary>
+                <span style="display:inline-flex;gap:0.35rem;margin-left:0.35rem">
+                  <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
+                  <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
+                </span>
+              </details>
+              <button type="button" class="btn ghost" id="btnCopyPack" title="Copy Mag pack">Copy pack</button>
               <button type="button" class="btn ghost" id="btnChatClear">Clear</button>
             </div>
           </div>
           <p class="help-bar" style="margin:0;border-radius:0;border-left:0;border-right:0">
-            <strong>Agent</strong> = Grok-like tools on Mag disk (DeepSeek brain, multi-line paste in box).
-            <strong>Ask/Dispatch</strong> = talk only. <strong>Copy pack</strong> = DeepSeek web. No Grok tokens.
+            <strong>Ask</strong> = biographer over briefs/bonds (fast, local). <strong>Shell</strong> = file tree + streaming agent (tools, low RAM).
+            Long tool loops belong in Shell, not here.
           </p>
 
           <div class="economy-bar" id="economyBar" style="padding:0.45rem 1rem;font-size:0.95rem;color:var(--muted);border-bottom:1px solid var(--line)">
-            <span id="economyGoal">Local spend vs full Grok dump</span>
-            Â· <b id="econLocal">0</b> local Â· <b id="econSaved">0</b> saved Â· <span id="econTurns">0 turns</span>
+            <span id="economyGoal">Local spend vs full remote dump</span>
+            · <b id="econLocal">0</b> local · <b id="econSaved">0</b> saved · <span id="econTurns">0 turns</span>
             <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
           </div>
           <div class="chat-chips" id="chatChips" style="padding:0.5rem 1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
@@ -826,31 +827,25 @@
         <section id="panel-ideas" class="panel pane-pad ideas-os">
           <header class="ideas-hero">
             <div class="ideas-hero-copy">
-              <p class="ideas-kicker">Primary board · Mag as operating system</p>
-              <h2 class="pane-h">Your unfinished business — written down</h2>
+              <p class="ideas-kicker">Next iteration · not ready yet</p>
+              <h2 class="pane-h">Ideas board — coming back when it earns a seat</h2>
               <p class="ideas-lead">
-                <strong>Days</strong> remembers what you worked on.
-                <strong>Ideas</strong> remembers what you still care about after the day ends.
-                This board is where Mag (and later your own model) should look first — not the whole chat history.
+                The topic board (<code>memory/ideas/</code>) exists on disk but this UI is not trustworthy yet.
+                Use <strong>Office</strong> for what is open now, <strong>Days</strong> for filed work, and
+                <strong><a href="/shell">Sovereign Shell</a></strong> for agent work on files.
               </p>
             </div>
             <div class="ideas-hero-actions">
-              <button type="button" class="btn ghost" id="btnIdeasRefresh" title="Reload the board from disk">Reload</button>
-              <button type="button" class="btn primary" id="btnIdeasSeed" title="Import open items from your working notes">Pull from my notes</button>
+              <a class="btn primary" href="/shell" target="_blank" rel="noopener">Open Shell</a>
+              <button type="button" class="btn ghost" id="btnIdeasRefresh" title="Peek at raw board data">Peek board</button>
             </div>
           </header>
 
-          <ol class="ideas-howto" aria-label="How to use this board">
-            <li><span class="howto-n">1</span><span><b>Pick one card</b> on the left — one open thread, not everything.</span></li>
-            <li><span class="howto-n">2</span><span><b>Read the brief</b> on the right — a short note Mag can trust.</span></li>
-            <li><span class="howto-n">3</span><span><b>Hand it to Chat</b> (or copy it) so the model works that thread only.</span></li>
-          </ol>
-
           <div class="ideas-why" role="note">
             <p>
-              Why this exists: chat forgets and invents priorities.
-              Cards on this board live as files on your machine.
-              The eventual model-as-OS should <em>operate on this board</em> — find a card, brief itself, act, then mark it done — not re-read your whole life every time.
+              <strong>Why hidden from the main dock:</strong> cards load but the handoff to Chat/Shell is brittle.
+              v3 will wire one card → one brief → one agent run with paths visible.
+              Until then, peek below if you need the raw graph — do not treat it as primary navigation.
             </p>
           </div>
 
@@ -896,13 +891,19 @@
     </div>
 
     <div class="win" data-win="status" id="win-status">
-      <div class="win-titlebar"><span class="win-title">Body — seats, workers &amp; governance</span></div>
+      <div class="win-titlebar"><span class="win-title">Status — is Mag OK?</span></div>
       <div class="win-body">
         <section id="panel-status" class="panel status-panel pane-pad">
+          <article class="card full" id="statusLaymanCard">
+            <h2>At a glance</h2>
+            <p class="title" id="statusLaymanHeadline">Loading…</p>
+            <ul id="statusLaymanList" class="signal-list"></ul>
+            <p class="muted sm" id="statusArtifactNote">Every claim above links to a file on disk — expand sections below for detail.</p>
+          </article>
           <div class="pane-head">
             <div>
-              <h2 class="pane-h">Body</h2>
-              <p class="muted pane-sub" id="statusHeadline">Who is plugged in, what is running, what Mag can call.</p>
+              <h2 class="pane-h">Status</h2>
+              <p class="muted pane-sub" id="statusHeadline">Seats, overnight work, and what Mag can call.</p>
               <p class="muted sm" id="statusOfficeHeadline"></p>
               <p class="honesty-note" id="statusHonesty"></p>
               <div class="row" id="statusPills" style="margin-top:0.45rem;flex-wrap:wrap;gap:0.35rem"></div>
@@ -913,7 +914,7 @@
               <button type="button" class="btn primary" id="btnPowerStart" title="Boot supervisor + dashboard">Turn on</button>
               <button type="button" class="btn ghost" id="btnStatusCatchUp">Catch up</button>
               <button type="button" class="btn ghost" id="btnStatusReload">Reload</button>
-              <button type="button" class="btn ghost" id="btnOpenWorkers">Workers tab</button>
+              <a class="btn ghost" href="/static/agents.html" target="_blank" rel="noopener" title="Orchestrator fleet — advanced">Workers (advanced)</a>
             </div>
           </div>
           <article class="card full" id="powerCard">
@@ -1119,6 +1120,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=tesuji33"></script>
-  <script src="/static/app.js?v=canvas-viewports-v1"></script>
+  <script src="/static/app.js?v=dashboard-d0-v5"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@ TEXT_SUFFIXES = {
     ".md", ".txt", ".json", ".jsonl", ".yaml", ".yml", ".py", ".js", ".css",
     ".html", ".cmd", ".ps1", ".sh", ".toml", ".mdc", ".rhai",
 }
-SKIP_DIRS = {".git", ".venv", "__pycache__", "node_modules", ".cursor"}
+SKIP_DIRS = {".git", ".venv", "__pycache__", "node_modules", ".cursor", "agent_sessions"}
 
 
 def _safe_rel(rel: str) -> Path | None:
@@ -44,6 +44,8 @@ def list_tree(rel: str = "", *, max_depth: int = 2, max_entries: int = 400) -> d
             if len(entries) >= max_entries:
                 break
             if p.name.startswith(".") and p.name not in {".cursor"}:
+                continue
+            if p.is_file() and p.name.startswith("orc-") and p.suffix == ".json":
                 continue
             if p.is_dir() and p.name in SKIP_DIRS:
                 continue

@@ -4,22 +4,29 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mag Sovereign Shell</title>
-  <link rel="stylesheet" href="/static/shell.css?v=1" />
+  <link rel="stylesheet" href="/static/shell.css?v=3" />
 </head>
 <body>
   <header class="top">
     <strong>Mag Sovereign Shell</strong>
-    <span class="muted">own the chrome · Mag owns the boundary</span>
+    <span class="muted">files on disk = truth · agent writes artifacts, not chat scroll</span>
     <nav>
-      <a href="/" target="_blank">Office :8765</a>
-      <a href="http://127.0.0.1:8743/" target="_blank">Mirror :8743</a>
+      <a href="/" target="_blank">Office</a>
+      <a href="/#chat" target="_blank">Chat (simple)</a>
     </nav>
   </header>
   <div class="layout">
     <aside class="tree-pane">
-      <div class="pane-head">
-        <button type="button" id="btnTreeRoot">memory/</button>
-        <button type="button" id="btnTreeMag">.</button>
+      <div class="pane-head">Files (Mag root)</div>
+      <div class="help-box">
+        Open a file, edit, save. Agent reads/writes under this repo — same engine as <code>mag.cmd agent</code>.
+      </div>
+      <div class="quick-files" id="quickFiles"></div>
+      <div class="pane-head">Browse</div>
+      <div class="row">
+        <button type="button" id="btnTreeDocs">docs/ref</button>
+        <button type="button" id="btnTreeMemory">memory</button>
+        <button type="button" id="btnTreeQueue">queue</button>
       </div>
       <ul id="fileTree" class="tree"></ul>
     </aside>
@@ -29,25 +36,30 @@
         <button type="button" id="btnSave" disabled>Save</button>
       </div>
       <div id="editor" class="editor"></div>
+      <p class="fidelity mono" id="fidelityNote">Artifact path appears above when a file is open.</p>
     </main>
     <aside class="agent-pane">
       <div class="pane-head">Mag agent</div>
-      <p class="muted sm">Tool loop via your backend — same engine as DeepSeek CLI.</p>
-      <textarea id="agentGoal" rows="4" placeholder="Goal for Mag agent…"></textarea>
+      <p class="muted sm">Tool loop — streams to panel below (plain text, low RAM). Prefer this over dashboard Chat for long runs.</p>
+      <textarea id="agentGoal" rows="5" placeholder="One goal: read INTEGRATION_BRIEF.md and file a wire list to docs/ref/spores/…"></textarea>
       <div class="row">
         <select id="agentProvider">
           <option value="deepseek">DeepSeek</option>
           <option value="ollama">Ollama local</option>
         </select>
         <button type="button" id="btnAgentRun">Run turn</button>
+        <button type="button" id="btnAgentStop" disabled>Stop</button>
       </div>
       <pre id="agentOut" class="agent-out">Ready.</pre>
+      <div class="row">
+        <button type="button" id="btnCopyPack">Copy context pack</button>
+      </div>
       <div class="pane-head" style="margin-top:1rem">Autopilot</div>
       <button type="button" id="btnAutopilot">Run once (improve + governor)</button>
       <pre id="autopilotOut" class="agent-out small"></pre>
     </aside>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/static/shell.js?v=1"></script>
+  <script src="/static/shell.js?v=3"></script>
 </body>
 </html>

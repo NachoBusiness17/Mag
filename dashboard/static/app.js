@@ -894,8 +894,11 @@ async function loadHome() {
 
 /* --- Chat-first home --- */
 const CHAT_KEY = "mag_chat_v1";
-let chatMode = "agent"; // agent | ask | dispatch | tangent
+const CHAT_HISTORY_MAX = 24;
+const CHAT_MSG_MAX_CHARS = 6000;
+let chatMode = "ask"; // ask default — agent/tools → Sovereign Shell
 let chatBusy = false;
+let chatPendingEl = null;
 const AGENT_SESSION = "dashboard";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
@@ -982,14 +985,14 @@ function loadChatHistory() {
   try {
     const raw = localStorage.getItem(CHAT_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.slice(-80) : [];
+    return Array.isArray(arr) ? arr.slice(-CHAT_HISTORY_MAX) : [];
   } catch {
     return [];
   }
 }
 
 function saveChatHistory(msgs) {
-  localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-80)));
+  localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-CHAT_HISTORY_MAX)));
 }
 
 async function refreshEconomy() {
@@ -1121,10 +1124,12 @@ function renderChat() {
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> = DeepSeek + Mag tools (Grok-like hands, no Grok tokens) · <b>Ask/Dispatch</b> = talk only · <b>Copy pack</b> for DeepSeek web · paste multi-line in the box.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Simple chat</b> — local Ask over your filed memory (briefs, bonds, pack).<br/><br/>
+      <b>For tools + file edits</b> use <a href="/shell" target="_blank" rel="noopener">Sovereign Shell</a> — same agent engine, streams plain text (won't crash Chrome).</div>`;
     return;
   }
   log.innerHTML = msgs
+    .filter((m) => m.meta !== "pending")
     .map((m) => {
       const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
       const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
@@ -1135,14 +1140,56 @@ function renderChat() {
           m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
           `</div>`;
       }
+      const raw = (m.text || "").slice(0, CHAT_MSG_MAX_CHARS);
       const body =
         role === "mag" || role === "sys"
-          ? lightMd(m.text || "")
-          : esc(m.text || "").replace(/\n/g, "<br/>");
+          ? lightMd(raw)
+          : esc(raw).replace(/\n/g, "<br/>");
       return `<div class="chat-msg ${role}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
     })
     .join("");
+  if (chatPendingEl && chatPendingEl.parentNode === log) {
+    log.appendChild(chatPendingEl);
+  }
   log.scrollTop = log.scrollHeight;
+}
+
+function beginPendingBubble() {
+  const log = $("#chatLog");
+  if (!log) return;
+  if (chatPendingEl) chatPendingEl.remove();
+  chatPendingEl = document.createElement("div");
+  chatPendingEl.className = "chat-msg mag pending";
+  chatPendingEl.innerHTML = `<span class="meta">thinking…</span><div class="chat-body">…</div>`;
+  log.appendChild(chatPendingEl);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updatePendingBubble(text) {
+  if (!chatPendingEl) beginPendingBubble();
+  const body = chatPendingEl?.querySelector(".chat-body");
+  if (body) {
+    body.textContent = (text || "…").slice(-CHAT_MSG_MAX_CHARS);
+    const log = $("#chatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+function endPendingBubble(finalText, meta, tools) {
+  if (chatPendingEl) {
+    chatPendingEl.remove();
+    chatPendingEl = null;
+  }
+  const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
+  msgs.push({
+    role: "mag",
+    text: (finalText || "").slice(0, CHAT_MSG_MAX_CHARS),
+    meta: meta || "",
+    tools: tools || null,
+    ts: Date.now(),
+  });
+  saveChatHistory(msgs);
+  renderChat();
 }
 
 function pushChat(role, text, meta, tools) {
@@ -1480,15 +1527,7 @@ async function sendChat() {
   renderComposeAttach();
   pushChat("user", userShow, `${chatMode} · ${seat}`);
   if ($("#chatStatus")) $("#chatStatus").textContent = `Thinking (${seat})…`;
-  const pending = { role: "mag", text: "…", meta: "pending", ts: Date.now() };
-  const hist = loadChatHistory();
-  hist.push(pending);
-  saveChatHistory(hist);
-  renderChat();
-  // mark last as pending visually
-  const log = $("#chatLog");
-  const last = log?.lastElementChild;
-  if (last) last.classList.add("pending");
+  beginPendingBubble();
 
   try {
     let text = "";
@@ -1496,25 +1535,18 @@ async function sendChat() {
     let tools = null;
     if (chatMode === "agent") {
       const provider = isRemoteSeat(seat) ? seat : seat === "local" ? "ollama" : "deepseek";
-      // Live streaming window: update the pending bubble as deltas arrive.
       let acc = "";
-      const updatePending = (delta) => {
-        acc += delta;
-        const msgs = loadChatHistory();
-        const p = msgs.find((m) => m.meta === "pending");
-        if (p) {
-          p.text = acc || "…";
-          saveChatHistory(msgs);
-          renderChat();
-        }
-      };
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
-        updatePending
+        (delta) => {
+          acc += delta;
+          updatePendingBubble(acc);
+        }
       );
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
-      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length} · live`;
+      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length}`;
+      endPendingBubble(text, meta, tools);
     } else if (chatMode === "tangent") {
       const res = await postJSON("/api/v1/tangent", {
         prompt: q,
@@ -1530,6 +1562,7 @@ async function sendChat() {
         (r.summary || res.error || JSON.stringify(res).slice(0, 600)) +
         `\n\n_File:_ \`${r.path || "memory/tangents/latest.md"}\`\n` +
         `_Elevate to Grok only if useful — pack path, not full chat._`;
+      endPendingBubble(text, meta, null);
     } else if (chatMode === "dispatch" || isRemoteSeat(seat) || (chatMode === "ask" && seat !== "local")) {
       // Remote seats always dispatch pack-first with seat=remote (must hit real API).
       const body = { goal: q };
@@ -1554,6 +1587,7 @@ async function sendChat() {
       if (res.economy_last) {
         meta += ` · saved ~${res.economy_last.tokens_saved ?? "?"} tok`;
       }
+      endPendingBubble(text, meta, null);
     } else {
       const res = await postJSON("/api/v1/ask", { question: q, use_llm: true });
       text = res.answer || res.error || JSON.stringify(res, null, 2);
@@ -1562,24 +1596,13 @@ async function sendChat() {
       meta =
         res.ok === false
           ? "ask · fail"
-          : `ask · L0 · 0 Grok · ~${last.local_tokens ?? "?"} local · ~${last.tokens_saved ?? "?"} saved · ${nsrc} sources`;
+          : `ask · L0 · ${nsrc} sources · memory/briefs`;
+      endPendingBubble(text, meta, null);
     }
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({ role: "mag", text, meta, tools: tools || null, ts: Date.now() });
-    saveChatHistory(msgs);
-    renderChat();
     refreshEconomy();
     refreshChatQuota();
   } catch (e) {
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({
-      role: "mag",
-      text: String(e.message || e),
-      meta: "error",
-      ts: Date.now(),
-    });
-    saveChatHistory(msgs);
-    renderChat();
+    endPendingBubble(String(e.message || e), "error", null);
   } finally {
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
@@ -2871,9 +2894,25 @@ async function patchIdeaStatus(status) {
   }
 }
 
+const IDEAS_BOARD_ENABLED = false; // v3 — honest placeholder until card→brief→agent handoff ships
+let ideasPeekMode = false;
+
 async function loadIdeas() {
   const list = $("#ideasList");
   const stats = $("#ideasStats");
+  if (!IDEAS_BOARD_ENABLED && !ideasPeekMode) {
+    if (stats) {
+      stats.innerHTML = `
+        <div class="stat"><b>—</b><span>board paused</span></div>
+        <div class="stat"><b>v3</b><span>next iteration</span></div>`;
+    }
+    if (list) {
+      list.innerHTML = `<p class="muted empty-hint">Ideas UI is parked for v3. Files still live under <code>memory/ideas/</code>. Use Shell or Office bonds for open threads today.</p>`;
+    }
+    const pack = $("#ideasPack");
+    if (pack) pack.textContent = "Board peek disabled — click “Peek board” after v3 ships.";
+    return;
+  }
   try {
     let d = await getJSON(`${API}/ideas`);
     ideasCache = d.nodes || [];
@@ -3936,6 +3975,76 @@ async function loadStatus() {
   const ingestList = $("#ingestUrlList");
   const ingestSum = $("#ingestSummary");
   const officeHead = $("#statusOfficeHeadline");
+  const layHead = $("#statusLaymanHeadline");
+  const layList = $("#statusLaymanList");
+
+  function populateStatusLayman(h, router) {
+    if (!layHead || !layList) return;
+    const ship = h.ship || {};
+    const health = h.health || {};
+    const ar = h.autorun || {};
+    const tip = h.tip || {};
+    const prov = h.provenance || {};
+    const mem = router.memory || {};
+    const conns = router.connections || [];
+    const live = conns.filter((c) => c.live);
+    const remoteLive = live.filter((c) => !c.local);
+    const hints = ar.hints || {};
+
+    const shipOk = ship.status === "OK";
+    const ollamaOk = !!health.ollama;
+    const stale = !!health.live_stale;
+
+    if (!shipOk) layHead.textContent = "Mag needs attention — ship is not OK";
+    else if (stale) layHead.textContent = "Memory is stale — run catch-up";
+    else if (ar.state === "active") layHead.textContent = "Mag is working away in the background";
+    else if (!ollamaOk) layHead.textContent = "Local brain (Ollama) is off";
+    else layHead.textContent = "Mag looks OK";
+
+    const rows = [
+      {
+        tone: shipOk ? "ok" : "warn",
+        label: `Ship: ${ship.status || "unknown"}`,
+        path: ship.why?.length ? "see Ship section below" : "residual + registry on disk",
+      },
+      {
+        tone: ollamaOk ? "ok" : "warn",
+        label: `Ollama (local janitor): ${ollamaOk ? "ON" : "OFF"}`,
+        path: "configs/providers.yaml · http://127.0.0.1:11434",
+      },
+      {
+        tone: ar.state === "active" ? "ok" : ar.state === "queued" ? "warn" : "",
+        label: `Overnight autorun: ${ar.headline || ar.state || "unknown"}`,
+        path: hints.trail_autorun || "memory/runs/governor_autorun_trail.jsonl",
+      },
+      {
+        tone: live.length ? "ok" : "warn",
+        label: `${live.length} live route(s) · ${remoteLive.length} remote API seat(s)`,
+        path: "configs/providers.yaml",
+      },
+      {
+        tone: "",
+        label: `${mem.sessions_filed ?? "—"} workdays filed · ${mem.idea_open ?? "—"} idea cards open`,
+        path: "registry.jsonl · memory/ideas/",
+      },
+      {
+        tone: stale ? "warn" : "ok",
+        label: stale ? "Live memory stale — catch-up recommended" : "Live memory fresh",
+        path: prov.residual_rel || prov.pack_rel || "memory/briefs/latest.md",
+      },
+      {
+        tone: "",
+        label: `Tip: ${tip.root_short || "—"} (${tip.n_leaves ?? "?"} leaves)`,
+        path: "memory/verkle_tip.json",
+      },
+    ];
+    layList.innerHTML = rows
+      .map(
+        (r) =>
+          `<li class="${esc(r.tone || "muted")}"><strong>${esc(r.label)}</strong><br/><code class="mono sm">${esc(r.path)}</code></li>`
+      )
+      .join("");
+  }
 
   try {
     await loadPowerPanel();
@@ -3954,6 +4063,7 @@ async function loadStatus() {
     if (officeHead) {
       officeHead.textContent = seatsReg?.headline || router.headline || "";
     }
+    populateStatusLayman(h, router);
     if (honesty) {
       const hnote = seatsReg?.honesty?.layman || router.honesty;
       honesty.textContent =
@@ -4169,6 +4279,8 @@ const recent = ingest.recent_urls || [];
     }
   } catch (e) {
     if (head) head.textContent = "Router status failed";
+    if (layHead) layHead.textContent = "Could not load status";
+    if (layList) layList.innerHTML = `<li class="warn">${esc(e.message || e)}</li>`;
     if (connHost) connHost.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
     kvRows(body, [["Error", e.message || e]]);
   }
@@ -5171,7 +5283,13 @@ async function bind() {
     if (selectedId) openSessionVisual(selectedId);
     else setTab("visual");
   });
-  $("#btnIdeasRefresh")?.addEventListener("click", () => loadIdeas());
+  $("#btnIdeasRefresh")?.addEventListener("click", () => {
+    if (!IDEAS_BOARD_ENABLED) {
+      ideasPeekMode = !ideasPeekMode;
+      toast(ideasPeekMode ? "Peeking raw board (experimental)" : "Board peek off");
+    }
+    loadIdeas();
+  });
   $("#btnIdeasSeed")?.addEventListener("click", () => seedIdeas());
   $("#btnIdeaDone")?.addEventListener("click", () => patchIdeaStatus("done"));
   $("#btnIdeaShelf")?.addEventListener("click", () => patchIdeaStatus("held"));
@@ -5243,7 +5361,7 @@ async function bind() {
     }
     toast("Pack loaded into Chat compose");
   });
-  setChatMode("agent");
+  setChatMode("ask");
   renderChat();
   $("#btnChatSend")?.addEventListener("click", () => sendChat());
   $("#btnSteer")?.addEventListener("click", () => sendSteer());

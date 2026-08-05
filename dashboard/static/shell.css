@@ -1,3 +1,4 @@
+/* Mag Sovereign Shell — Tier 4 chrome (refined) */
 :root {
   --bg: #0d1117;
   --panel: #161b22;
@@ -5,6 +6,7 @@
   --ink: #e6edf3;
   --muted: #8b949e;
   --accent: #58a6ff;
+  --ok: #3fb950;
   --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 * { box-sizing: border-box; }
@@ -24,16 +26,18 @@ body {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
+  flex-wrap: wrap;
 }
-.top nav { margin-left: auto; display: flex; gap: 0.75rem; }
-.top a { color: var(--accent); font-size: 0.85rem; }
+.top nav { margin-left: auto; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.top a { color: var(--accent); font-size: 0.85rem; text-decoration: none; }
+.top a:hover { text-decoration: underline; }
 .muted { color: var(--muted); }
 .sm { font-size: 0.8rem; }
 .mono { font-family: var(--mono); font-size: 0.78rem; }
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 220px 1fr 320px;
+  grid-template-columns: 240px 1fr 340px;
   min-height: 0;
 }
 .tree-pane, .agent-pane {
@@ -44,8 +48,25 @@ body {
 }
 .agent-pane { border-right: 0; border-left: 1px solid var(--line); }
 .pane-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.5rem; }
+.help-box {
+  font-size: 0.78rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+}
+.quick-files { margin: 0.35rem 0 0.75rem; }
+.quick-files button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+}
 .tree { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
-.tree li { padding: 0.2rem 0; cursor: pointer; }
+.tree li { padding: 0.2rem 0; cursor: pointer; word-break: break-all; }
 .tree li:hover { color: var(--accent); }
 .tree .dir { color: var(--muted); }
 .editor-pane { display: flex; flex-direction: column; min-height: 0; }
@@ -66,8 +87,9 @@ button, select, textarea {
   font-size: 0.85rem;
   padding: 0.35rem 0.55rem;
   border-radius: 4px;
+  cursor: pointer;
 }
-button:disabled { opacity: 0.4; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
 textarea { width: 100%; resize: vertical; }
 .agent-out {
   background: var(--bg);
@@ -75,9 +97,12 @@ textarea { width: 100%; resize: vertical; }
   padding: 0.5rem;
   font-family: var(--mono);
   font-size: 0.72rem;
-  max-height: 14rem;
+  max-height: 22rem;
   overflow: auto;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 .agent-out.small { max-height: 8rem; }
-.row { display: flex; gap: 0.4rem; margin: 0.4rem 0; }
+.agent-out.streaming { border-color: var(--ok); }
+.row { display: flex; gap: 0.4rem; margin: 0.4rem 0; flex-wrap: wrap; }
+.fidelity { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }

@@ -78,13 +78,13 @@ These map to **COLD + VIEWPORT** — the v3 base.
 Status strip: ship · health · refresh · catch-up (when needed)
 
 Dock CORE (always):
-  Office · Days · Ideas · Chat · Status
+  Office · Days · Chat · Status · Shell (link)
 
 Dock MORE (one click):
-  Diary · Story · Pulse · Canvas
+  Diary · Story · Ideas (next iteration) · Pulse
 
 External (links):
-  Workers · Shell
+  Workers (advanced) · Shell
 ```
 
 **Demoted forever (expert only):** Board, Brief, Flow, Models, Blast, Lattice, Ingest — Body → Lab instruments.
@@ -126,11 +126,20 @@ Every load of `/api/v1/home` must answer in 30 seconds:
 ### RUN D0 — Dashboard trust (this PR)
 
 - [x] Plan doc (this file)
-- [ ] UTF-8 fix in index.html
-- [ ] Workers button fix
-- [ ] Autorun on Office + home API
-- [ ] Dock More toggle (core 5 + expand)
-- [ ] Bump static cache query (`?v=`)
+- [x] UTF-8 fix in index.html
+- [x] Workers button fix → link to agents.html (advanced only)
+- [x] Autorun on Office + home API
+- [x] Dock More toggle (core 4 + expand)
+- [x] Bump static cache query (`?v=`)
+
+### RUN D0.5 — Layman fidelity + Shell-as-chat (this PR)
+
+- [x] Chat RAM fix — pending bubble streams plain text, no full `renderChat` per delta
+- [x] Chat default mode **Ask** (Agent → prefer Shell)
+- [x] Ideas demoted to More with honest “next iteration” placeholder
+- [x] Status **At a glance** layman block with artifact paths
+- [x] Sovereign Shell refined — curated tree (skip `orc-*.json`), SSE streaming, quick files
+- [x] Workers removed from dock — Status link only
 
 ### RUN D1 — Office complete (after v2 merge #8–#10)
 
@@ -161,8 +170,11 @@ Every load of `/api/v1/home` must answer in 30 seconds:
 # Browser: http://127.0.0.1:8765/
 # Office loads without "API failed"
 # Autorun card shows drainer state
-# More → Diary/Story visible
-# Workers opens agents page
+# More → Diary/Story/Ideas visible
+# Chat Ask mode default; Shell link prominent
+# Status → At a glance with file paths
+# Shell: http://127.0.0.1:8765/shell — no hundreds of orc- files in tree
+# Workers opens agents page (Status tab only)
 
 .\mag.cmd doctor
 python scripts/routing_smoke.py
