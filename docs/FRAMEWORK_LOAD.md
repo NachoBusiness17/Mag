@@ -84,7 +84,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | Role | Files |
 |------|-------|
 | **Implementer** | `docs/ref/MAG_v2_PLAN.md` · `configs/modules.yaml` |
-| **Research / v3** | `docs/ref/MAG_v3_RESEARCH_PLAN.md` · `docs/ref/MAG_v3_BACKLOG.md` |
+| **Research / v3** | `docs/ref/MAG_v3_RESEARCH_PLAN.md` · `docs/ref/MAG_v3_BACKLOG.md` · **`docs/ref/MAG_v3_SWARM_VISION.md`** |
 | **Multi-seat build** | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` · `docs/ref/BUILD-TEMPLATE.md` |
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
@@ -201,7 +201,7 @@ FKB       fail → remedy → score (mistake memory)
 verkle    audit → gaps → enqueue (history honesty)
 ```
 
-v3 research (not built yet): resonance · spider · L-conductor · riddle packs — see `MAG_v3_BACKLOG.md`.
+v3 research (scaffold on branch): resonance · spider · conductor · grove — see `MAG_v3_SWARM_VISION.md` · `python main.py v3-status`
 
 ---
 
@@ -248,6 +248,7 @@ Chat dies. Files persist.
 | Agent rules | `AGENTS.md` |
 | v2 roadmap | `docs/ref/MAG_v2_PLAN.md` |
 | v3 research | `docs/ref/MAG_v3_RESEARCH_PLAN.md` |
+| v3 swarm vision | `docs/ref/MAG_v3_SWARM_VISION.md` |
 | v3 ideas list | `docs/ref/MAG_v3_BACKLOG.md` |
 | Ops queue | `HANDOFF_MAG_AGENT_TODOS.md` |
 | Build factory | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` |

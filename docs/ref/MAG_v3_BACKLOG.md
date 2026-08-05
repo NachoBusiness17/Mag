@@ -63,7 +63,7 @@ Copy this block. ID = `v3-NNN`.
 
 **Intent:** Museum of competence behind the office — not RPG XP.  
 **Spec:** `docs/ref/LAYMAN_OFFICE_VISION.md` §4  
-**Status:** idea
+**Status:** research (CLI: `main.py grove-build`)
 
 ---
 
@@ -135,7 +135,7 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 
 **Intent:** Conductor reads trails; learns orchestration economics; frontier models stay specialists.
 
-**Status:** research (see `MAG_v3_RESEARCH_PLAN.md` §0.1)
+**Status:** research (CLI: `main.py conductor`) — see `MAG_v3_RESEARCH_PLAN.md` §0.1
 
 ---
 
@@ -149,7 +149,7 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 **Depends:** v2 context-pack · chord_lens · improve scout  
 **Loop:** resonance
 
-**Status:** research
+**Status:** research (CLI: `main.py resonance`)
 
 ---
 
@@ -162,7 +162,7 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 **Depends:** v2 orchestrator · pigeonhole · FKB  
 **Loop:** spider
 
-**Status:** research
+**Status:** research (CLI: `main.py spider`)
 
 ---
 
@@ -201,7 +201,7 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 **Depends:** none  
 **Loop:** meta (documents improve, autorun, FKB, verkle, v3 loops)
 
-**Status:** idea (this doc is partial fulfillment)
+**Status:** spec (`mag/loops_registry.py` · `main.py v3-status`)
 
 ---
 

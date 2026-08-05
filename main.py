@@ -869,6 +869,44 @@ def main(argv: list[str] | None = None) -> int:
         help="Ponytail ladder scan — over-engineering only, not correctness",
     )
 
+    p_v3 = sub.add_parser(
+        "v3-status",
+        help="v3 loop registry + research module health",
+    )
+    p_v3.add_argument("--json", action="store_true", help="JSON output")
+
+    p_spider = sub.add_parser(
+        "spider",
+        help="v3 meta-supervisor tick (rule Phase 0)",
+    )
+    p_spider.add_argument("--once", action="store_true", help="Single tick then exit")
+    p_spider.add_argument("--dry", action="store_true", help="No steer injection")
+    p_spider.add_argument("--inject", action="store_true", help="Post steer to stalled tasks")
+
+    p_res = sub.add_parser(
+        "resonance",
+        help="v3 corpus lens — soil echoes into pack L0e",
+    )
+    p_res.add_argument("--tick", action="store_true", help="Score and optionally FILE findings")
+    p_res.add_argument("--dry", action="store_true", help="No writes")
+    p_res.add_argument("--goal", default="", help="Goal hint for scoring")
+
+    p_cond = sub.add_parser(
+        "conductor",
+        help="v3 orchestration overlay on route.v2",
+    )
+    p_cond.add_argument("goal", nargs="?", default="", help="Goal to route")
+    p_cond.add_argument("--dry", action="store_true", help="No trail write")
+    p_cond.add_argument("--json", action="store_true", help="JSON output")
+
+    p_grove = sub.add_parser(
+        "grove-build",
+        help="v3 Tesuji Grove — scan remedies/skills → poem nodes",
+    )
+    p_grove.add_argument("--dry", action="store_true", help="Plan only; no writes")
+    p_grove.add_argument("--list", action="store_true", help="List recent nodes")
+    p_grove.add_argument("--json", action="store_true", help="JSON output")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1331,6 +1369,65 @@ def main(argv: list[str] | None = None) -> int:
         res = run_audit(hints=True)
         print(format_report(res))
         return 0
+    if args.cmd == "v3-status":
+        from mag.loops_registry import build_registry, format_registry_text
+
+        reg = build_registry()
+        if getattr(args, "json", False):
+            print(json.dumps(reg, indent=2, default=str))
+        else:
+            print(format_registry_text(reg))
+        return 0
+    if args.cmd == "spider":
+        from mag.spider import tick
+
+        res = tick(dry=bool(getattr(args, "dry", False)), inject=bool(getattr(args, "inject", False)))
+        print(json.dumps(res, indent=2, default=str)[:12000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "resonance":
+        from mag.resonance import format_l0e, tick, top_cards
+
+        goal = getattr(args, "goal", "") or ""
+        if getattr(args, "tick", False):
+            res = tick(goal, dry=bool(getattr(args, "dry", False)))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        cards = top_cards(goal, n=5)
+        print(format_l0e(cards) or "(no resonance cards)")
+        return 0
+    if args.cmd == "conductor":
+        from mag.conductor import conduct
+
+        goal = (getattr(args, "goal", None) or "").strip()
+        if not goal:
+            print("Usage: main.py conductor \"goal text\"")
+            return 2
+        res = conduct(goal, dry=bool(getattr(args, "dry", False)))
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str)[:12000])
+        else:
+            route = res.get("route") or {}
+            overlay = res.get("overlay") or {}
+            print(f"phase: {res.get('phase')}")
+            print(f"seat: {route.get('seat')} provider: {route.get('provider')} depth: {route.get('depth')}")
+            print(f"note: {overlay.get('conductor_note', '')}")
+            if overlay.get("case_law_hints"):
+                print("case_law:", "; ".join(overlay["case_law_hints"]))
+        return 0
+    if args.cmd == "grove-build":
+        from mag.grove import build, list_nodes
+
+        if getattr(args, "list", False):
+            nodes = list_nodes()
+            if getattr(args, "json", False):
+                print(json.dumps(nodes, indent=2, default=str)[:12000])
+            else:
+                for n in nodes:
+                    print(f"- [{n.get('kind')}] {n.get('title')}: {n.get('poem', '').replace(chr(10), ' / ')}")
+            return 0
+        res = build(dry=bool(getattr(args, "dry", False)))
+        print(json.dumps(res, indent=2, default=str)[:12000])
+        return 0 if res.get("ok") else 1
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
