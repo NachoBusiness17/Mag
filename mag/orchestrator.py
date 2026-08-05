@@ -39,6 +39,7 @@
 from __future__ import annotations
 import json
 import os
+import shlex
 import subprocess
 import sys
 import threading
@@ -315,10 +316,15 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
                timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
     """Spawn a one-shot sub-agent for a goal. Returns the task record (async).
 
+    Goals prefixed with ``[mag-cmd]`` run a Mag CLI subprocess (L0 janitor jobs)
+    instead of an agent tool loop — e.g. ``[mag-cmd] daily-improve``.
+
     Same-goal dedupe (2026-08-03): if a non-terminal task with the SAME goal
     already exists, refuse to spawn a duplicate and return the existing task
     instead. Prevents the 8-identical-smoke-spawns pattern from session mining.
     """
+    from mag.daily_improve import MAG_CMD_PREFIX
+
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
@@ -331,6 +337,16 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
                 "status": t.get("status"),
             }
     task_id = "t" + uuid.uuid4().hex[:10]
+    if goal.startswith(MAG_CMD_PREFIX):
+        cmd_tail = goal[len(MAG_CMD_PREFIX):].strip()
+        if not cmd_tail:
+            return {"ok": False, "error": "empty mag-cmd"}
+        cmd = [sys.executable, str(ROOT / "main.py"), *shlex.split(cmd_tail)]
+        rec = _spawn_cmd(cmd, task_id=task_id, timeout=timeout, tag=tag or "mag-cmd")
+        rec["ok"] = True
+        rec["goal"] = goal
+        rec["kind"] = "mag-cmd"
+        return rec
     cmd = [sys.executable, str(ROOT / "main.py"), "agent", "--query", goal,
            "--provider", provider]
     if model:
@@ -531,6 +547,17 @@ def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
     tick = 0
     while True:
         try:
+            from mag.daily_improve import maybe_schedule_daily_improve
+
+            scheduled = maybe_schedule_daily_improve()
+            if scheduled:
+                print(
+                    dim("  [daily-improve] enqueued %s" % scheduled.get("queue_id", "?")),
+                    flush=True,
+                )
+        except Exception as e:
+            print(dim("  [daily-improve] schedule error: %s" % e), flush=True)
+        try:
             res = drain_once()
             if res.get("action") in ("started", "spawn_failed"):
                 print(dim("  [queue] %s %s" % (res.get("action"), res.get("detail", ""))), flush=True)
@@ -541,7 +568,13 @@ def drain_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
             try:
                 from mag.autopilot import autopilot_once
 
-                ap = autopilot_once(queue_improve=True, governor=True, drain=False, max_queue=1)
+                ap = autopilot_once(
+                    scout=None,
+                    queue_improve=True,
+                    governor=True,
+                    drain=False,
+                    max_queue=1,
+                )
                 print(dim("  [autopilot] seed=%s steps=%s" % (
                     ap.get("seed_mirror", {}).get("hint", "?")[:60],
                     len(ap.get("steps") or []),

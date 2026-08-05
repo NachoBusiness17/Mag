@@ -1192,7 +1192,7 @@ def h_improve_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int
     body = body or {}
     if "enabled" in body:
         hour = body.get("hour")
-        set_improve_daily(bool(body["enabled"]), hour=int(hour) if hour is not None else None)
+        set_improve_daily(bool(body["enabled"]), hour=int(hour) if hour is not None else None, tz=body.get("tz"))
         st = improve_daily_status()
         return 200, {"ok": True, "improve": st, "hint": st.get("hint")}
 

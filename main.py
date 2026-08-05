@@ -688,6 +688,21 @@ def main(argv: list[str] | None = None) -> int:
         "improve",
         help="Daily improve loop: scout field → candidates → eval (gated promote)",
     )
+    p_daily_imp = sub.add_parser(
+        "daily-improve",
+        help="Orchestrator daily job: L0 scout + queue top tickets for DeepSeek",
+    )
+    p_daily_imp.add_argument(
+        "--max-queue",
+        type=int,
+        default=2,
+        help="Max improve tickets to enqueue for DeepSeek after scout",
+    )
+    p_daily_imp.add_argument(
+        "--no-queue",
+        action="store_true",
+        help="Scout only — do not enqueue DeepSeek follow-ups",
+    )
     p_imp.add_argument(
         "--once",
         action="store_true",
@@ -1721,6 +1736,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.scout and args.eval:
             res = improve_once(dry=args.dry)
         print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "daily-improve":
+        from mag.daily_improve import run_daily_improve
+
+        res = run_daily_improve(
+            max_queue=int(args.max_queue or 2),
+            queue_deepseek=not args.no_queue,
+        )
+        print(json.dumps(res, indent=2, default=str)[:12000])
         return 0 if res.get("ok") else 1
     if args.cmd == "promote":
         from mag.improve import promote_apply, promote_reject

@@ -3787,14 +3787,14 @@ async function syncImprovePanel(router) {
     toggle.checked = !!imp.enabled;
   }
   if (hint) {
-    const hour = imp.hour != null ? `${String(imp.hour).padStart(2, "0")}:00` : "08:00";
-    const due = imp.scout_due_today ? "due today" : "ran today";
-    const n = imp.total_candidates != null ? ` · ${imp.total_candidates} candidates` : "";
-    hint.textContent = imp.last_scout
-      ? `Last scout ${imp.last_scout.slice(0, 19)} (${due})${n}`
-      : imp.enabled
-        ? `Supervisor ~${hour} local when Mag is up`
-        : "No scout yet — run Improve now or enable daily";
+    const slot = imp.slot || (imp.hour != null ? `${String(imp.hour).padStart(2, "0")}:00` : "08:00");
+    const tz = imp.timezone ? ` ${String(imp.timezone).split("/").pop()}` : " ET";
+    const drainer = imp.drainer ? "drainer ON" : "needs drainer";
+    hint.textContent =
+      imp.hint ||
+      (imp.last_scout
+        ? `Last scout ${imp.last_scout.slice(0, 19)} · ${slot}${tz} · ${drainer}`
+        : `${slot}${tz} via orchestrator · ${drainer}`);
   }
   if (briefBtn) {
     briefBtn.disabled = !imp.field_brief;
@@ -3809,7 +3809,7 @@ async function onImproveDailyToggleChange() {
     await postJSON("/api/v1/improve", { enabled: toggle.checked });
     toast(
       toggle.checked
-        ? "Daily improve ON — supervisor replaces Task Scheduler popup"
+        ? "Daily improve ON — 08:00 ET via orchestrator (drainer must be on)"
         : "Daily improve OFF"
     );
     await loadStatus();

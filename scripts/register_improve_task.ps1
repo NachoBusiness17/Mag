@@ -1,4 +1,6 @@
 # Register Windows Task Scheduler job for Mag improve --once (daily 08:00).
+# PREFERRED: Mag orchestrator + drainer (Status tab → daily improve ON, drainer ON).
+# This script remains a fallback when Mag is not running at 08:00 ET.
 #   powershell -ExecutionPolicy Bypass -File scripts\register_improve_task.ps1
 $ErrorActionPreference = "Continue"
 $Root = Split-Path $PSScriptRoot -Parent

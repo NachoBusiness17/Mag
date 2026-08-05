@@ -76,13 +76,16 @@ def set_inject_behavioral_pack(enabled: bool) -> dict:
 
 
 def improve_daily_enabled() -> bool:
-    """Supervisor runs improve --once once per day when dashboard is up."""
+    """Daily improve via orchestrator drainer (default ON; opt-out with env/pref)."""
     env = os.environ.get("MAG_IMPROVE_DAILY", "").strip().lower()
-    if env in ("1", "true", "yes"):
-        return True
     if env in ("0", "false", "no"):
         return False
-    return bool(load_prefs().get("improve_daily"))
+    if env in ("1", "true", "yes"):
+        return True
+    prefs = load_prefs()
+    if "improve_daily" in prefs:
+        return bool(prefs["improve_daily"])
+    return True
 
 
 def improve_daily_hour() -> int:
@@ -94,11 +97,25 @@ def improve_daily_hour() -> int:
     return max(0, min(h, 23))
 
 
-def set_improve_daily(enabled: bool, *, hour: int | None = None) -> dict:
+def improve_daily_tz_name() -> str:
+    env = os.environ.get("MAG_IMPROVE_TZ", "").strip()
+    if env:
+        return env
+    return str(load_prefs().get("improve_daily_tz") or "America/New_York")
+
+
+def set_improve_daily(
+    enabled: bool,
+    *,
+    hour: int | None = None,
+    tz: str | None = None,
+) -> dict:
     prefs = load_prefs()
     prefs["improve_daily"] = bool(enabled)
     if hour is not None:
         prefs["improve_daily_hour"] = max(0, min(int(hour), 23))
+    if tz is not None and tz.strip():
+        prefs["improve_daily_tz"] = tz.strip()
     prefs["updated_at"] = datetime.now(timezone.utc).isoformat()
     save_prefs(prefs)
     return prefs
@@ -106,34 +123,24 @@ def set_improve_daily(enabled: bool, *, hour: int | None = None) -> dict:
 
 def improve_daily_status() -> dict:
     """Dashboard payload: prefs + improve loop residue."""
-    env = os.environ.get("MAG_IMPROVE_DAILY", "").strip().lower()
-    pref = bool(load_prefs().get("improve_daily"))
-    locked = env in ("1", "true", "yes", "0", "false", "no")
-    hour = improve_daily_hour()
     try:
-        from mag.improve import improve_light_status
+        from mag.daily_improve import schedule_status
 
-        loop = improve_light_status()
+        return schedule_status()
     except Exception as e:
-        loop = {"error": str(e)[:200]}
-    enabled = improve_daily_enabled()
-    return {
-        "enabled": enabled,
-        "pref": pref,
-        "hour": hour,
-        "env": env or None,
-        "env_locked": locked,
-        "hint": (
-            "MAG_IMPROVE_DAILY env overrides dashboard toggle"
-            if locked
-            else (
-                f"Supervisor runs improve ~{hour:02d}:00 local when Mag is up"
-                if enabled
-                else "Enable to replace Windows Task Scheduler popup"
-            )
-        ),
-        **loop,
-    }
+        env = os.environ.get("MAG_IMPROVE_DAILY", "").strip().lower()
+        pref = bool(load_prefs().get("improve_daily"))
+        locked = env in ("1", "true", "yes", "0", "false", "no")
+        return {
+            "enabled": improve_daily_enabled(),
+            "pref": pref,
+            "hour": improve_daily_hour(),
+            "timezone": improve_daily_tz_name(),
+            "env": env or None,
+            "env_locked": locked,
+            "error": str(e)[:200],
+            "hint": "Daily improve status unavailable",
+        }
 
 
 def autonomy_status() -> dict:
@@ -141,6 +148,7 @@ def autonomy_status() -> dict:
     return {
         "inject_behavioral_pack": inject_behavioral_pack(),
         "drainer": drainer_enabled(),
+        "improve_daily": improve_daily_enabled(),
         "compass_autonomous_continue": True,
         "note": (
             "Ambiguous input (continue/go) is wrapped by compass — agent decides from blueprint + case law, "
