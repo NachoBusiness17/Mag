@@ -28,7 +28,7 @@ If we skip research and merge PRs blindly, we rebuild switchboard/conductor/impr
 | 3 | PBX mesh / steer drops | Telecom steal, Cursor swarm economics | switchboard (shipped v3) | wire — already coded |
 | 4 | DePIN edge inference | GSTD ai/frontend ARCHITECTURE | v5 gstd-inference seat | defer to v5 ILAP |
 | 5 | Public activation / riddles | X witness spine, v3-010 backlog | spore + T2 surface | research only — no crypto yet |
-| 6 | Mesh offline coordination | Briar/Bitchat pattern (analog) | switchboard + deferred G4 interconnect | steal ops grammar only |
+| 6 | Mesh offline coordination | Briar/Bitchat/Bridgefy clones | switchboard + deferred G4 | research — `pull_mesh_comm_repos.sh` |
 
 ---
 

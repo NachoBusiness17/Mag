@@ -131,6 +131,7 @@ LOAD  →  hand AI a small pack (context-pack), not chat history
 | Queue overnight work | FILE | Add line to `queue/todo.md` · `MAG_DRAINER=1` · `mag.cmd autorun` |
 | Code in Cursor while Mag waits | LOAD | `MAG_OPERATOR_ACTIVE=1` · `launch_cursor_seat.cmd` |
 | Research a public URL | FIND+FILE | `mag.cmd research-pack --ask "…" --url "…"` |
+| **Mesh comm clones (Bitchat/Briar/Bridgefy)** | FIND+FILE | `./scripts/pull_mesh_comm_repos.sh` · `docs/ref/MESH_COMM_REPOS_INDEX.md` |
 | **Aim before big BUILD / version jump** | FIND+FILE | **`docs/ref/MAG_ILAP_PROTOCOL.md`** · template `docs/ref/templates/ILAP-PROPOSAL.md` |
 | Improve Mag itself (gated) | FILE | `mag.cmd improve --once` · human `promote --apply` |
 | Check what failed before | LOAD | `python main.py fkb stats` |

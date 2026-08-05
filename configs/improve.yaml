@@ -18,7 +18,7 @@ budgets:
 # Week rotation (0=Mon … 6=Sun). Extra tier-B source ids for that day.
 rotation:
   0: [github, huggingface, agent_harness]   # Mon — harness/memory
-  1: [reddit, ollama, openclaw]             # Tue — local + OpenClaw
+  1: [reddit, ollama, openclaw, mesh_comm]   # Tue — local + OpenClaw + mesh research
   2: [arxiv, anthropic, openai]             # Wed — papers + labs (bias: process value / TTC / continual / plan search → IJL)
   3: [openrouter, deepseek, xai]            # Thu — routes/prices
   4: [google_adk, vast, agent_harness]      # Fri — multi-agent + harness
@@ -28,6 +28,17 @@ rotation:
 # Always include tier A when not digest-only day
 # agent_memory = HF + OpenClaw + harness essays (regular)
 tier_a_always: [huggingface, reddit, github, arxiv, mag_internal, agent_memory]
+
+# Mesh/offline comm — local clones + index (not live crawl)
+mesh_comm:
+  tier: A
+  kind_hint: transport
+  local_only: true
+  index: docs/ref/MESH_COMM_REPOS_INDEX.md
+  manifest: configs/mesh_comm_repos.yaml
+  pull_script: scripts/pull_mesh_comm_repos.sh
+  clone_root: mine/raw/mesh_comm
+  note: "ILAP + field-steal on clones; Bitchat Bridgefy Briar contracts only"
 
 sources:
   # --- Tier A ---

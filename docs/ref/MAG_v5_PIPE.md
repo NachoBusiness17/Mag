@@ -11,7 +11,7 @@
 
 ## 0. One line
 
-**v5 = Mag trains and routes agents on rented GPU (Vast), optional DePIN inference (GSTD), and XRPL literacy — all via the same seat switchboard, export pipeline, and human promote gate.**
+**v5 = Mag trains and routes agents on rented GPU (Vast), optional DePIN inference (GSTD), optional mesh/offline transport (research forest), and XRPL literacy — all via the same seat switchboard, export pipeline, and human promote gate.**
 
 ---
 
@@ -20,6 +20,7 @@
 | Track | Doc | v5 job | Mag already has |
 |-------|-----|--------|-----------------|
 | **GSTD forest** | `MAG_v5_GSTD_FOREST.md` | MIT DePIN inference + task economy seat | Clones, index, router `vast`/`deepseek` pattern |
+| **Mesh forest** | `MAG_v5_MESH_FOREST.md` | Offline/mesh transport + willing device participation (piped) | `pull_mesh_comm_repos.sh`, ILAP research tags |
 | **Vast training** | `MAG_v5_VAST_TRAINING.md` | Rent GPU → export curriculum → LoRA/SFT → import weights | `providers.yaml` vast, `scripts/vast/`, blast, training events |
 | **XRPL rails** | `MAG_v5_XRPL.md` | Ledger queries + payment hooks via Mag tools (L3 human) | Ingest, tiers, gstd-bridge reference (deferred upstream) |
 

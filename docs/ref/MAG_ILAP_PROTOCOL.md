@@ -92,6 +92,7 @@ The **research agent** is not a new throne. It is **improve scout + research-pac
 | arXiv | `arxiv` feeds cs.AI/CL/LG | A | Paper contracts — plan search, memory, agents |
 | Reddit | `reddit` LocalLLaMA, AI_Agents, ML | A | Practice trends, harness discourse |
 | OpenClaw | `openclaw` docs + Pi | B | Memory promote, dreaming phases |
+| **Mesh comm** | `mesh_comm` local clones | A | Bitchat, Bridgefy, Briar — `pull_mesh_comm_repos.sh` |
 | GitHub | `github` releases + harness repos | A | Runtime contracts |
 | HuggingFace | `huggingface` | A | Model + memory essays |
 | X | witness posts | manual | `research-pack --url` — activation, not soil |
