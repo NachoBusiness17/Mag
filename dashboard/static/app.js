@@ -1582,7 +1582,7 @@ let tapestryReady = null;
 function ensureTapestryModule() {
   if (window.MagTapestry) return Promise.resolve();
   if (tapestryReady) return tapestryReady;
-  tapestryReady = import(`/static/tapestry.js?v=days-v2`).catch((e) => {
+  tapestryReady = import(`/static/tapestry.js?v=days-v3`).catch((e) => {
     console.error(e);
     if ($("#tapCaption")) {
       $("#tapCaption").textContent =
@@ -3805,6 +3805,105 @@ async function onAutopilotOnce() {
   }
 }
 
+async function loadPowerPanel() {
+  const head = $("#powerHeadline");
+  const pills = $("#powerPills");
+  const svc = $("#powerServices");
+  const hint = $("#powerHint");
+  try {
+    const p = await getJSON("/api/v1/power");
+    const hl = p.headline || (p.stack_up ? "UP" : "DOWN");
+    const tone =
+      hl === "UP" ? "ok" : hl === "STOPPED" ? "muted" : hl === "ZOMBIES" ? "warn" : "warn";
+    if (head) {
+      head.textContent = `Stack ${hl}${p.power_off ? " (kill switch engaged)" : ""}`;
+      head.className = `muted sm power-head-${tone}`;
+    }
+    if (pills) {
+      pills.innerHTML = [
+        `<span class="pill ${tone}">${esc(hl)}</span>`,
+        p.power_off ? `<span class="pill warn">OFF flag</span>` : "",
+        p.supervisor?.running ? `<span class="pill ok">supervisor</span>` : `<span class="pill">supervisor off</span>`,
+        (p.fleet?.running || 0) > 0
+          ? `<span class="pill warn">${p.fleet.running} worker(s)</span>`
+          : "",
+        (p.seat_guards_running || 0) > 0
+          ? `<span class="pill warn">${p.seat_guards_running} seat-guard</span>`
+          : "",
+        (p.registered_seats || 0) > 0
+          ? `<span class="pill ok">${p.registered_seats} registered seat(s)</span>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
+    }
+    if (svc) {
+      const sv = p.services || {};
+      kvRows(svc, [
+        ["Backend :8000", sv.backend ? "UP" : "down", sv.backend ? "ok" : "warn"],
+        ["Dashboard :8765", sv.dashboard ? "UP" : "down", sv.dashboard ? "ok" : "warn"],
+        ["Mirror :8743", sv.mirror ? "UP" : "down", sv.mirror ? "ok" : ""],
+        ["Mag processes", String(p.mag_processes ?? "—"), (p.mag_processes || 0) > 3 ? "warn" : ""],
+        ["Fleet running", String(p.fleet?.running ?? 0), (p.fleet?.running || 0) > 0 ? "warn" : ""],
+      ]);
+    }
+    if (hint) {
+      hint.textContent =
+        p.actions?.stop && p.actions?.start
+          ? `CLI: ${p.actions.stop} · ${p.actions.start}`
+          : "mag_kill.cmd to exit · mag_on.cmd to boot";
+    }
+  } catch (e) {
+    if (head) head.textContent = "Power status unavailable (stack may be down)";
+    if (hint) hint.textContent = String(e.message || e);
+  }
+}
+
+async function onImproveCycle() {
+  const btn = $("#btnImproveCycle");
+  if (btn) btn.disabled = true;
+  toast("Improve cycle running…");
+  try {
+    const res = await postJSON("/api/v1/improve/cycle", { source: "dashboard", drain: true, max_improve: 2 });
+    toast(res.ok ? "Improve cycle OK — check Body + Workers" : "Improve cycle incomplete");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Improve cycle failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function onPowerStop() {
+  if (!confirm("Stop entire Mag stack? Dashboard will go down.")) return;
+  const btn = $("#btnPowerStop");
+  if (btn) btn.disabled = true;
+  toast("Kill switch — shutting down…");
+  try {
+    await postJSON("/api/v1/power/stop", {});
+    toast("Stack stopping — window may lose connection");
+  } catch (e) {
+    toast("Stop sent (connection may drop): " + (e.message || e));
+  }
+}
+
+async function onPowerStart() {
+  const btn = $("#btnPowerStart");
+  if (btn) btn.disabled = true;
+  toast("Turning Mag on…");
+  try {
+    const res = await postJSON("/api/v1/power/start", { browser: false });
+    toast(res.ok ? "Stack up — reloading status" : "Start incomplete — check mag_on.cmd");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Start failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function loadStatus() {
   const body = $("#statusBody");
   const spend = $("#statusSpend");
@@ -3821,6 +3920,7 @@ async function loadStatus() {
   const officeHead = $("#statusOfficeHeadline");
 
   try {
+    await loadPowerPanel();
     const [router, h, seatsReg] = await Promise.all([
       getJSON("/api/v1/router-status").catch((e) => ({
         ok: false,
@@ -5059,6 +5159,9 @@ async function bind() {
   $("#btnIdeaShelf")?.addEventListener("click", () => patchIdeaStatus("held"));
   $("#btnIdeaReopen")?.addEventListener("click", () => patchIdeaStatus("open"));
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
+  $("#btnPowerStop")?.addEventListener("click", () => onPowerStop());
+  $("#btnPowerStart")?.addEventListener("click", () => onPowerStart());
+  $("#btnImproveCycle")?.addEventListener("click", () => onImproveCycle());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());

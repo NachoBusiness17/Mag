@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from config import ROOT
+from mag.tapestry_visual import lattice_chain_offset, visual_profile
 
 BIO = ROOT / "memory" / "biography"
 OUT = BIO / "tapestry_pack.json"
@@ -147,6 +148,12 @@ def _subsessions_from_transcript(
                 "x": x + ar * math.cos(a_ang),
                 "y": y + 0.12 * j,
                 "z": z + ar * math.sin(a_ang),
+                "visual": visual_profile(
+                    "subsession",
+                    S=S * 0.45,
+                    chain_index=j,
+                    n_children=len(turns),
+                ),
                 "meta": {
                     "parent": parent_nid,
                     "session_id": session_id,
@@ -207,6 +214,12 @@ def _runs_for_session(
                 "x": x + ar * math.cos(a_ang),
                 "y": y - 0.2 - j * 0.08,
                 "z": z + ar * math.sin(a_ang),
+                "visual": visual_profile(
+                    "run",
+                    S=S * 0.35,
+                    chain_index=j,
+                    n_children=int(run.get("n_tool_calls") or 0),
+                ),
                 "meta": {
                     "parent": parent_nid,
                     "session_id": session_id,
@@ -256,6 +269,7 @@ def _orc_worker_nodes(
         "x": x + ar * math.cos(a_ang),
         "y": y + 0.08 * idx,
         "z": z + ar * math.sin(a_ang),
+        "visual": visual_profile("run", S=S * 0.4, chain_index=idx),
         "meta": {
             "parent": parent_nid,
             "session_id": sid,
@@ -280,11 +294,28 @@ def _lattice_node(
     y: float,
     z: float,
     prev_lattice: str | None,
+    chain_index: int = 0,
+    Q_proxy: float | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Semi-visible Verkle leaf anchor under each day bead."""
     sid = str(reg.get("session_id") or "")
     if not (reg.get("leaf_hash") or reg.get("verkle_filename") or reg.get("leaf_filename")):
         return [], []
+    lx, ly, lz = lattice_chain_offset(chain_index, x=x, y=y, z=z)
+    leaf_seed = str(reg.get("leaf_hash") or reg.get("verkle_filename") or sid)
+    tens = reg.get("tension_index")
+    try:
+        tens_f = float(tens) if tens is not None else None
+    except (TypeError, ValueError):
+        tens_f = None
+    visual = visual_profile(
+        "lattice",
+        tension_index=tens_f,
+        S=-4.5,
+        Q_proxy=Q_proxy,
+        chain_index=chain_index,
+        seed=leaf_seed,
+    )
     lid = f"lattice:{sid[:16]}"
     node = {
         "id": lid,
@@ -293,9 +324,10 @@ def _lattice_node(
         "layer": "lattice",
         "core": False,
         "S": -4.5,
-        "x": x,
-        "y": y - 1.05,
-        "z": z,
+        "x": lx,
+        "y": ly,
+        "z": lz,
+        "visual": visual,
         "meta": {
             "parent": day_nid,
             "session_id": sid,
@@ -338,6 +370,23 @@ def build_tapestry_pack() -> dict[str, Any]:
         r for r in rows if str(r.get("session_id") or "").startswith("mag-agent-orc-")
     ]
     related = _load_related_runs()
+    timeline_by_sid: dict[str, dict[str, Any]] = {}
+    tl_path = BIO / "knot_timeline.jsonl"
+    if tl_path.is_file():
+        try:
+            for line in tl_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                sid_tl = str(row.get("session_id") or "")
+                if sid_tl:
+                    timeline_by_sid[sid_tl] = row
+        except OSError:
+            pass
     n = max(len(primary_rows), 1)
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
@@ -367,6 +416,7 @@ def build_tapestry_pack() -> dict[str, Any]:
             "x": 0.0,
             "y": 0.0,
             "z": 0.0,
+            "visual": visual_profile("root", S=-8.0),
             "meta": {
                 "n_leaves": tip_data.get("n_leaves"),
                 "root": (tip_data.get("root") or "")[:16],
@@ -383,6 +433,7 @@ def build_tapestry_pack() -> dict[str, Any]:
     helix_r = 3.0
     helix_h = 8.0
     prev_lattice: str | None = None
+    lattice_chain_idx = 0
     for i, reg in enumerate(primary_rows):
         sid = reg.get("session_id") or f"s{i}"
         nid = f"day:{sid}"
@@ -393,6 +444,17 @@ def build_tapestry_pack() -> dict[str, Any]:
         z = helix_r * math.sin(ang)
         tens = float(reg.get("tension_index") or 0.5)
         S = -2.0 + 4.0 * min(1.0, max(0.0, tens))
+        tl_row = timeline_by_sid.get(sid) or {}
+        Q_proxy = tl_row.get("Q_proxy")
+        try:
+            Q_proxy_f = float(Q_proxy) if Q_proxy is not None else None
+        except (TypeError, ValueError):
+            Q_proxy_f = None
+        dur = tl_row.get("duration_minutes")
+        try:
+            dur_f = float(dur) if dur is not None else None
+        except (TypeError, ValueError):
+            dur_f = None
         title = reg.get("title") or sid[:12]
         residual = load_residual(sid) or {}
         card = residual.get("session_card") or residual.get("card") or {}
@@ -422,6 +484,13 @@ def build_tapestry_pack() -> dict[str, Any]:
                 "x": x,
                 "y": y,
                 "z": z,
+                "visual": visual_profile(
+                    "session",
+                    tension_index=tens,
+                    S=S,
+                    Q_proxy=Q_proxy_f,
+                    duration_min=dur_f,
+                ),
                 "meta": {
                     "session_id": sid,
                     "blurb": str(blurb)[:240],
@@ -493,6 +562,7 @@ def build_tapestry_pack() -> dict[str, Any]:
                         "x": x + ar * math.cos(a_ang),
                         "y": y + 0.15 * j,
                         "z": z + ar * math.sin(a_ang),
+                        "visual": visual_profile("turn", tension_index=tens, S=S * 0.5),
                         "meta": {
                             "parent": nid,
                             "text": str(ask)[:160],
@@ -516,13 +586,21 @@ def build_tapestry_pack() -> dict[str, Any]:
         n_runs += len(run_n)
 
         lat_n, lat_e = _lattice_node(
-            reg, nid, x=x, y=y, z=z, prev_lattice=prev_lattice
+            reg,
+            nid,
+            x=x,
+            y=y,
+            z=z,
+            prev_lattice=prev_lattice,
+            chain_index=lattice_chain_idx,
+            Q_proxy=Q_proxy_f,
         )
         nodes.extend(lat_n)
         edges.extend(lat_e)
         n_lattice += len(lat_n)
         if lat_n:
             prev_lattice = lat_n[0]["id"]
+            lattice_chain_idx += 1
 
     # Orchestrator workers → sub-beads on nearest primary session (not separate days)
     for oi, orc in enumerate(orc_rows):
@@ -568,6 +646,12 @@ def build_tapestry_pack() -> dict[str, Any]:
                 "x": theme_r * math.cos(ang),
                 "y": -2.2,
                 "z": theme_r * math.sin(ang),
+                "visual": visual_profile(
+                    "theme",
+                    S=S,
+                    n_children=len(by_theme[th]),
+                    core=th in ("mirror_meta", "constitution"),
+                ),
                 "meta": {"n_days": len(by_theme[th])},
             }
         )
@@ -601,6 +685,7 @@ def build_tapestry_pack() -> dict[str, Any]:
                 "x": 7.0 * math.cos(ang),
                 "y": 2.5,
                 "z": 7.0 * math.sin(ang),
+                "visual": visual_profile("doc", S=-3.5),
                 "meta": {"path": path},
             }
         )
@@ -609,17 +694,19 @@ def build_tapestry_pack() -> dict[str, Any]:
         )
 
     pack = {
-        "schema": "mag_tapestry_pack.v2",
+        "schema": "mag_tapestry_pack.v3",
         "engine": "mirror-compatible",
         "note": (
             "Mag residual DNA as explorable graph: day helix, real subsession trees "
-            "from agent_sessions, orchestrator runs as sub-beads, semi-visible Verkle lattice."
+            "from agent_sessions, orchestrator runs as sub-beads, Verkle lattice knots "
+            "with Steiniger temperature visual grammar (ops metaphor)."
         ),
         "ts": datetime.now(timezone.utc).isoformat(),
         "transforms": {
             "days": "helix radius=3 height=8 — primary sessions only (orc workers attach as runs)",
             "subsessions": "radial children from memory/agent_sessions/*.json user turns",
-            "lattice": "ghost beads under each day — verkle leaf chain",
+            "lattice": "torus-knot chain under days — hash-seeded (p,q), micro-helix",
+            "visual": "steiniger_temp → shape/scale; tension_index from residual",
             "themes": "ring radius=5.5 y=-2.2",
             "docs": "outer shell radius=7 y=2.5",
         },

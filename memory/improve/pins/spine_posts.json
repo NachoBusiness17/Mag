@@ -1,0 +1,50 @@
+{
+  "schema": "spine_posts.v1",
+  "commitment": "spine-posts-001",
+  "note": "Public witness + activation grammar. Disk tip is truth; story hash is not disk tip.",
+  "posts": [
+    {
+      "id": "2028342347361141030",
+      "role": "napkin_relic",
+      "when": "2026-03-02",
+      "label": "Fool napkin seed"
+    },
+    {
+      "id": "2062923528932827146",
+      "role": "poc_shape",
+      "when": "2026-06-05",
+      "label": "Public PoC brief"
+    },
+    {
+      "id": "2071204776293908905",
+      "role": "marble_os",
+      "when": "2026-06-28",
+      "label": "Marble OS + manifesto"
+    },
+    {
+      "id": "1727569465330565407",
+      "role": "operator_linked",
+      "label": "Operator spine"
+    },
+    {
+      "id": "1953382948163469590",
+      "role": "operator_linked",
+      "label": "Operator spine"
+    },
+    {
+      "id": "1875976094454808713",
+      "role": "operator_linked",
+      "label": "Operator spine"
+    },
+    {
+      "id": "1873884543607882048",
+      "role": "operator_linked",
+      "label": "Operator spine"
+    },
+    {
+      "id": "1926405499462791643",
+      "role": "operator_linked",
+      "label": "Operator spine"
+    }
+  ]
+}

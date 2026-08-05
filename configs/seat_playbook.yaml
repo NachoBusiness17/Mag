@@ -1,0 +1,133 @@
+# Seat playbook — public priors + tips (PLANNING DRAFT)
+# Status: inference priors — not promoted law; cite sources when updating
+# Parent: docs/ref/MAG_SEAT_INTELLIGENCE.md
+# Scoring: mag/seat_score.py (v4)
+
+schema: seat_playbook.v0
+as_of: "2026-08-05"
+scoring_weights:
+  prior_fit: 0.35
+  avoid_penalty: 0.25
+  context_fit: 0.20
+  economics: 0.10
+  posterior: 0.10          # 0 until seat_economics_map has n≥5
+
+seats:
+  ollama_gemma4:
+    class: local
+    provider: ollama
+    default_model: gemma4:latest
+    billing: free_local
+    context_tokens: 32000
+    sweet_spots: [scut, steward, ask, improve_scout, catalog, status]
+    avoid_for: [heavy_code, multi_file_refactor, architecture]
+    tips:
+      - "Default janitor — use for [steward] and improve scout"
+      - "Unload after worker job if VRAM tight"
+      - "Never route T0/T1 content remote — local only"
+    public_prior:
+      confidence: operator_experience
+      sources: []
+    economics_prior_usd: { input_per_m: 0.0, output_per_m: 0.0 }
+
+  deepseek_api:
+    class: engine
+    provider: deepseek
+    billing: per_token
+    context_tokens: 1000000
+    sweet_spots: [hard_code, build, implement, refactor, mag_agent_loop]
+    avoid_for: [scut, plan_without_spec, improve_flood]
+    tips:
+      - "main.py agent --provider deepseek — tools + your disk"
+      - "One goal per orchestrator queue row"
+      - "Freeze BUILD spec before spawn — replan burns tokens"
+      - "Prefer over Grok for build when spec is on disk"
+    public_prior:
+      confidence: community_hearsay
+      sources:
+        - note: "Strong code/agent loop reputation 2025-2026; verify pricing on DeepSeek site"
+    economics_prior_usd: { input_per_m: 0.28, output_per_m: 0.42 }
+
+  grok_tui:
+    class: engine
+    provider: xai
+    billing: per_token
+    context_tokens: 128000
+    sweet_spots: [plan, architecture, priority, tradeoffs, one_pager]
+    avoid_for: [scut, build, improve_loop, bulk_code]
+    tips:
+      - "Tag [priority] or [L2] — scarce seat"
+      - "Output BUILD spec to disk; do not code the whole epic here"
+      - "context-pack before TUI — not full chat"
+      - "Daily escalation budget in lanes.yaml"
+    public_prior:
+      confidence: vendor_doc
+      sources:
+        - note: "xAI pricing tier — tune cost_rates.yaml"
+    economics_prior_usd: { input_per_m: 3.0, output_per_m: 15.0 }
+
+  cursor_ide:
+    class: ide
+    provider: cursor
+    billing: subscription
+    sweet_spots: [multi_file, audit_diff, interactive_edit, dashboard]
+    avoid_for: [headless_improve, secrets_in_prompt]
+    tips:
+      - "Write RUN_*.md + one-pager before cloud agent"
+      - "install_cursor_hooks.cmd — register seat + Verkle"
+      - "cursor_bridge task --mode queue for execution on your keys"
+    public_prior:
+      confidence: operator_experience
+      sources: []
+
+  cursor_cloud_agent:
+    class: ide
+    provider: cursor
+    billing: subscription_plus_fixed_per_run
+    fixed_per_run_usd: 0.50
+    sweet_spots: [pr_integration, run_execution, test_fix, doc_reorg]
+    avoid_for: [24_7_drain, replan_same_epic, grok_substitute]
+    tips:
+      - "One RUN one branch — docs/ref/onepagers/"
+      - "mag_kill.cmd while debugging harness"
+      - "Read MAG_SEAT_INTELLIGENCE + frozen RUN spec first"
+      - "Push before long test loops"
+      - "Never bare python — .venv/bin/python or mag.cmd"
+    public_prior:
+      confidence: community_hearsay
+      sources:
+        - note: "Cursor blog — agent swarm / multi-file strength (ops grammar only)"
+
+  cursor_composer:
+    class: ide
+    provider: cursor
+    billing: subscription
+    sweet_spots: [pair_program, quick_wiring, planning_doc, pr_review]
+    avoid_for: [autonomous_24_7, improve_queue]
+    tips:
+      - "Same RUN discipline as cloud agent"
+      - "Ask for frozen spec when scope creeps"
+    public_prior:
+      confidence: operator_experience
+      sources: []
+
+  hermes_parked:
+    class: local
+    provider: hermes
+    billing: free_local
+    sweet_spots: []
+    avoid_for: [default, routing, improve, mag_cli]
+    tips:
+      - "Parked — explicit via hermes only"
+      - "Not the router; bash-safe paths if re-enabled"
+    public_prior:
+      confidence: operator_experience
+      sources: []
+
+task_type_map:
+  scut: { depth: scut, phase: execute }
+  build: { depth: heavy_code, phase: build, markers: ["[build]", implement, refactor] }
+  plan: { depth: plan, phase: plan, markers: ["[priority]", architecture] }
+  audit: { depth: simple_code, phase: audit, markers: [audit, ponytail] }
+  steward: { depth: scut, phase: execute, markers: ["[steward]"] }
+  improve: { depth: scut, phase: execute, markers: ["[improve]"] }

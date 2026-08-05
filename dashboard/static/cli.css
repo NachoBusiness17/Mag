@@ -3479,6 +3479,15 @@ body.cyber .btn {
   letter-spacing: 0.08em !important;
   font-family: var(--mono-ui) !important;
 }
+.btn.danger {
+  background: #3b120f;
+  border-color: #6b1f1a;
+  color: #ff9d9d;
+}
+.btn.danger:hover {
+  background: #4a1814;
+  border-color: #8b2a24;
+}
 body.cyber .btn.primary {
   background: rgba(57, 255, 154, 0.12) !important;
   box-shadow: var(--glow) !important;

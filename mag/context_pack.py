@@ -141,6 +141,19 @@ def build_context_pack(
     except Exception as e:
         bonds_meta = {"error": str(e)}
 
+    resonance_cards: list[dict[str, Any]] = []
+    resonance_l0e = ""
+    try:
+        from mag.resonance import format_l0e, top_cards
+
+        goal_hint = (brief or "")[:200] + " " + " ".join(
+            ln for ln in todo.splitlines() if ln.strip().startswith("- [ ]")
+        )[:200]
+        resonance_cards = top_cards(goal_hint, n=3)
+        resonance_l0e = format_l0e(resonance_cards)
+    except Exception:
+        pass
+
     # open loops: prefer bonds, else crude from brief
     loops = list(bj.get("open_loops") or [])[:8]
     if not loops:
@@ -284,6 +297,16 @@ def build_context_pack(
             (brief or "")[:200],
         ]
     ).strip() or "general harness dig"
+    try:
+        from mag.preferences import inject_behavioral_pack
+        if inject_behavioral_pack():
+            from mag.decision_framework import format_tips_block, surface_tips
+
+            tips_block = format_tips_block(surface_tips(goal=soft_goal))
+            if tips_block:
+                behavioral_excerpt = (behavioral_excerpt + "\n\n" + tips_block).strip()[:1400]
+    except Exception:
+        pass
     mirror_voice_excerpt = _mirror_voice_excerpt(soft_goal, max_chars=600)
     clue_chain_excerpt = _clue_chain_excerpt(max_chars=500)
 
@@ -293,7 +316,7 @@ def build_context_pack(
         "for": "grok_tui_router",
         "token_note": "Use this instead of chat_history. Escalate only hard work.",
         "operator_path": "FIND → FILE → LOAD (docs/ref/OPERATOR_CARD.md)",
-        "layers": ["L0_nervous", "L0_policy", "L0c_directives", "L1_bonds", "L2_trail", "L3_task", "L4_heat"],
+        "layers": ["L0_nervous", "L0_policy", "L0e_resonance", "L0c_directives", "L1_bonds", "L2_trail", "L3_task", "L4_heat"],
         "nervous_system": nervous,
         "tip": tip_badge,
         "agent_state": agent_state_excerpt,
@@ -321,6 +344,8 @@ def build_context_pack(
         "behavioral_excerpt": behavioral_excerpt,
         "compass_framework": compass_framework,
         "coordination_excerpt": coordination_excerpt,
+        "resonance_cards": resonance_cards,
+        "resonance_l0e": resonance_l0e,
         "live_tail": live or "(no live board)",
         "attention_tail": att[:400] if att else "",
         "directives": directives or "",
@@ -418,6 +443,8 @@ def format_context_pack_text(
         policy.extend(["", p.get("behavioral_excerpt")])
     if p.get("coordination_excerpt"):
         policy.extend(["", p.get("coordination_excerpt")])
+    if p.get("resonance_l0e"):
+        policy.extend(["", p.get("resonance_l0e")])
     bonds = [
         "",
         "## L1 Bonds (next-session / residual edges)",
