@@ -28,9 +28,11 @@
 
 ## 1. North star (v3 question)
 
-> After v2 autoruns honestly on your disk, how does Mag **notice** what rhymes across years of soil and frontier — and surface it through **any seat** (lens/corpus) without you clicking promote on every insight?
+> How does a **local conductor** — trained on your steer/route outcomes, not your diary — get better at directing frontier models while nested self-improve loops file everything honestly?
 
-Not: replace Gemma. Not: mirror training as product. Not: church from chat.
+Secondary: resonance surfaces what rhymes across years of soil through any seat lens — without promote on every insight.
+
+Not: replace Gemma or frontier. Not: mirror-as-product. Not: predict the final shape in alpha.
 
 ---
 
