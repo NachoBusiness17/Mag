@@ -55,3 +55,5 @@ A thin **governance + surface** layer for Mag — inspired by ARK Civic's card /
 ## One line
 
 **Make the honest local path the easy path; make substituting the model's story for the person's expensive.**
+
+**Roadmap:** `MAG_v2_PLAN.md` — phased build (layman Office → lattice hardening → spore spine → fork).

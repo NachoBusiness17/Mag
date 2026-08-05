@@ -26,6 +26,8 @@ is your proxy, your footprint stays yours.*
 
 Everything else autoruns. That is the product.
 
+**Full v2 plan:** `docs/ref/MAG_v2_PLAN.md` — phases, acceptance criteria, merge path (#8–#10).
+
 ## Where the seed mirror sits
 The X archive / mirror_train rows are ONE aspect: one household's soil - the demo that
 proves the loop on real data. They are not the product, and they never block the framework

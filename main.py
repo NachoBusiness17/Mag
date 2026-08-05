@@ -369,6 +369,15 @@ def main(argv: list[str] | None = None) -> int:
     p_auto.add_argument("--no-governor", action="store_true", help="skip governor cycle")
     p_auto.add_argument("--drain", action="store_true", help="drain once after queue")
     p_auto.add_argument("--max-queue", type=int, default=2, help="max improve tickets to queue")
+    p_autorun = sub.add_parser(
+        "autorun",
+        help="Intelligent autorun: fill queue, route, drain DeepSeek jobs (drainer loop)",
+    )
+    p_autorun.add_argument("--once", action="store_true", help="single tick then exit")
+    p_autorun.add_argument("--dry", action="store_true", help="plan only, no execute")
+    p_autorun.add_argument("--no-fill", action="store_true", help="skip queue fill")
+    p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
+    p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval seconds")
     p_sg = sub.add_parser(
         "seat-guard",
         help="Supervise the seat REPL: relaunch on crash/glitch/stall/hard-stop",
@@ -579,16 +588,6 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="start: privacy.never_remote (tier_max T1)",
     )
-    p_route = sub.add_parser(
-        "route",
-        help="Grok-facing router: classify lane; optional --local execute",
-    )
-    p_route.add_argument("goal", nargs="+", help="Goal text")
-    p_route.add_argument(
-        "--local",
-        action="store_true",
-        help="If lane=local, run ask/doctor/smoke now",
-    )
     sub.add_parser(
         "providers",
         help="List platforms (OpenAI/Gemini/DeepSeek/…) + keys + quota remaining",
@@ -634,6 +633,42 @@ def main(argv: list[str] | None = None) -> int:
         help="Queue heavy_code on orchestrator instead of inline delegate",
     )
     p_coord.add_argument("--session", default="", help="Agent session id for delegate mode")
+    p_route = sub.add_parser(
+        "route",
+        help="Unified routing decision (seat, provider, mode) — honest failures",
+    )
+    p_route.add_argument("goal", nargs="+", help="What to route")
+    p_route.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth (else auto-classify)",
+    )
+    p_route.add_argument(
+        "--local",
+        action="store_true",
+        help="If lane=local, execute ask/doctor/smoke now (legacy local runner)",
+    )
+    p_decide = sub.add_parser(
+        "decide",
+        help="Framework decision: route + behavioral tips + interference status",
+    )
+    p_decide.add_argument("goal", nargs="+", help="What to decide")
+    p_decide.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth",
+    )
+    p_fkb = sub.add_parser(
+        "fkb",
+        help="Failure Knowledge Base: search recurring failures / stats",
+    )
+    p_fkb.add_argument(
+        "fkb_args",
+        nargs="*",
+        help="stats | list [n] | search <query> | record <kind> <tool> <detail>",
+    )
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -745,6 +780,51 @@ def main(argv: list[str] | None = None) -> int:
         help="0 = unlimited until --stop",
     )
 
+    p_vdesk = sub.add_parser(
+        "virtual-desk-loop",
+        help="DeepSeek research loop on Mag virtual desk brief (REPORT.txt)",
+    )
+    p_vdesk.add_argument("--status", action="store_true", help="Loop + report state")
+    p_vdesk.add_argument("--run", action="store_true", help="Start loop (foreground)")
+    p_vdesk.add_argument("--once", action="store_true", help="Single DeepSeek cycle then exit")
+    p_vdesk.add_argument("--dry", action="store_true", help="Plan next unit only")
+    p_vdesk.add_argument("--bg", action="store_true", help="With --run: detached process")
+    p_vdesk.add_argument("--stop", action="store_true", help="Stop virtual desk loop")
+    p_vdesk.add_argument(
+        "--cycle-seconds",
+        type=int,
+        default=120,
+        help="Seconds between cycles (default 120)",
+    )
+    p_vdesk.add_argument(
+        "--max-cycles",
+        type=int,
+        default=0,
+        help="0 = unlimited until --stop or all units done",
+    )
+    p_vdesk.add_argument(
+        "--provider",
+        default="",
+        help="Override provider (default deepseek from configs/virtual_desk.yaml)",
+    )
+    p_vdesk.add_argument(
+        "--import",
+        dest="import_path",
+        metavar="FILE",
+        default="",
+        help="Import DeepSeek web export .txt into REPORT.txt",
+    )
+    p_vdesk.add_argument(
+        "--import-url",
+        default="",
+        help="Optional share URL metadata for --import",
+    )
+    p_vdesk.add_argument(
+        "--replace-report",
+        action="store_true",
+        help="With --import: replace REPORT.txt instead of append",
+    )
+
     p_csync = sub.add_parser(
         "canvas-sync",
         help="Sync Cursor Canvas *.tsx → memory/viewports/ manifests",
@@ -773,6 +853,21 @@ def main(argv: list[str] | None = None) -> int:
         help="Rebuild instrument verkle chain + seed memory/lattice store",
     )
     p_lbf.add_argument("--dry-run", action="store_true", help="Report counts only")
+
+    p_va = sub.add_parser(
+        "verkle-audit",
+        help="Verkle chain audit, ticket reconcile, optional local synth",
+    )
+    p_va.add_argument("--full", action="store_true", help="Backfill lattice + synth + reconcile")
+    p_va.add_argument("--synth", action="store_true", help="Local clerk pass per residual session")
+    p_va.add_argument("--backfill", action="store_true", help="Run lattice-backfill first")
+    p_va.add_argument("--dry", action="store_true", help="Plan only; no writes or LLM")
+    p_va.add_argument("--no-reconcile", action="store_true", help="Skip ticket reconciliation")
+
+    sub.add_parser(
+        "ponytail-audit",
+        help="Ponytail ladder scan — over-engineering only, not correctness",
+    )
 
     p_blast = sub.add_parser(
         "blast",
@@ -1218,6 +1313,24 @@ def main(argv: list[str] | None = None) -> int:
         res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "verkle-audit":
+        from mag.verkle_audit import run_audit
+
+        res = run_audit(
+            full=bool(getattr(args, "full", False)),
+            synth=bool(getattr(args, "synth", False)),
+            reconcile=not bool(getattr(args, "no_reconcile", False)),
+            backfill_lattice=bool(getattr(args, "backfill", False) or getattr(args, "full", False)),
+            dry=bool(getattr(args, "dry", False)),
+        )
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "ponytail-audit":
+        from mag.ponytail_audit import format_report, run_audit
+
+        res = run_audit(hints=True)
+        print(format_report(res))
+        return 0
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
@@ -1567,12 +1680,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps({"ok": False, "error": f"unknown action {action}"}))
         return 1
-    if args.cmd == "route":
-        from mag.route import route_goal
-
-        res = route_goal(" ".join(args.goal), run_local=args.local)
-        print(json.dumps(res, indent=2, default=str))
-        return 0 if res.get("ok") else 1
     if args.cmd == "providers":
         from models.providers import status_table
 
@@ -1638,6 +1745,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "route":
+        goal = " ".join(args.goal)
+        if getattr(args, "local", False):
+            from mag.route import route_goal
+
+            res = route_goal(goal, run_local=True)
+        else:
+            from mag.router import route
+
+            res = route(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "decide":
+        from mag.decision_framework import decide
+
+        goal = " ".join(args.goal)
+        res = decide(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "fkb":
+        from mag.failure_kb import _cli as fkb_cli
+
+        return fkb_cli(list(getattr(args, "fkb_args", []) or []))
     if args.cmd == "orchestrator":
         from mag.orchestrator import main as orc_main
 
@@ -1737,12 +1867,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "lattice-loop":
         from mag.lattice_loop import plant_status as lattice_status, start_loop, stop_loop
 
-        if getattr(args, "backfill", False):
-            from mag.lattice_backfill import run_backfill
-
-            res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
-            print(json.dumps(res, indent=2, default=str))
-            return 0 if res.get("ok") else 1
         if args.stop:
             # signal stop via state file (works for detached process too)
             st_path = (
@@ -1830,6 +1954,109 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if res.get("ok") else 1
         print(json.dumps(lattice_status(), indent=2, default=str)[:12000])
         return 0
+    if args.cmd == "virtual-desk-loop":
+        import os as _os
+
+        from mag.virtual_desk_loop import (
+            import_export,
+            plant_status as vdesk_status,
+            run_once,
+            start_loop,
+            stop_loop,
+        )
+
+        if getattr(args, "provider", None):
+            prov = str(args.provider or "").strip()
+            if prov:
+                _os.environ["MAG_VIRTUAL_DESK_PROVIDER"] = prov
+        if args.stop:
+            st_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "state.json"
+            res = stop_loop()
+            if st_path.is_file():
+                try:
+                    st = json.loads(st_path.read_text(encoding="utf-8"))
+                    st["run"] = False
+                    st_path.write_text(json.dumps(st, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+            print(json.dumps(res, indent=2, default=str)[:8000])
+            return 0
+        if getattr(args, "import_path", None) and str(args.import_path).strip():
+            res = import_export(
+                str(args.import_path).strip(),
+                source_url=str(getattr(args, "import_url", "") or "").strip(),
+                replace=bool(getattr(args, "replace_report", False)),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if args.once or args.dry:
+            res = run_once(dry=bool(args.dry))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if args.run and args.bg:
+            import subprocess
+            import sys
+
+            py = sys.executable
+            log = ROOT / "logs" / "virtual_desk_loop_stdout.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            cmd = [
+                py,
+                str(ROOT / "main.py"),
+                "virtual-desk-loop",
+                "--run",
+                f"--cycle-seconds={int(args.cycle_seconds or 120)}",
+                f"--max-cycles={int(args.max_cycles or 0)}",
+            ]
+            if getattr(args, "provider", None) and str(args.provider).strip():
+                cmd.append(f"--provider={str(args.provider).strip()}")
+            creation = 0
+            if sys.platform == "win32":
+                creation = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+                creation |= getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            from datetime import datetime, timezone
+
+            with log.open("a", encoding="utf-8") as lf:
+                lf.write(f"\n--- spawn {datetime.now(timezone.utc).isoformat()} ---\n")
+                lf.write(" ".join(cmd) + "\n")
+            log_handle = log.open("a", encoding="utf-8")
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(ROOT),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                env={**__import__("os").environ},
+                creationflags=creation if sys.platform == "win32" else 0,
+                start_new_session=(sys.platform != "win32"),
+            )
+            pid_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "loop.pid"
+            pid_path.parent.mkdir(parents=True, exist_ok=True)
+            pid_path.write_text(str(proc.pid), encoding="utf-8")
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "started": True,
+                        "detached": True,
+                        "pid": proc.pid,
+                        "log": str(log),
+                        "status": vdesk_status(),
+                    },
+                    indent=2,
+                    default=str,
+                )[:12000]
+            )
+            return 0
+        if args.run:
+            res = start_loop(
+                background=False,
+                cycle_seconds=int(args.cycle_seconds or 120),
+                max_cycles=int(args.max_cycles or 0),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        print(json.dumps(vdesk_status(), indent=2, default=str)[:12000])
+        return 0
     if args.cmd == "blast":
         from mag.blast import (
             plant_status,
@@ -1915,6 +2142,21 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(_json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "autorun":
+        from mag.governor_autorun import main as autorun_main
+
+        argv: list[str] = []
+        if getattr(args, "once", False):
+            argv.append("--once")
+        if getattr(args, "dry", False):
+            argv.append("--dry")
+        if getattr(args, "no_fill", False):
+            argv.append("--no-fill")
+        if getattr(args, "fill_only", False):
+            argv.append("--fill-only")
+        if getattr(args, "interval", None):
+            argv.extend(["--interval", str(args.interval)])
+        return autorun_main(argv)
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)

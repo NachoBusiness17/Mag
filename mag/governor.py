@@ -191,6 +191,12 @@ def _refresh_inbox_hints() -> list[str]:
 def score(c: dict[str, Any]) -> float:
     cost = 1.0 + (2.0 if c.get("exec") is None else 0.0)
     s = c["value"] / cost
+    try:
+        from mag.autorun_common import fkb_score_adjustment
+
+        s += fkb_score_adjustment(str(c.get("title") or ""))
+    except Exception:
+        pass
     if _inbox_hints:
         title = str(c.get("title") or "").lower()
         for hint in _inbox_hints:
@@ -235,6 +241,13 @@ def _run_seat(text: str, provider: str) -> tuple[int, str, str]:
     """One seat dispatch: main.py agent -q <text> --provider <provider>."""
     import subprocess
     import sys as _sys
+
+    try:
+        from mag.autorun_common import refresh_context_for_goal
+
+        refresh_context_for_goal(text)
+    except Exception:
+        pass
 
     cmd = [_sys.executable, str(ROOT / "main.py"), "agent", "-q", text,
            "--provider", provider]
