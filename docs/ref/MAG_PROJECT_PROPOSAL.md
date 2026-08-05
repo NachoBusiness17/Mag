@@ -4,7 +4,8 @@
 **Commitment:** `mag-project-proposal-001`  
 **As-of:** 2026-08-05  
 **Status:** **Alpha** — constitution + loops exist; product brain is young  
-**Direction (v2):** **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** — where we are/going; load for navigation  
+**Direction (v2):** **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** — where we are/going  
+**Versions:** **`docs/ref/releases/VERSION_REGISTRY.md`** — v1=Grok origin · v2=this repo · v3=planning  
 **Operator:** Nacho · **Repo:** Mag (`local_sovereign_agent`)  
 **Sister:** [mycelial-republic](https://github.com/NachoBusiness17/Mag) (forest law, public fork, optional training)
 

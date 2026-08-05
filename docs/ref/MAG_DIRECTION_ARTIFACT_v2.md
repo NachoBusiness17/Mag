@@ -19,8 +19,8 @@
 **Blurb:** Mag is alpha software with a real constitution. v2 graduation is merge + ritual. v3 is **substrate** (orchestrator, seats, pack, Office). v4 is **mold** (process, steward, eval). v5 is **optional forest power** (GSTD, Vast train, XRPL) on the same spine — not three products.
 
 **Bullets:**
-- **Been:** Constitution, DNA, improve/autorun/FKB, Office :8765, branches #8–#15 — lattice designed, `main` still behind  
-- **Are:** Cloud agent shipped RUN C + steward wave 1 + v5 pipe docs on PR #15; home PC has not merged v2 gate  
+- **Been:** v1 Grok/X strike origin · v2 repo in projects folder · v3 planning on branches
+- **Are:** v2 = this harness; v3 = RUN sheet + PR #15; home merge gate still open  
 - **Next:** RUN A merge ritual → RUN B factory pilot → RUN D freeze gate → CHAT wave → v4 steward — **then** call it "v3 build"  
 - **v4 modifies v3:** No new loops without eval case + pattern tag; v3 features must fit conductor mold  
 - **v5 modifies direction:** External stacks are **seats + spores**, not architecture; train on export, route on seat_score  

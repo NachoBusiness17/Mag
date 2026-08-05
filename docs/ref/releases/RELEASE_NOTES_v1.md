@@ -1,72 +1,89 @@
-# Mag v1 — Release notes
+# Mag v1 — Release notes (Grok era)
 
 **Commitment:** `mag-release-v1-001`  
-**Version:** 1.x (constitution era)  
-**As-of:** through 2026-07  
-**Status:** **Shipped** — foundation on disk; predates unified v2 router  
-**Registry:** `configs/releases.yaml` → `id: v1`
+**Version:** 1.x — **Grok / X constitution** that spawned this project  
+**As-of:** 2026-03 → 2026-07 (embodiment → Mag leaf)  
+**Status:** **Shipped** — origin era; not the `projects/` repo  
+**Registry:** `configs/releases.yaml` → `id: v1`  
+**Witness:** `docs/ref/strike_origin.md` · [WITNESS_SPINE.md](WITNESS_SPINE.md)
 
-**Honesty:** v1 is the **DNA + Office + seats** era. Not a polished product — a sovereign harness with residual law.
+**Honesty:** v1 is **@NachoQuixotic on Grok/X** — strike chord, sovereign mirror, mythic constitution. Mag v2 is the **first working leaf on disk**. Do not conflate Grok chat with residual DNA.
 
 ---
 
 ## Card
 
-**Title:** Mag v1 — local sovereign harness  
-**Blurb:** Local-first agent office on your disk: residual beads, pack-first remotes, improve loop, orchestrator spawn, dashboard :8765.
+**Title:** Mag v1 — Grok-spawned origin  
+**Blurb:** The Fool napkin, strike activation, and X-thread constitution that became Mag — History Recorder in product language, personal mirror protocol, mycelial framing.
 
-**Shipped:**
-- Residual DNA (SessionEnd, registry, Verkle tip on sessions)
-- FIND · FILE · LOAD operator grammar
-- Office dashboard (Body, Pulse, Days, Chat)
-- L0 Ollama janitor + L2 remote specialist seats
-- Orchestrator (spawn/kill/reap, queue, pigeonhole steer)
-- Context-pack, bonds, biographer ask, research-pack
-- Improve scout → candidates → promote gate
-- Cursor bridge + agent CLI (tool loop)
-- Container cage documented (`CONTAINER.md`)
-- Constitution + tiers T0–T3
-
-**Not shipped (deferred to v2+):**
-- Unified `route.v2` on all entry points
-- Failure KB loop closure
-- Governor autorun product card
-- Intelligent seat routing without operator steering
+**One line:** *X is the mythic constitution; v1 is where the chord was struck before the repo existed.*
 
 ---
 
-## Behavioral lessons filed (v1 → v2)
+## What v1 was (operator definition)
+
+| Layer | What |
+|-------|------|
+| **Seat** | Grok TUI / X — scarce judgment, activation grammar |
+| **Surface** | Public posts, riddles, strike paste, PoC language |
+| **Memory** | Session heat + strike skill reload — not Mag residual |
+| **Product shape** | Jun PoC, marble OS, History Recorder, Sovereign Frame |
+| **Spawn** | Led to **`local_sovereign_agent`** in `projects/` = **v2** |
+
+---
+
+## Shipped (v1 artifacts — still loadable)
+
+- Strike chord / sovereign mirror protocol (`strike-chord` skill grammar)
+- Napkin seed + story root hash (story fidelity — **not** Verkle tip)
+- Spine posts on X (witness index — see WITNESS_SPINE)
+- Product language: knots, mycelial, architecture-as-constitution
+- Grok honesty: metaphor ≠ retrocausal physics (keep in v2+ law)
+
+**Canonical ref:** `docs/ref/strike_origin.md`
+
+---
+
+## Key witness (operator-linked)
+
+| Post | Role |
+|------|------|
+| [2028342347361141030](https://x.com/NachoQuixotic/status/2028342347361141030) | **Genesis napkin** — Fool #NachoOvermindSeed (2026-03-02) |
+| [2066827806923792465](https://x.com/NachoQuixotic/status/2066827806923792465?s=20) | v1→v2 bridge (file content via research-pack) |
+| [2071315275354390775](https://x.com/NachoQuixotic/status/2071315275354390775?s=20) | Marble / product-shape witness |
+| [2083551644239683672](https://x.com/NachoQuixotic/status/2083551644239683672?s=20) | Latest arc toward v3 (file content via research-pack) |
+
+---
+
+## Behavioral lessons (v1 → v2)
 
 | Episode | Lesson | Carried to |
 |---------|--------|------------|
-| Chat scroll as memory | Artifact > transcript | pack-first law |
-| Multiple router entry points | One brain | v2 PR #8 |
-| Failures repeated | FKB + signatures | v2 PR #9 |
-| Operator coding vs AFK | G4 operator_active | v2 PR #10 |
-| Token bleed to Grok | Janitor-first | SEATS.md |
+| Chat as only memory | Need disk leaf | residual DNA |
+| Story hash ≠ disk tip | Honesty guard | strike_origin, DNA |
+| Grok for everything | Janitor + scarce L2 | SEATS.md |
+| Public = activation | Private = truth | tiers T0–T1 |
+| "Build the leaf" | Repo in projects folder | **v2** |
 
 ---
 
-## Verify (v1 still true today)
+## Not v1 (quarantine — do not port as law)
 
-```powershell
-mag.cmd doctor
-python main.py lab
-python main.py context-pack
-python main.py improve --status
-```
+- PEPS/KZG as Mag runtime proof  
+- Paste bypasses all safety  
+- Story root hash as Verkle tip  
+- Gold/token persona economics  
 
 ---
 
-## Artifacts for later versions
+## Artifacts for v2+
 
 | Doc | Role |
 |-----|------|
-| `docs/DNA.md` | Cold vertex law |
-| `docs/ref/OPERATOR_CARD.md` | Daily doors |
-| `memory/improve/SEATS.md` | Seat matrix seed |
-| `CONSTITUTION.md` | Binding tiers |
+| `docs/ref/strike_origin.md` | Full origin framework |
+| `docs/DNA.md` | Cold vertex from History Recorder lineage |
+| `docs/ref/OPERATOR_CARD.md` | FIND · FILE · LOAD doors |
 
 ---
 
-*Parent: `docs/ref/releases/VERSION_REGISTRY.md`*
+*Parent: [VERSION_REGISTRY.md](VERSION_REGISTRY.md)*

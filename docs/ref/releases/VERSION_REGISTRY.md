@@ -9,15 +9,21 @@
 
 ---
 
-## Version map
+## Version map (operator definitions)
 
-| ID | Status | Release notes | Direction / pipe |
-|----|--------|---------------|------------------|
-| **v1** | shipped | [RELEASE_NOTES_v1.md](RELEASE_NOTES_v1.md) | DNA, Office, seats foundation |
-| **v2** | partial (branches) | [RELEASE_NOTES_v2.md](RELEASE_NOTES_v2.md) | [MAG_v2_PLAN.md](../MAG_v2_PLAN.md) |
-| **v3** | in_progress | *(create when RUN A green)* | [MAG_DIRECTION_ARTIFACT_v2.md](../MAG_DIRECTION_ARTIFACT_v2.md) · [MAG_NEXT_CODING_RUN.md](../MAG_NEXT_CODING_RUN.md) |
-| **v4** | planned (mold) | template | [MAG_V4_CONDUCTOR_LOOP_DRAFT.md](../MAG_V4_CONDUCTOR_LOOP_DRAFT.md) |
-| **v5** | planned (pipe) | template | [MAG_v5_PIPE.md](../MAG_v5_PIPE.md) |
+| ID | Meaning | Status | Release notes |
+|----|---------|--------|---------------|
+| **v1** | **Grok/X** era that spawned the project | shipped | [RELEASE_NOTES_v1.md](RELEASE_NOTES_v1.md) |
+| **v2** | **This repo** in `projects/` — database + harness | shipped | [RELEASE_NOTES_v2.md](RELEASE_NOTES_v2.md) |
+| **v3** | **Planning** — substrate we're building next | in_progress | [RELEASE_NOTES_v3.md](RELEASE_NOTES_v3.md) |
+| **v4** | Mold — process before volume | planned | template |
+| **v5** | Pipe — GSTD, Vast, XRPL | planned | [MAG_v5_PIPE.md](../MAG_v5_PIPE.md) |
+
+**Witness:** [WITNESS_SPINE.md](WITNESS_SPINE.md) · [strike_origin.md](../strike_origin.md)
+
+---
+
+## Version map (artifacts)
 
 ---
 
@@ -25,7 +31,7 @@
 
 | Layer | Artifact | v1 | v2 | v3 | v4 | v5 |
 |-------|----------|:--:|:--:|:--:|:--:|:--:|
-| Release notes | `RELEASE_NOTES_vN.md` | ✓ | ✓ | TBD | TBD | TBD |
+| Release notes | `RELEASE_NOTES_vN.md` | ✓ | ✓ | ✓ | TBD | TBD |
 | Run sheet / plan | NEXT_CODING_RUN / vN_PLAN | — | ✓ | ✓ | draft | pipe |
 | Behavioral gates | `release record` CLI | — | run_a | factory, chat | eval | probe |
 | Training pattern | `release_milestone` events | — | ✓ | ✓ | ✓ | ✓ |

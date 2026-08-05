@@ -1,100 +1,99 @@
-# Mag v2 — Release notes
+# Mag v2 — Release notes (projects folder)
 
 **Commitment:** `mag-release-v2-001`  
-**Version:** 2.0.0-plan → 2.x graduation  
-**As-of:** 2026-08-05  
-**Status:** **Partial** — code on branches **#8–#11**; home `main` merge gate not closed  
-**Registry:** `configs/releases.yaml` → `id: v2`
+**Version:** 2.x — **this database + project** in `projects/local_sovereign_agent`  
+**As-of:** 2026-07 → 2026-08  
+**Status:** **Shipped (repo home)** — lattice hardening continues on branches  
+**Registry:** `configs/releases.yaml` → `id: v2`  
+**Repo:** Mag · GitHub `NachoBusiness17/Mag`
 
-**Honesty:** v2 is **designed and branch-shipped**; v2 **graduation** = RUN A ritual green on home PC. Do not call v2 product-complete until Phase 0 acceptance passes.
+**Honesty:** v2 **is** the harness on your disk — Office, memory soil, orchestrator, improve, dashboard :8765. v1 was Grok/X origin. v3 is what we are **planning to build next** on this substrate.
 
 ---
 
 ## Card
 
-**Title:** Mag v2 — freedom lattice  
-**Blurb:** Self-improving agent lattice: layman Office door, silent router, forkable beads. Lessig modalities + ponytail/caveman discipline.
+**Title:** Mag v2 — local sovereign harness (the repo)  
+**Blurb:** Freedom lattice in the projects folder: residual on disk, pack-first remotes, janitor-first seats, autorun, FKB, Cursor bridge — the working leaf Grok spawned.
 
-**One line:** *Write one line in todo → AFK → morning card tells truth → merge green on home PC.*
-
----
-
-## Shipped (on branches — merge to `main`)
-
-| PR | Delivers | Module |
-|----|----------|--------|
-| **#8** | Unified `route.v2`, `main.py route/decide`, loop escalation | `mag/router.py` |
-| **#9** | Failure KB, remedy cards, behavioral wiring | `mag/failure_kb.py` |
-| **#10** | Governor autorun, operator pause, FKB in scoring | `mag/governor_autorun.py` |
-| **#11** | v2 plan, verkle-audit, agentic landscape map | `mag/verkle_audit.py` |
-
-**Also filed (docs + surface):**
-- `MAG_v2_PLAN.md` — phases + acceptance
-- `MAG_OS_v2.md` — governance card, Phoenix triggers
-- `docs/ref/lessig_1_6.md` — law/norm/market/architecture
-- Ponytail + caveman audit CLIs
-- `routing_smoke.py` — seat matrix smoke
+**One line:** *v2 = the project you can clone, `mag.cmd doctor`, and open at :8765.*
 
 ---
 
-## In progress (v2 exit criteria — not done)
+## What v2 is (operator definition)
 
-| Phase | Deliverable | Status |
-|-------|-------------|--------|
-| 0 | Merge #8→#10 on `main` | **Gate** — operator home PC |
-| 1 | Autorun card on dashboard (`GET /api/v1/autorun`) | UI partial |
-| 2 | Single route path all entry points | #8 merges |
-| 2 | Tier refuse integration tests | planned |
-| 3 | improve daily + verkle weekly scheduled | ops doc |
-| 5 | Fork README — second clone path | open |
+| Layer | What |
+|-------|------|
+| **Home** | `%USERPROFILE%\Documents\projects\local_sovereign_agent` (or clone path) |
+| **DNA** | `memory/` operator soil + residual beads + Verkle tip (sessions) |
+| **Office** | Dashboard :8765 — Body, Pulse, Days, Chat |
+| **Harness** | router, orchestrator, governor, improve, FKB, context-pack |
+| **Seats** | Ollama L0 · DeepSeek agent · Grok TUI · Cursor bridge |
+| **Law** | Constitution, tiers T0–T3, container cage, promote gate |
 
 ---
 
-## Behavioral lessons filed (v2 → v3)
+## Shipped in v2 (this repo)
+
+- Residual DNA (SessionEnd, registry, knots, bonds)
+- FIND · FILE · LOAD · FRAMEWORK_LOAD
+- Office dashboard + REST `/api/v1/*`
+- Orchestrator spawn/kill/reap, queue, pigeonhole steer
+- Improve scout → candidates → promote
+- Agent CLI + Cursor bridge (`watch/cursor_bridge.py`)
+- Research-pack, biographer ask, nervous system
+- Mag OS v2 surface (`MAG_Card.md`, `GET /api/v1/mag-os`)
+- Container docs, `.env.example`, `mag.cmd` / venv law
+- v3 modules on branches (conductor, spider, switchboard — **v3 planning**, not v2 definition)
+
+---
+
+## Lattice hardening (v2.x gates — still open on branches)
+
+| PR | Delivers | Gate |
+|----|----------|------|
+| **#8** | Unified `route.v2` | `run_a` |
+| **#9** | Failure KB | `run_a` |
+| **#10** | Governor autorun | `run_a` |
+| **#11** | verkle-audit + v2 plan doc | `run_a` |
+
+```powershell
+python main.py release record --version v2 --gate run_a --ok --note "merge #8-11 + ritual green"
+```
+
+---
+
+## Behavioral lessons (v2 → v3)
 
 | Episode | Lesson | Carried to |
 |---------|--------|------------|
-| Same goal spawned 8× | Dedupe + orphan reap | orchestrator, switchboard |
-| Plan theater 100+× | Loop-audit + fingerprint | v4 eval cases |
-| Fragmented routers | route.v2 everywhere | RUN A |
-| "Alpha pretend" | Honest labels | direction artifact v2 |
-| Agent env confusion | FRAMEWORK_LOAD order | AGENTS.md law |
+| Same goal spawned 8× | Dedupe + reap | v3 orchestrator |
+| Plan theater | Freeze BUILD on disk | v3 factory + v4 eval |
+| Chat board useless | Cursor-like Chat | v3 CHAT wave |
+| Agent left orphan clones | Steward + mine/ soil | v4 janitor |
+| Version naming drift | Operator defs in release notes | this file |
 
 ---
 
-## v2 graduation gate (record with behavioral memory)
+## Verify (v2 home)
 
 ```powershell
 mag.cmd doctor
-.\.venv\Scripts\python.exe scripts\routing_smoke.py
-python main.py verkle-audit --dry
-python main.py autorun --once --dry
-python main.py release record --version v2 --gate run_a --ok --note "home PC ritual green"
-```
-
-Gate id: `run_a` · See `configs/releases.yaml` → `v2.gates`
-
----
-
-## Verify after merge
-
-```powershell
-python main.py route "test goal" --dry
-python main.py autorun --once --dry
-pytest tests/test_router.py tests/test_failure_kb.py tests/test_autorun_v1.py -q
+python main.py lab
+python main.py context-pack
+python main.py release status
 ```
 
 ---
 
-## Artifacts for v3/v4/v5
+## Artifacts for v3 planning
 
 | Doc | Role |
 |-----|------|
-| `docs/ref/MAG_DIRECTION_ARTIFACT_v2.md` | Direction after v2 |
-| `docs/ref/MAG_NEXT_CODING_RUN.md` | RUN A–D order |
-| `HANDOFF_MAG_AGENT_TODOS.md` | Merge order |
-| `docs/ref/MAG_BEHAVIORAL_COMPOUNDING.md` | Episode → habit |
+| `docs/ref/MAG_DIRECTION_ARTIFACT_v2.md` | v3 gate + v4/v5 mold |
+| `docs/ref/MAG_NEXT_CODING_RUN.md` | RUN order |
+| `docs/ref/releases/RELEASE_NOTES_v3.md` | **Next version — planning** |
 
 ---
 
-*Parent: `docs/ref/releases/VERSION_REGISTRY.md`*
+*Parent: [VERSION_REGISTRY.md](VERSION_REGISTRY.md) · Spawned from: [RELEASE_NOTES_v1.md](RELEASE_NOTES_v1.md)*
