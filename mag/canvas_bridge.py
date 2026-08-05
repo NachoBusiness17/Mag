@@ -16,6 +16,7 @@ from typing import Any
 from config import ROOT
 
 VIEWPORTS_DIR = ROOT / "memory" / "viewports"
+BUNDLED_VIEWPORTS_DIR = ROOT / "docs" / "ref" / "viewports"
 LATTICE_NODES = ROOT / "memory" / "lattice" / "nodes.jsonl"
 
 
@@ -342,8 +343,37 @@ def _discover_canvas_files() -> list[Path]:
     return out
 
 
+def seed_bundled_viewports() -> dict[str, Any]:
+    """Copy shipped viewports from docs/ref/viewports/ when runtime dir is empty."""
+    if not BUNDLED_VIEWPORTS_DIR.is_dir():
+        return {"ok": True, "seeded": [], "seeded_n": 0}
+    existing = list(VIEWPORTS_DIR.glob("*.json")) if VIEWPORTS_DIR.is_dir() else []
+    if existing:
+        return {"ok": True, "seeded": [], "seeded_n": 0, "skipped": "runtime viewports present"}
+    VIEWPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    seeded: list[str] = []
+    for src in sorted(BUNDLED_VIEWPORTS_DIR.glob("*.json")):
+        dst = VIEWPORTS_DIR / src.name
+        if dst.is_file():
+            continue
+        try:
+            dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            seeded.append(dst.stem)
+        except OSError:
+            continue
+    if seeded:
+        manifests: list[dict[str, Any]] = []
+        for slug in seeded:
+            data = _read_json(VIEWPORTS_DIR / f"{slug}.json")
+            if data:
+                manifests.append(data)
+        _upsert_lattice_nodes(manifests, dry_run=False)
+    return {"ok": True, "seeded": seeded, "seeded_n": len(seeded)}
+
+
 def list_viewports() -> list[dict[str, Any]]:
     """List synced viewport manifests (summary rows)."""
+    seed_bundled_viewports()
     if not VIEWPORTS_DIR.is_dir():
         return []
     rows: list[dict[str, Any]] = []

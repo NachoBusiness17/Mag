@@ -1,0 +1,52 @@
+{
+  "schema": "canvas_viewport.v1",
+  "id": "mag-office-canvas",
+  "title": "Mag Office — what each door does",
+  "source_tsx": "bundled:docs/ref/viewports/mag-office-canvas.json",
+  "synced_at": "2026-08-05T00:00:00+00:00",
+  "bundled": true,
+  "sections": [
+    {
+      "kind": "stats",
+      "title": "Desks",
+      "items": [
+        { "label": "Mag Office", "value": ":8765" },
+        { "label": "Sovereign Shell", "value": "/shell" },
+        { "label": "Mirror strike", "value": ":8743" }
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Core navigation (v3 base)",
+      "columns": ["Door", "Job", "Truth on disk"],
+      "rows": [
+        ["Office", "Been · Now · Going", "residual + verkle tip"],
+        ["Days", "Filed workdays", "registry.jsonl + memory/biography/residual/"],
+        ["Chat", "Quick Ask (local)", "memory/briefs/latest.md + bonds"],
+        ["Shell", "Agent + file edits", "repo files under Mag ROOT"],
+        ["Status", "Is Mag OK?", "nervous_system.json + provider configs"],
+        ["Canvas", "Synced Cursor boards", "memory/viewports/*.json"]
+      ]
+    },
+    {
+      "kind": "todos",
+      "title": "Canvas platform — next",
+      "items": [
+        { "id": "c1", "content": "Wire your *.canvas.tsx via CANVAS_SOURCES + canvas-sync", "status": "pending" },
+        { "id": "c2", "content": "Ideas board v3 — one card → one brief → Shell run", "status": "pending" },
+        { "id": "c3", "content": "Story witness links from spine_posts.json", "status": "pending" }
+      ]
+    },
+    {
+      "kind": "table",
+      "title": "Law",
+      "columns": ["Rule", "Why"],
+      "rows": [
+        ["Summary first", "Layman headline before expert panels"],
+        ["Files second", "Every claim shows artifact path"],
+        ["Chat is heat", "Long tool loops → Sovereign Shell"],
+        ["Canvas is depth", "Optional boards — not the day job"]
+      ]
+    }
+  ]
+}

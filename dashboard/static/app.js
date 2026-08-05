@@ -121,11 +121,11 @@ const MIRROR_GUIDE_STEPS = [
     highlight: "#operatorInboxDock",
   },
   {
-    title: "Pulse — honest activity",
+    title: "Canvas — synced boards",
     body:
-      "What actually happened: attention.md, seat feed, workers. Labels say when something is sourced vs inferred — no invented commentary.",
-    tab: "chronicle",
-    highlight: '.dock-btn[data-win="chronicle"]',
+      "Cursor Canvas boards land here as JSON viewports — stats, tables, todos. Live pulse on the right cites files, not chat invention.",
+    tab: "viewports",
+    highlight: '.dock-btn[data-win="viewports"]',
   },
   {
     title: "Strike desk (optional mirror)",
@@ -137,7 +137,7 @@ const MIRROR_GUIDE_STEPS = [
   {
     title: "You're set",
     body:
-      "Replay this tour anytime from the Mirror button in the header. Queue steering in Chat; Body and Pulse stay honest. Go build.",
+      "Replay this tour anytime from the Mirror button in the header. Queue steering in Chat; Status and Canvas stay honest. Go build.",
     tab: "home",
     highlight: "#btnMirrorReplay",
   },
@@ -392,13 +392,12 @@ function setTab(name) {
   if (name === "blast") loadBlast();
   if (name === "flow") loadFlow();
   if (name === "verkle") loadVerkle();
-  if (name === "viewports") loadViewports();
+  if (name === "viewports") loadCanvas();
   if (name === "ingest") loadIngest();
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
   if (name === "ideas") loadIdeas();
   if (name === "status") loadStatus();
-  if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
     if (fr && !fr.dataset.loaded) {
@@ -3728,46 +3727,132 @@ async function loadSeatsPanel() {
   }
 }
 
-let chronicleTimer = null;
-async function loadChronicle() {
-  const meta = $("#chronicle-meta");
-  const content = $("#chronicle-content");
-  const events = $("#chronicleEvents");
-  const sources = $("#chronicleSources");
-  const honesty = $("#chronicleHonesty");
+let canvasTimer = null;
+let canvasViewportId = null;
+let canvasViewportCache = [];
+
+async function loadCanvasPulse() {
+  const meta = $("#canvasPulseMeta");
+  const events = $("#canvasPulseEvents");
+  const commentary = $("#canvasPulseCommentary");
+  const sources = $("#canvasPulseSources");
   try {
     const d = await getJSON("/api/v1/chronicle");
     if (meta) {
       meta.textContent = d.updated
         ? `Updated ${d.updated}${d.bonds_updated ? " · bonds " + d.bonds_updated : ""}`
-        : d.workers_layman || "Pulse";
+        : d.workers_layman || "Waiting for seat activity";
     }
-    if (content) content.textContent = d.content || "(empty)";
-    if (honesty && d.honesty) {
-      honesty.textContent = d.honesty.layman || honesty.textContent;
-    }
+    if (commentary) commentary.textContent = (d.content || "").slice(0, 1200);
     if (events) {
       events.innerHTML = (d.events || [])
+        .slice(0, 12)
         .map((ev) => {
           const lay = ev.layman || ev.preview || ev.technical || "?";
-          const proof = ev.proof ? `<span class="muted sm"> · ${esc(ev.proof)}</span>` : "";
-          return `<li><strong>${esc(lay)}</strong>${proof}</li>`;
+          const proof = ev.proof ? `<code class="mono sm">${esc(ev.proof)}</code>` : "";
+          return `<li><strong>${esc(lay)}</strong>${proof ? `<br/>${proof}` : ""}</li>`;
         })
-        .join("") || `<li class="muted">No events — file a session or run synthesis_agent</li>`;
+        .join("") || `<li class="muted">No events yet — file a session or run synthesis_agent</li>`;
     }
     if (sources && d.sources) {
-      sources.textContent = "Sources: " + d.sources.join(" · ");
+      sources.textContent = "Sources: " + d.sources.slice(0, 4).join(" · ");
     }
   } catch (e) {
-    if (meta) meta.textContent = "Pulse fetch failed — is dashboard + synthesis_agent running?";
+    if (meta) meta.textContent = "Pulse unavailable";
     if (events) events.innerHTML = `<li class="muted">${esc(e.message || e)}</li>`;
   }
 }
 
+function startCanvasPoll() {
+  if (canvasTimer) return;
+  loadCanvasPulse();
+  canvasTimer = setInterval(loadCanvasPulse, 15000);
+}
+
+async function loadChronicle() {
+  await loadCanvasPulse();
+}
+
 function startChroniclePoll() {
-  if (chronicleTimer) return;
-  loadChronicle();
-  chronicleTimer = setInterval(loadChronicle, 10000);
+  startCanvasPoll();
+}
+
+async function selectCanvasViewport(id) {
+  canvasViewportId = id;
+  const host = $("#viewportsHost");
+  const picker = $("#canvasPicker");
+  if (picker) {
+    picker.querySelectorAll("[data-vp]").forEach((btn) => {
+      btn.classList.toggle("on", btn.dataset.vp === id);
+    });
+  }
+  const row = canvasViewportCache.find((r) => r.id === id);
+  if (!host || !row) return;
+  host.innerHTML = `<p class="muted">Loading ${esc(row.title || id)}…</p>`;
+  try {
+    const one = await getJSON(`/api/v1/viewports/${encodeURIComponent(id)}`);
+    const vp = one.viewport || one;
+    host.innerHTML = _renderViewport(vp);
+  } catch (e) {
+    host.innerHTML = `<p class="muted">${esc(e.message || e)}</p>`;
+  }
+}
+
+async function loadCanvas() {
+  startCanvasPoll();
+  await loadViewportsList();
+}
+
+async function loadViewportsList() {
+  const host = $("#viewportsHost");
+  const meta = $("#viewportsMeta");
+  const picker = $("#canvasPicker");
+  const setup = $("#canvasSetupHint");
+  if (!host) return;
+  host.innerHTML = `<p class="muted">Loading canvases…</p>`;
+  try {
+    const data = await getJSON("/api/v1/viewports");
+    canvasViewportCache = data.viewports || [];
+    const n = canvasViewportCache.length;
+    if (meta) {
+      meta.textContent = `${n} viewport(s) · ${data.runtime_dir || "memory/viewports/"}`;
+    }
+    if (setup) {
+      setup.innerHTML = data.canvas_sources_set
+        ? `<strong>CANVAS_SOURCES set.</strong> Sync pulls <code>*.canvas.tsx</code> → <code>${esc(data.runtime_dir || "memory/viewports/")}</code>`
+        : `<strong>Using bundled boards.</strong> Set <code>CANVAS_SOURCES</code> to your Cursor canvases folder, then Sync — <span class="muted">${esc(data.sync_hint || "")}</span>`;
+    }
+    if (!n) {
+      if (picker) picker.innerHTML = "";
+      host.innerHTML = `<p class="muted">No viewports yet. Bundled seeds should appear after refresh — or run <code>python main.py canvas-sync</code>.</p>`;
+      return;
+    }
+    if (picker) {
+      picker.innerHTML = canvasViewportCache
+        .map(
+          (row) =>
+            `<button type="button" class="btn ghost chip canvas-vp-chip" data-vp="${esc(row.id)}" role="tab">${esc(row.title || row.id)}</button>`
+        )
+        .join("");
+      picker.querySelectorAll("[data-vp]").forEach((btn) => {
+        btn.addEventListener("click", () => selectCanvasViewport(btn.dataset.vp));
+      });
+    }
+    const prefer =
+      canvasViewportCache.find((r) => r.id === "mag-office-canvas") ||
+      canvasViewportCache[0];
+    const pick = canvasViewportId && canvasViewportCache.find((r) => r.id === canvasViewportId)
+      ? canvasViewportId
+      : prefer?.id;
+    if (pick) await selectCanvasViewport(pick);
+  } catch (e) {
+    host.innerHTML = `<p class="muted" style="color:var(--warn)">${esc(e.message || e)}</p>`;
+    if (meta) meta.textContent = "error";
+  }
+}
+
+async function loadViewports() {
+  await loadCanvas();
 }
 
 async function loadSeatFeed() {
@@ -5034,32 +5119,6 @@ function _renderViewport(vp) {
   </article>`;
 }
 
-async function loadViewports() {
-  const host = $("#viewportsHost");
-  const meta = $("#viewportsMeta");
-  if (!host) return;
-  host.innerHTML = `<p class="muted">Loading viewports…</p>`;
-  try {
-    const data = await getJSON("/api/v1/viewports");
-    const list = data.viewports || [];
-    if (meta) meta.textContent = `${list.length} viewport(s)`;
-    if (!list.length) {
-      host.innerHTML = `<p class="muted">No viewports synced yet. Run <code>python main.py canvas-sync</code>.</p>`;
-      return;
-    }
-    const parts = [];
-    for (const row of list) {
-      const one = await getJSON(`/api/v1/viewports/${encodeURIComponent(row.id)}`);
-      const vp = one.viewport || one;
-      parts.push(_renderViewport(vp));
-    }
-    host.innerHTML = parts.join("");
-  } catch (e) {
-    host.innerHTML = `<p class="muted" style="color:var(--warn)">${esc(e.message || e)}</p>`;
-    if (meta) meta.textContent = "error";
-  }
-}
-
 async function syncViewportsFromDesk() {
   const meta = $("#viewportsMeta");
   if (meta) meta.textContent = "syncing…";
@@ -5071,7 +5130,7 @@ async function syncViewportsFromDesk() {
     });
     const data = await r.json();
     if (meta) meta.textContent = `synced ${data.written_n ?? 0}`;
-    await loadViewports();
+    await loadViewportsList();
     toast(`Canvas sync: ${data.written_n ?? 0} viewport(s)`, 2200);
   } catch (e) {
     if (meta) meta.textContent = "sync failed";
@@ -5129,7 +5188,7 @@ async function refresh() {
       await loadTapestry();
     } else if (active === "ideas") await loadIdeas();
     else if (active === "status") await loadStatus();
-    else if (active === "chronicle") await loadChronicle();
+    else if (active === "viewports") await loadCanvas();
     else if (active === "diary") await loadDiary();
     else if (active === "board") await loadBoard();
     else if (active === "operate") await loadOperate();
@@ -5137,7 +5196,6 @@ async function refresh() {
       renderChat();
       await refreshEconomy();
     } else if (active === "verkle") await loadVerkle();
-    else if (active === "viewports") await loadViewports();
     else if (active === "flow") await loadFlow();
     else if (active === "orchestrate") await loadOrchestrate();
     else if (active === "visual") await loadVisual();
@@ -5224,9 +5282,8 @@ async function bind() {
   });
   window.addEventListener("mag:win-open", (e) => {
     const id = e.detail?.id;
-    if (id === "chronicle") startChroniclePoll();
+    if (id === "viewports") loadCanvas();
     if (id === "status") loadStatus();
-    if (id === "viewports") loadViewports();
     if (id === "tapestry" || id === "sessions") {
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 80);
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 300);

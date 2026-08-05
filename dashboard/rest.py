@@ -1549,10 +1549,25 @@ def h_lattice_history(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[in
 
 def h_viewports(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """List synced Cursor Canvas viewports."""
-    from mag.canvas_bridge import list_viewports
+    import os
 
+    from mag.canvas_bridge import BUNDLED_VIEWPORTS_DIR, list_viewports, seed_bundled_viewports
+
+    seed = seed_bundled_viewports()
     rows = list_viewports()
-    return _ok({"viewports": rows, "count": len(rows)}, schema="viewports_list.v1")
+    sources = os.environ.get("CANVAS_SOURCES", "").strip()
+    return _ok(
+        {
+            "viewports": rows,
+            "count": len(rows),
+            "seed": seed,
+            "bundled_dir": str(BUNDLED_VIEWPORTS_DIR.relative_to(ROOT)).replace("\\", "/"),
+            "runtime_dir": "memory/viewports/",
+            "canvas_sources_set": bool(sources),
+            "sync_hint": "Set CANVAS_SOURCES to your Cursor canvases folder, then canvas-sync",
+        },
+        schema="viewports_list.v1",
+    )
 
 
 def h_viewport_one(p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:

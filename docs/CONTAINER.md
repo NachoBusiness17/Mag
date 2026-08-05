@@ -115,6 +115,8 @@ python main.py canvas-sync
 
 Manifests land in `memory/viewports/` (gitignored runtime; `.gitkeep` only in repo).
 
+**Bundled boards** ship in `docs/ref/viewports/` and seed automatically on first Canvas load when runtime dir is empty (`mag-office-canvas`, `mag-ecosystem-deep-dive`).
+
 ## Mycelial Republic (sibling project)
 
 Mag is the **private office**; [Mycelial Republic](../mycelial-republic) is the **public fork** — constitution, practice data, honest self-tests.

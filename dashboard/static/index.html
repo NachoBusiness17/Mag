@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MAG · マグ · 勾玉</title>
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=dashboard-d0-v1" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-canvas-v1" />
   <script type="importmap">
   {
     "imports": {
@@ -62,39 +62,60 @@
     <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
     <button type="button" class="dock-btn" data-win="chat" title="Simple ask over filed memory">Chat</button>
     <button type="button" class="dock-btn" data-win="status" title="Is Mag OK? Seats, overnight, governance">Status</button>
-    <button type="button" class="dock-btn dock-more-toggle" id="btnDockMore" title="Diary, Story, Ideas (next), Pulse">More ▾</button>
+    <button type="button" class="dock-btn dock-more-toggle" id="btnDockMore" title="Diary, Story, Ideas (next), Canvas">More ▾</button>
     <button type="button" class="dock-btn dock-depth hidden" data-win="diary" title="Day-by-day story">Diary</button>
     <button type="button" class="dock-btn dock-depth hidden" data-win="story" title="Thesis + v1 witness spine">Story</button>
     <button type="button" class="dock-btn dock-depth hidden" data-win="ideas" title="Topic board — next iteration">Ideas</button>
-    <button type="button" class="dock-btn dock-depth hidden" data-win="chronicle" title="Activity pulse">Pulse</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="viewports" title="Cursor Canvas boards synced to disk">Canvas</button>
     <a class="dock-btn" href="/shell" title="Files + agent tools (preferred for long runs)">Shell</a>
   </nav>
   <div class="desk" id="desk">
 
-    <div class="win" data-win="chronicle" id="win-chronicle">
+    <div class="win" data-win="viewports" id="win-viewports">
       <div class="win-titlebar">
-        <span class="win-title">Pulse — what actually happened</span>
+        <span class="win-title">Canvas — synced boards</span>
         <span class="win-ctrls">
-          <button type="button" class="win-min" title="minimize">-</button>
-          <button type="button" class="win-max" title="maximize">+</button>
-          <button type="button" class="win-close" title="close">x</button>
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
-        <section id="panel-chronicle" class="panel pane-pad chronicle-panel">
-          <div class="pane-head">
+        <section id="panel-viewports" class="panel pane-pad canvas-platform">
+          <header class="canvas-hero">
             <div>
-              <h2 class="pane-h">Pulse</h2>
-              <p class="muted pane-sub" id="chronicle-meta">Loading…</p>
-              <p class="honesty-note" id="chronicleHonesty">Sourced from attention.md, seat feed, workers — not invented commentary.</p>
+              <h2 class="pane-h">Canvas platform</h2>
+              <p class="canvas-lead">
+                Build rich boards in <strong>Cursor Canvas</strong> (<code>*.canvas.tsx</code>).
+                Mag syncs them to <code>memory/viewports/</code> as plain JSON — stats, tables, todos you can read without re-parsing chat.
+              </p>
             </div>
+            <div class="row canvas-toolbar">
+              <button type="button" class="btn primary" id="btnViewportsSync">Sync from Cursor</button>
+              <button type="button" class="btn ghost" id="btnViewportsRefresh">Refresh</button>
+              <span class="meta" id="viewportsMeta">—</span>
+            </div>
+          </header>
+          <p class="help-bar canvas-setup" id="canvasSetupHint">
+            <strong>First time:</strong> set <code>CANVAS_SOURCES</code> to your Cursor canvases folder, then Sync — or use bundled boards below.
+          </p>
+          <div class="canvas-picker" id="canvasPicker" role="tablist" aria-label="Choose viewport"></div>
+          <div class="canvas-layout">
+            <main id="viewportsHost" class="viewport-stack"></main>
+            <aside class="canvas-pulse card">
+              <h3 class="canvas-pulse-h">Live pulse</h3>
+              <p class="muted sm" id="canvasPulseMeta">File-backed activity — not AI commentary</p>
+              <ul id="canvasPulseEvents" class="canvas-pulse-list signal-list"></ul>
+              <details class="canvas-pulse-more">
+                <summary class="muted sm">Commentary file (optional)</summary>
+                <pre id="canvasPulseCommentary" class="chronicle-pre sm"></pre>
+              </details>
+              <p class="muted sm" id="canvasPulseSources"></p>
+            </aside>
           </div>
-          <pre id="chronicle-content" class="chronicle-pre"></pre>
-          <h3 class="ideas-col-h">Events</h3>
-          <ul id="chronicleEvents" class="chronicle-events signal-list"></ul>
-          <p class="muted sm" id="chronicleSources"></p>
         </section>
       </div>
+      <div class="win-resize" title="resize"></div>
     </div>
 
     <div class="win focused" data-win="home" id="win-home">
@@ -699,32 +720,6 @@
       <div class="win-resize" title="resize"></div>
     </div>
 
-    <div class="win" data-win="viewports" id="win-viewports">
-      <div class="win-titlebar">
-        <span class="win-title">&#9654; VIEWPORTS // CANVAS</span>
-        <span class="win-ctrls">
-          <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">&#9633;</button>
-          <button type="button" class="win-close" title="close">&#215;</button>
-        </span>
-      </div>
-      <div class="win-body">
-        <section id="panel-viewports" class="panel">
-          <p class="help-bar">
-            <strong>Cursor Canvas → Mag.</strong>
-            Synced from external *.canvas.tsx into memory/viewports/ — tables, todos, stats for the desk.
-          </p>
-          <div class="row" style="margin-bottom:0.75rem">
-            <button type="button" class="btn ghost" id="btnViewportsRefresh">Refresh</button>
-            <button type="button" class="btn ghost" id="btnViewportsSync">Sync canvases</button>
-            <span class="meta" id="viewportsMeta">—</span>
-          </div>
-          <div id="viewportsHost" class="viewport-stack"></div>
-        </section>
-      </div>
-      <div class="win-resize" title="resize"></div>
-    </div>
-
     <div class="win" data-win="ingest" id="win-ingest">
       <div class="win-titlebar">
         <span class="win-title">▶ INGEST // CAT</span>
@@ -1120,6 +1115,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=tesuji33"></script>
-  <script src="/static/app.js?v=dashboard-d0-v5"></script>
+  <script src="/static/app.js?v=dashboard-canvas-v1"></script>
 </body>
 </html>

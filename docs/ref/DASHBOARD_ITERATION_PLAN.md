@@ -33,7 +33,7 @@ v1 gave **activation grammar** (strike, sovereign mirror, witness posts). v2 gav
 | **Ideas** | `GET /api/v1/ideas` | `idea_graph` nodes |
 | **Chat** | `POST /api/v1/agent/stream` | context-pack + agent_cli |
 | **Body** | `router-status`, `governance`, `seats` | nervous_system shape |
-| **Pulse** | `GET /api/v1/chronicle` | attention, seat feed |
+| **Canvas** | `GET /api/v1/viewports` | Cursor Canvas → memory/viewports/ + live pulse rail |
 | **Story** | `GET /api/v1/story` | filed narrative + witness |
 | **Workers** | `/static/agents.html` | orchestrator fleet |
 
@@ -81,7 +81,7 @@ Dock CORE (always):
   Office · Days · Chat · Status · Shell (link)
 
 Dock MORE (one click):
-  Diary · Story · Ideas (next iteration) · Pulse
+  Diary · Story · Ideas (next iteration) · Canvas
 
 External (links):
   Workers (advanced) · Shell
@@ -140,6 +140,13 @@ Every load of `/api/v1/home` must answer in 30 seconds:
 - [x] Status **At a glance** layman block with artifact paths
 - [x] Sovereign Shell refined — curated tree (skip `orc-*.json`), SSE streaming, quick files
 - [x] Workers removed from dock — Status link only
+
+### RUN D0.6 — Canvas platform (replaces Pulse)
+
+- [x] Pulse tab removed — activity rail merged into Canvas
+- [x] Bundled viewports in `docs/ref/viewports/` auto-seed on first load
+- [x] Viewport picker + layman platform copy
+- [x] `CANVAS_SOURCES` + Sync from desk
 
 ### RUN D1 — Office complete (after v2 merge #8–#10)
 
