@@ -115,6 +115,12 @@ def conduct(
 
     # Phase overlays — research heuristics, not learned weights yet
     overlay: dict[str, Any] = {"phase": phase, "case_law_hints": hints}
+    try:
+        from mag.skill_seat import pick_skill_for_goal
+
+        overlay["skill_seat"] = pick_skill_for_goal(goal)
+    except Exception:
+        overlay["skill_seat"] = None
     if phase == "plan" and not force_seat:
         overlay["conductor_note"] = "Scarce architect seat — spec only, no implementation"
         if base.get("seat") not in ("grok_tui", "human", "defer"):

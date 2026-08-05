@@ -84,12 +84,14 @@ End with FILE block (§6).
 
 ```text
 Role: JONES-PLAN
+Skill: caveman — python main.py skill-seat preamble --skill caveman
 Extra load:
   - docs/ref/MAG_BUILD_PIPELINE.md
   - docs/ref/BUILD-TEMPLATE.md
   - HANDOFF_MAG_AGENT_TODOS.md §1 merge order
 Output: queue/handoff/BUILD-{slug}.md (copy from BUILD-TEMPLATE)
 Forbidden: implementation, merge, >10 files in scope
+Gate: python main.py caveman-audit --path <your spec>
 Error focus: E02, E10, E11, E20, E34
 ```
 
@@ -97,6 +99,7 @@ Error focus: E02, E10, E11, E20, E34
 
 ```text
 Role: JONES-BUILD
+Skill: ponytail — python main.py skill-seat preamble --skill ponytail
 Extra load:
   - queue/handoff/BUILD-{slug}.md (Status: frozen ONLY)
   - docs/FRAMEWORK_LOAD.md tier 0
@@ -104,6 +107,7 @@ Extra load:
 Branch: cursor/{slug}-e2ce
 Run before FILE: commands from BUILD spec
 Forbidden: architecture debate, files forbidden in spec
+Gate: python main.py ponytail-audit
 Error focus: E01, E11, E20, E21, E40, E42
 ```
 
@@ -111,6 +115,7 @@ Error focus: E01, E11, E20, E21, E40, E42
 
 ```text
 Role: JONES-AUDIT
+Skill: ponytail — python main.py skill-seat gate --skill ponytail
 Extra load:
   - BUILD spec + git diff main...branch
   - docs/FRAMEWORK_LOAD.md

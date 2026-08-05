@@ -916,6 +916,27 @@ def main(argv: list[str] | None = None) -> int:
     p_train.add_argument("--pattern", default="", help="Filter by pattern type")
     p_train.add_argument("--json", action="store_true", help="JSON output")
 
+    p_cm = sub.add_parser(
+        "caveman-audit",
+        help="Caveman doc density scan — filler, long lines",
+    )
+    p_cm.add_argument("--path", default="", help="File or dir to scan (default: docs/ref)")
+    p_cm.add_argument("--json", action="store_true", help="JSON output")
+
+    p_skill = sub.add_parser(
+        "skill-seat",
+        help="Ponytail / caveman agent skill preambles + audit gates",
+    )
+    p_skill.add_argument(
+        "action",
+        choices=["status", "pick", "preamble", "gate"],
+        help="status|pick|preamble|gate",
+    )
+    p_skill.add_argument("text", nargs="*", help="Goal text for pick/preamble")
+    p_skill.add_argument("--skill", default="", help="ponytail|caveman for preamble/gate")
+    p_skill.add_argument("--path", default="", help="Path for caveman gate")
+    p_skill.add_argument("--json", action="store_true", help="JSON output")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1451,6 +1472,41 @@ def main(argv: list[str] | None = None) -> int:
         for r in rows:
             print(f"{r.get('ts', '')[:19]} [{r.get('pattern')}] tags={r.get('pattern_tags')}")
         return 0
+    if args.cmd == "caveman-audit":
+        from mag.caveman_audit import format_report, run_audit
+
+        path = (getattr(args, "path", "") or "").strip()
+        paths = [path] if path else None
+        res = run_audit(paths=paths)
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str)[:12000])
+        else:
+            print(format_report(res))
+        return 0
+    if args.cmd == "skill-seat":
+        from mag.skill_seat import build_preamble, pick_skill_for_goal, run_gate, skill_status
+
+        action = getattr(args, "action", "status")
+        goal = " ".join(getattr(args, "text", []) or []).strip()
+        if action == "status":
+            print(json.dumps(skill_status(), indent=2, default=str))
+            return 0
+        if action == "pick":
+            sid = pick_skill_for_goal(goal)
+            out = {"goal": goal[:200], "skill": sid}
+            print(json.dumps(out, indent=2) if getattr(args, "json", False) else f"skill: {sid}")
+            return 0
+        if action == "preamble":
+            sid = (getattr(args, "skill", "") or "").strip() or pick_skill_for_goal(goal)
+            pre = build_preamble(sid, goal=goal)
+            print(pre if not getattr(args, "json", False) else json.dumps({"skill": sid, "preamble": pre}))
+            return 0
+        if action == "gate":
+            sid = (getattr(args, "skill", "") or "ponytail").strip()
+            res = run_gate(sid, path=(getattr(args, "path", "") or "").strip())
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("pass", res.get("ok")) else 1
+        return 2
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
