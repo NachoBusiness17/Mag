@@ -188,7 +188,7 @@ def build_slots() -> list[dict]:
     if _drainer_wanted():
         slots.append({
             "name": "drainer",
-            "cmd": [PY, str(ROOT / "main.py"), "orchestrator", "drain"],
+            "cmd": [PY, str(ROOT / "main.py"), "autorun"],
             "wanted": True,
             "proc": None,
         })
@@ -539,6 +539,12 @@ def main() -> int:
             return 0 if all(alive.get(k) for k in wanted) else 1
         try:
             while True:
+                if (ROOT / "state" / "mag_power.off").is_file():
+                    _log("power off flag set; supervisor exiting (no respawn)")
+                    for s in slots:
+                        if s.get("proc") is not None and s["proc"].poll() is None:
+                            _kill_pid(s["proc"].pid)
+                    break
                 time.sleep(CHECK_S)
                 _sync_dynamic_slots(slots)
                 ensure(slots)

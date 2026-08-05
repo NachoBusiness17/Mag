@@ -71,15 +71,16 @@ def autopilot_once(
     queued: list[dict[str, Any]] = []
     if queue_improve:
         try:
-            from mag.orchestrator import enqueue
+            from mag.governor_autorun import enqueue_routed
 
             for cand in _top_improve_candidates(max_queue):
                 claim = str(cand.get("claim") or cand.get("id") or "")[:300]
                 if not claim:
                     continue
                 goal = f"[improve] {claim}"
-                rec = enqueue(goal, provider="deepseek", tag=f"improve-{cand.get('id', '')[:12]}")
-                queued.append(rec)
+                rec = enqueue_routed(goal, tag=f"improve-{cand.get('id', '')[:12]}")
+                if rec.get("ok") is not False or rec.get("queue_id"):
+                    queued.append(rec)
             out["queued"] = queued
             out["steps"].append({"queue_improve": f"queued {len(queued)}"})
         except Exception as e:

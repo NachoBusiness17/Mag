@@ -624,6 +624,36 @@ def _behavioral_candidates(day: str) -> list[dict[str, Any]]:
         except Exception:
             pass
 
+    # 5) Failure KB recurring signatures (deduped tool/collapse patterns)
+    try:
+        from mag.failure_kb import recurring_patterns
+
+        for rec in recurring_patterns(min_count=3)[:5]:
+            cnt = int(rec.get("count") or 0)
+            tool_s = str(rec.get("tool") or "?")
+            claim = f"FKB recurring: {tool_s} ×{cnt} ({rec.get('sig', '')[:20]})"
+            rows.append(
+                {
+                    "schema": SCHEMA,
+                    "id": _candidate_id(claim, str(rec.get("sig") or "")),
+                    "date": day,
+                    "kind": "risk",
+                    "claim": claim,
+                    "detail": (
+                        f"error={str(rec.get('error_sample') or '')[:80]}; "
+                        f"detail={str(rec.get('detail_sample') or '')[:80]}; "
+                        f"remedy={rec.get('remedy_id') or 'none'}"
+                    ),
+                    "source": "mag_internal",
+                    "source_urls": ["memory/failure_kb/signatures.json"],
+                    "local_feasible": "true",
+                    "status": "new",
+                    "created": _utc_now().isoformat(),
+                }
+            )
+    except Exception:
+        pass
+
     return rows
 
 
@@ -633,6 +663,14 @@ def scout(*, dry: bool = False) -> dict[str, Any]:
         return {"ok": False, "error": "improve disabled in configs/improve.yaml"}
     paths = ensure_dirs(cfg)
     day = _day_str()
+    behavioral_leaf = None
+    if not dry:
+        try:
+            from mag.behavioral_synth import synthesize_behavioral_leaf
+
+            behavioral_leaf = synthesize_behavioral_leaf(day)
+        except Exception:
+            behavioral_leaf = None
     keys = _weekday_keys(cfg)
     budgets = cfg.get("budgets") or {}
     max_cand = int(budgets.get("candidates_per_day") or 25)
@@ -1877,9 +1915,35 @@ def promote_apply(cid: str, *, force_model: bool = False) -> dict[str, Any]:
         return {"ok": True, "id": cid, "kind": kind, "action": "playbook_promoted"}
 
     update_candidate_status(cid, "promoted", note="Promoted by operator")
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "promote_gate",
+            join={"candidate_id": cid},
+            input_data={"claim": (row.get("claim") or "")[:200], "kind": kind},
+            action={"verdict": "promoted", "force_model": force_model},
+            outcome={"ok": True},
+            pattern_tags=[f"kind_{kind}"],
+        )
+    except Exception:
+        pass
     return {"ok": True, "id": cid, "kind": kind, "action": "status_promoted"}
 
 
 def promote_reject(cid: str, reason: str = "") -> dict[str, Any]:
     ok = update_candidate_status(cid, "rejected", note=reason or "rejected by operator")
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "promote_gate",
+            join={"candidate_id": cid},
+            input_data={"reason": (reason or "")[:200]},
+            action={"verdict": "rejected"},
+            outcome={"ok": ok},
+            pattern_tags=["reject"],
+        )
+    except Exception:
+        pass
     return {"ok": ok, "id": cid, "status": "rejected"}

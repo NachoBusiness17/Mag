@@ -57,6 +57,17 @@ def test_unwrap_arguments_as_json_string():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_unwrap_parameters_codex_style():
+    d = _jail_dir()
+    try:
+        p = d / "codex.txt"
+        r = dispatch("write_file", {"parameters": {"path": str(p), "content": "codex"}})
+        assert r["ok"] is True, r
+        assert p.read_text(encoding="utf-8") == "codex"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_unwrap_params_and_kwargs_synonyms():
     d = _jail_dir()
     try:

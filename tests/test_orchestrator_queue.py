@@ -102,6 +102,21 @@ def test_enqueue_and_drain_sequential():
         _restore(old_qdir, old_tdir, old_spawn)
 
 
+def test_enqueue_dedupes_same_goal():
+    """Second enqueue with same normalized goal is refused."""
+    old_qdir, old_tdir, old_spawn = _isolate()
+    try:
+        q1 = orc.enqueue("[test] dedupe smoke", tag="q-test")
+        assert q1.get("ok")
+        q2 = orc.enqueue("[test] dedupe smoke", tag="q-test")
+        assert q2.get("ok") is False
+        assert "duplicate" in str(q2.get("error", "")).lower()
+        assert q2.get("existing_queue_id") == q1.get("queue_id")
+        print("PASS test_enqueue_dedupes_same_goal")
+    finally:
+        _restore(old_qdir, old_tdir, old_spawn)
+
+
 def test_drain_skips_when_running():
     """drain_once does NOT spawn a second task while one is live."""
     old_qdir, old_tdir, old_spawn = _isolate()

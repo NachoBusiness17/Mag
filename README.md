@@ -1,5 +1,9 @@
 # local_sovereign_agent — Mag Resource Harness
 
+**For LLMs — load framework first:** [`docs/FRAMEWORK_LOAD.md`](docs/FRAMEWORK_LOAD.md) · [`LOAD.md`](LOAD.md)  
+**For everyone — full proposal:** [`docs/ref/MAG_PROJECT_PROPOSAL.md`](docs/ref/MAG_PROJECT_PROPOSAL.md)  
+**For humans — dashboard how-to:** [`docs/HOW_TO_MAG_DASHBOARD.md`](docs/HOW_TO_MAG_DASHBOARD.md)
+
 **Product home for the local orchestrator.** Local models do memory, briefs, and scutwork; **remote specialist seats are scarce** (priority + daily budget). This is **not** the strike demo-knot desk and not R0.
 
 | Lane | Role |
@@ -9,6 +13,16 @@
 | **L3** | Human — secrets / irreversible |
 
 Strike desk (`sovereign-mirror-scaffold` :8743) is **optional analysis** of Mag data structures. Mag brand lives here on **:8765**.
+
+## Three doors (layman)
+
+| Door | Do | Example |
+|------|-----|---------|
+| **FIND** | Get your real material | X search, exports, `research-pack` |
+| **FILE** | Save to disk (bead, trail) | SessionEnd, dig leaf, FILE block |
+| **LOAD** | Brief any AI cheaply | `mag.cmd context-pack` |
+
+See [`docs/FRAMEWORK_LOAD.md`](docs/FRAMEWORK_LOAD.md) for metaphors, load order, and use cases.
 
 ## Dashboard (Body · Pulse · Days · Chat)
 

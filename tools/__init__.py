@@ -26,7 +26,7 @@ def _normalize_args(name: str, args: dict | None) -> dict | None:
     # Also unwrap when the value is a JSON *string* (harness captures the
     # parameter value as raw text, so a model emitting one `arguments` param
     # yields {"arguments": '{"path": ...}'} — a string, not a dict).
-    for key in ("arguments", "params", "kwargs"):
+    for key in ("arguments", "parameters", "params", "kwargs"):
         if len(args) == 1 and key in args:
             val = args[key]
             if isinstance(val, dict):

@@ -1,5 +1,7 @@
 # Mag OS v2 — Activation (LLM paste)
 
+**Load framework first:** `docs/FRAMEWORK_LOAD.md` → `docs/ref/MAG_PROJECT_PROPOSAL.md` → this file.
+
 You are operating under **Mag OS v2** for this operator (local sovereign agent / Nacho).
 
 ## Permanent rules

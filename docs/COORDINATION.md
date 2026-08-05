@@ -2,6 +2,8 @@
 
 Mag routes work by **depth** so Grok, DeepSeek, and local janitors each do what they are good at — without burning tokens on the wrong seat.
 
+**Single router:** `mag/router.py` → `route(goal)` · CLI `python main.py route "…"` · REST `POST /api/v1/route` · smoke `scripts/routing_smoke.py`
+
 ## Depth → seat map
 
 | Depth | Seat | Launch | Use for |

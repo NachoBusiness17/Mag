@@ -64,8 +64,123 @@ QUEUE_DIR = ROOT / "memory" / "runs" / "orchestrator" / "queue"
 LOG_DIR = ROOT / "logs" / "orchestrator"
 TRAIL = ROOT / "memory" / "runs" / "orchestrator_trail.jsonl"
 DEFAULT_TIMEOUT = 900  # seconds
+IMPROVE_TIMEOUT = 420  # shorter backstop for [improve] loops (7 min)
+EXTERNAL_STALE_S = 300  # external/desktop seats without pid — reap after stale heartbeat
 
 TERMINAL = {"done", "failed", "timeout", "stalled", "killed", "died"}
+
+
+def timeout_for_goal(goal: str, *, tag: str = "", timeout: int | None = None) -> int:
+    """Pick spawn timeout — improve jobs get a shorter backstop."""
+    if timeout is not None and timeout != DEFAULT_TIMEOUT:
+        return int(timeout)
+    g = (goal or "").lower()
+    t = (tag or "").lower()
+    if "[improve]" in g or t.startswith("improve"):
+        return IMPROVE_TIMEOUT
+    return DEFAULT_TIMEOUT
+
+
+def _is_external_task(task: dict[str, Any]) -> bool:
+    src = str(task.get("source") or "")
+    if src in ("external", "desktop", "cursor", "cloud", "seat_guard", "launcher"):
+        return True
+    tid = str(task.get("task_id") or "")
+    return tid.startswith("ext-") or tid.startswith("seat-")
+
+
+def register_external(
+    goal: str = "",
+    *,
+    seat: str = "cursor",
+    platform: str = "cursor",
+    mode: str = "interactive",
+    task_id: str | None = None,
+    pid: int | None = None,
+    tag: str = "",
+    parent: str = "desktop",
+) -> dict[str, Any]:
+    """Register a desktop/cloud seat — visible in list_tasks_live + switchboard steer."""
+    _ensure_dirs()
+    task_id = (task_id or "").strip() or ("ext-" + uuid.uuid4().hex[:10])
+    task: dict[str, Any] = {
+        "task_id": task_id,
+        "tag": tag or f"{seat}-external",
+        "status": "running",
+        "source": "external",
+        "seat": seat,
+        "platform": platform,
+        "mode": mode,
+        "parent": parent,
+        "goal": (goal or "")[:500],
+        "cmd": [],
+        "created_at": _now(),
+        "started_at": _now(),
+        "ended_at": None,
+        "exit_code": None,
+        "timeout_s": None,
+        "log": "",
+        "detail": f"registered:{parent}",
+        "pid": pid,
+    }
+    _save(task)
+    _trail("register_external", task_id, seat=seat, mode=mode, parent=parent)
+    ph = _ph()
+    if ph is not None:
+        try:
+            ph.heartbeat(task_id, seat=seat, phase="registered", source=parent)
+            ph.write_status(task_id, phase="registered", seat=seat, goal=task["goal"][:200])
+        except Exception:
+            pass
+    task["ok"] = True
+    return task
+
+
+def touch_external(task_id: str, **fields: Any) -> dict[str, Any] | None:
+    """Update last_seen on an external task record."""
+    task = _load(task_id)
+    if not task:
+        return None
+    task["last_seen_at"] = _now()
+    for k, v in fields.items():
+        if v is not None and k in ("phase", "goal", "seat", "pid", "detail"):
+            task[k] = v
+    _save(task)
+    return task
+
+
+def finalize_external(task_id: str, *, status: str = "done", detail: str = "") -> dict[str, Any]:
+    """Terminal state for external seats (no process kill)."""
+    task = _load(task_id)
+    if not task:
+        return {"ok": False, "error": "no such task", "task_id": task_id}
+    if task.get("status") in TERMINAL:
+        return {"ok": True, "task": task, "note": "already terminal"}
+    task = _finalize(task_id, status, detail=detail or f"external:{status}") or task
+    return {"ok": True, "task": task}
+
+
+def list_external_tasks(*, limit: int = 50) -> list[dict[str, Any]]:
+    """Running/ recent external task records enriched with heartbeat."""
+    out: list[dict[str, Any]] = []
+    ph = _ph()
+    for t in list_tasks(limit=limit):
+        if not _is_external_task(t):
+            continue
+        tid = str(t.get("task_id") or "")
+        if ph is not None and t.get("status") in ("running", "queued"):
+            try:
+                t["heartbeat_age_s"] = ph.staleness_s(tid)
+                t["alive"] = ph.alive(tid)
+                st = ph.read_status(tid)
+                if st:
+                    t["phase"] = st.get("phase")
+            except Exception:
+                pass
+        t["peer_id"] = f"ext:{tid}"
+        t["why"] = [f"external:{t.get('parent', 'desktop')}"]
+        out.append(t)
+    return out
 
 
 def _ph() -> Any:
@@ -107,11 +222,58 @@ def _save(task: dict[str, Any]) -> None:
     )
 
 
+def _goal_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--query" in cmd:
+        i = cmd.index("--query")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])[:240]
+    return ""
+
+
+def _provider_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--provider" in cmd:
+        i = cmd.index("--provider")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])
+    return "deepseek"
+
+
+def _emit_task_lifecycle(phase: str, task_id: str, **extra: Any) -> None:
+    """Training hook — spawn/terminal edges for improve + seat posterior."""
+    try:
+        from mag.training_events import emit
+
+        task = _load(task_id) or {}
+        cmd = task.get("cmd") or []
+        emit(
+            "task_lifecycle",
+            join={"task_id": task_id},
+            input_data={
+                "goal": (task.get("goal") or _goal_from_cmd(cmd))[:200],
+                "provider": task.get("provider") or _provider_from_cmd(cmd),
+                "tag": task.get("tag") or "",
+            },
+            action={"phase": phase, **extra},
+            outcome={
+                "status": task.get("status"),
+                "exit_code": task.get("exit_code"),
+                "duration_s": task.get("duration_s"),
+            },
+            pattern_tags=[f"orc_{phase}"],
+        )
+    except Exception:
+        pass
+
+
 def _trail(event: str, task_id: str, **meta: Any) -> None:
     _ensure_dirs()
     entry = {"timestamp": _now(), "event": event, "task_id": task_id, **meta}
     with TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def _kill_tree(pid: int) -> None:
     """Terminate the process and its children (Windows process tree)."""
     if sys.platform == "win32":
@@ -184,6 +346,7 @@ def _finalize(task_id: str, status: str, exit_code: int | None = None,
             pass
     _save(task)
     _trail(status, task_id, exit_code=exit_code, detail=detail, killed=killed)
+    _emit_task_lifecycle(status, task_id, killed=killed, detail=(detail or "")[:120])
     return task
 
 
@@ -240,6 +403,7 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
     task["started_at"] = _now()
     _save(task)
     _trail("spawn", task_id, pid=proc.pid, timeout_s=timeout)
+    _emit_task_lifecycle("spawn", task_id, pid=proc.pid, timeout_s=timeout)
 
     def _monitor() -> None:
         """Supervise: exit -> finalize; stall -> nudge (!steer) then kill;
@@ -322,6 +486,34 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+
+    if goal.lower().startswith("[steward]"):
+        try:
+            from mag.steward import execute_steward_goal
+
+            res = execute_steward_goal(goal, dry=False)
+            tid = "t-steward-" + uuid.uuid4().hex[:8]
+            status = "done" if res.get("ok") else "failed"
+            rec: dict[str, Any] = {
+                "ok": res.get("ok", False),
+                "task_id": tid,
+                "goal": goal,
+                "status": status,
+                "provider": "ollama",
+                "tag": tag or "steward",
+                "detail": str(res.get("path") or res.get("reason") or res.get("error") or "")[:300],
+                "steward_result": res,
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec)
+            _trail("steward-inline", tid, goal=goal[:120], ok=res.get("ok"))
+            return rec
+        except Exception as exc:
+            return {"ok": False, "error": f"steward: {exc}"}
+
+    timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     for t in _running_tasks():
         if t.get("goal") == goal:
             return {
@@ -331,6 +523,12 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
                 "status": t.get("status"),
             }
     task_id = "t" + uuid.uuid4().hex[:10]
+    try:
+        from mag.autorun_common import refresh_context_for_goal
+
+        refresh_context_for_goal(goal)
+    except Exception:
+        pass
     cmd = [sys.executable, str(ROOT / "main.py"), "agent", "--query", goal,
            "--provider", provider]
     if model:
@@ -378,6 +576,23 @@ def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    try:
+        from mag.loop_audit import _goal_key
+
+        norm = _goal_key(goal)
+        for q in list_queue(limit=80):
+            if q.get("status") not in ("queued", "running"):
+                continue
+            if _goal_key(str(q.get("goal") or "")) == norm:
+                return {
+                    "ok": False,
+                    "error": "duplicate goal already queued",
+                    "existing_queue_id": q.get("queue_id"),
+                    "goal": goal[:120],
+                }
+    except Exception:
+        pass
+    timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     q = {
         "queue_id": "q" + uuid.uuid4().hex[:10],
         "goal": goal,
@@ -487,6 +702,14 @@ def drain_once() -> dict[str, Any]:
     queue drains one goal at a time, moving to the next the moment the
     current one finishes. Returns what happened.
     """
+    try:
+        from mag.autorun_common import autorun_pause_reason
+
+        pause = autorun_pause_reason()
+        if pause:
+            return {"ok": True, "action": "paused", "detail": pause}
+    except Exception:
+        pass
     _ensure_dirs()
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     _reconcile_queue()
@@ -658,6 +881,23 @@ def reap_stale() -> dict[str, Any]:
         if pid and not _pid_alive(pid):
             _finalize(t["task_id"], "died", detail="pid gone (parent survived)")
             fixed += 1
+            continue
+        # External/desktop seats: no pid — reap on stale pigeonhole heartbeat
+        if not pid and _is_external_task(t):
+            ph = _ph()
+            if ph is None:
+                continue
+            try:
+                age = ph.staleness_s(t["task_id"])
+            except Exception:
+                age = None
+            if age is not None and age > EXTERNAL_STALE_S:
+                _finalize(
+                    t["task_id"],
+                    "died",
+                    detail=f"external heartbeat stale {age}s",
+                )
+                fixed += 1
     return {"ok": True, "reaped": fixed}
 
 
