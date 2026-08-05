@@ -24,8 +24,8 @@
 
 | Skill | Path |
 |-------|------|
-| ponytail-ladder | `memory/improve/weaves/W8-ponytail-ladder.md` |
-| caveman-prose | `memory/improve/weaves/W9-caveman-prose.md` |
+| ponytail-ladder | `docs/ref/weaves/W8-ponytail-ladder.md` |
+| caveman-prose | `docs/ref/weaves/W9-caveman-prose.md` |
 
 Registered in `configs/skills.yaml` — auto-injected into `context-pack` when job matches (`hard_code`, `plan`, `audit`).
 

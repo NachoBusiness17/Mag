@@ -11,8 +11,8 @@ from typing import Any
 from config import ROOT
 
 SKILL_WEAVES: dict[str, str] = {
-    "ponytail": "memory/improve/weaves/W8-ponytail-ladder.md",
-    "caveman": "memory/improve/weaves/W9-caveman-prose.md",
+    "ponytail": "docs/ref/weaves/W8-ponytail-ladder.md",
+    "caveman": "docs/ref/weaves/W9-caveman-prose.md",
 }
 
 _CODE_MARKERS = (

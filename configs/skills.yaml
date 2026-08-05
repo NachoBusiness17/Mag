@@ -57,7 +57,7 @@ skills:
 
   - id: ponytail-ladder
     when: [hard_code, code, fix, edit, refactor, audit, build]
-    path: memory/improve/weaves/W8-ponytail-ladder.md
+    path: docs/ref/weaves/W8-ponytail-ladder.md
     pack_excerpt: true
     note: "Coding agent skill — YAGNI ladder; run ponytail-audit before merge."
 
