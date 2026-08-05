@@ -270,6 +270,7 @@ Steal contracts from Cursor (`MAG_STEAL_AUTOPILOT.md`); reject SaaS memory thron
 | v5 pipe | `MAG_v5_PIPE.md`, `MAG_v5_GSTD_FOREST.md`, `MAG_v5_VAST_TRAINING.md`, `MAG_v5_XRPL.md` |
 | backlog | `MAG_v3_BACKLOG.md` §6 (v5 rows) |
 | chat target | `V3_DEEPSEEK_RUN.md` §6 wave 3 (CHAT) |
+| ilap protocol | `docs/ref/MAG_ILAP_PROTOCOL.md` · `docs/ref/templates/ILAP-PROPOSAL.md` |
 | framework | `DNA.md`, `OPERATOR_CARD.md`, `MAG_BEHAVIORAL_COMPOUNDING.md` |
 | releases | `docs/ref/releases/VERSION_REGISTRY.md`, `configs/releases.yaml` |
 

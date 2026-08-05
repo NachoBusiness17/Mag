@@ -29,6 +29,9 @@ VALID_PATTERNS = frozenset({
     "voice_turn",
     "skill_gate",
     "release_milestone",
+    "ilap_cycle",
+    "research_dive",
+    "steal_compose",
 })
 
 

@@ -120,6 +120,48 @@ patterns:
     action_tier: draft
     eval_case: eval-economics-003
 
+  ilap_cycle:
+    description: ILAP aiming ritual completed — research, route test, build/wire/defer decision before code volume
+    trail_rule: ilap_proposal_status in (aimed, frozen) and routing_matrix_pass_rate >= 0.9
+    min_count: 1
+    join_keys: [build_slug, commitment, run_id, session_id]
+    chord_loops: [metric_theater]
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Proceed to factory freeze only if eval case filed
+    spider_hint: Surface ilap defer if overlap redundant repeats
+    safe_action: observe
+    action_tier: draft
+    eval_case: eval-ilap-001
+
+  research_dive:
+    description: Scout deep dive on arxiv/reddit/openclaw/X filed one leaf — FEATURE_COMPOSE or research_pack
+    trail_rule: research_leaf_kind in (feature_compose_card, research_pack, field_steal_row)
+    min_count: 1
+    join_keys: [source, steal_card_id, session_id, build_slug]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Map field signal to memory_verkle_map slot before BUILD
+    spider_hint: Link resonance if backlog rhymes
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-ilap-002
+
+  steal_compose:
+    description: Foreign contract passed zeitgeist filter — improve candidate or playbook draft
+    trail_rule: compose_status in (candidate, draft) and zeitgeist_filter == pass
+    min_count: 1
+    join_keys: [commitment, pattern_tags]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Wire to existing Mag slot; reject throne patterns
+    spider_hint: Never auto-promote — L3 gate only
+    safe_action: observe
+    action_tier: draft
+    eval_case: eval-ilap-003
+
   steward_job:
     description: Local janitor curator job completed or failed
     trail_rule: goal starts with [steward]
@@ -198,3 +240,12 @@ eval_cases:
   - id: eval-steward-001
     pattern: steward_job
     fixture: steward_prompts_catalog_leaf
+  - id: eval-ilap-001
+    pattern: ilap_cycle
+    fixture: v3_entry_matrix_90pct_routing_smoke_green
+  - id: eval-ilap-002
+    pattern: research_dive
+    fixture: openclaw_memory_compose_card_filed
+  - id: eval-ilap-003
+    pattern: steal_compose
+    fixture: reddit_harness_contract_candidate_not_dna

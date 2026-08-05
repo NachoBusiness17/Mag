@@ -251,3 +251,19 @@ deep_dive:
   run_local: true
   auto_promote: false
   require_http_or_local: true
+
+# ILAP v1 — between-version research ritual (docs/ref/MAG_ILAP_PROTOCOL.md)
+# Scout rotation + research-pack + field-steal = research agent (no second orchestrator)
+ilap:
+  enabled: true
+  between_version: true          # run full ILAP before version graduation gates
+  proposal_template: docs/ref/templates/ILAP-PROPOSAL.md
+  protocol: docs/ref/MAG_ILAP_PROTOCOL.md
+  verkle_map: docs/ref/memory_verkle_map.md
+  steal_pipeline: docs/templates/FEATURE_COMPOSE.md
+  training_patterns: [ilap_cycle, research_dive, steal_compose]
+  # After scout: routing_smoke + conductor matrix before any BUILD
+  aim_commands:
+    - python scripts/routing_smoke.py
+    - python main.py resonance --tick
+    - python main.py verkle-audit --dry
