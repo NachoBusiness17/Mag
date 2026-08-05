@@ -1002,6 +1002,11 @@ def main(argv: list[str] | None = None) -> int:
     p_rel.add_argument("--note", default="", help="Evidence note for record")
     p_rel.add_argument("--evidence", default="", help="Path to evidence artifact")
     p_rel.add_argument("--json", action="store_true", help="JSON output")
+    p_rel.add_argument(
+        "--map",
+        action="store_true",
+        help="Subprocess analog view (Mag loops/modules steal)",
+    )
 
     p_cm = sub.add_parser(
         "caveman-audit",
@@ -1673,7 +1678,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.cmd == "release":
         from mag.release_registry import (
+            build_subprocess_map,
             format_notes_text,
+            format_subprocess_text,
             read_gate_log,
             record_gate,
             status_summary,
@@ -1682,6 +1689,13 @@ def main(argv: list[str] | None = None) -> int:
         action = getattr(args, "action", "status") or "status"
         version = (getattr(args, "version", "") or "").strip()
         if action == "status":
+            if getattr(args, "map", False):
+                reg = build_subprocess_map()
+                if getattr(args, "json", False):
+                    print(json.dumps(reg, indent=2, default=str)[:12000])
+                else:
+                    print(format_subprocess_text(reg))
+                return 0
             res = status_summary()
             if getattr(args, "json", False):
                 print(json.dumps(res, indent=2, default=str)[:12000])

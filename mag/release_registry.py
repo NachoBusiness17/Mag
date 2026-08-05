@@ -60,14 +60,124 @@ def status_summary() -> dict[str, Any]:
     for rel in list_releases():
         vid = rel.get("id")
         gates = rel.get("gates") or []
+        passed = _gates_passed_for(vid)
         rows.append({
             "id": vid,
             "status": rel.get("status"),
+            "era": rel.get("era"),
             "notes_path": rel.get("notes_path"),
             "gates_defined": len(gates),
+            "gates_passed": len(passed),
             "gate_ids": [g.get("id") for g in gates if isinstance(g, dict)],
         })
     return {"ok": True, "releases": rows, "registry": str(REGISTRY_PATH)}
+
+
+# Mag subprocess analogs — steal from loops_registry + modules.yaml
+SUBPROCESS_MAP: dict[str, dict[str, str]] = {
+    "v1": {
+        "analog": "remote_activation_seat",
+        "layer": "viewport",
+        "loop": "strike → LOAD pack",
+        "trail": "docs/ref/strike_origin.md",
+        "module": "dispatch / Grok TUI",
+    },
+    "v2": {
+        "analog": "residual_dna + modules",
+        "layer": "cold",
+        "loop": "SessionEnd → registry",
+        "trail": "memory/ · configs/modules.yaml",
+        "module": "residual_dna, context_pack, improve",
+    },
+    "v3": {
+        "analog": "orchestrator_run",
+        "layer": "warm_mid",
+        "loop": "fill → route → execute",
+        "trail": "memory/runs/governor_autorun_trail.jsonl",
+        "module": "orchestrator, governor_autorun, factory",
+    },
+    "v4": {
+        "analog": "factory + conductor",
+        "layer": "harness",
+        "loop": "plan → freeze → audit → promote",
+        "trail": "memory/runs/conductor_trail.jsonl",
+        "module": "conductor, training_events, steward",
+    },
+    "v5": {
+        "analog": "switchboard_peers",
+        "layer": "meta",
+        "loop": "mesh → route → optional seat",
+        "trail": "configs/seat_playbook.yaml · mine/curated/",
+        "module": "switchboard, seat_score (planned)",
+    },
+}
+
+
+def _gates_passed_for(version_id: str) -> list[str]:
+    vid = (version_id or "").strip().lstrip("v")
+    out: list[str] = []
+    for row in read_gate_log(limit=200, version=version_id):
+        if row.get("ok") and row.get("gate_id"):
+            gid = str(row["gate_id"])
+            if gid not in out:
+                out.append(gid)
+    return out
+
+
+def _path_exists(rel: str) -> bool:
+    if not rel:
+        return False
+    p = ROOT / rel.split(" · ")[0].split()[0]
+    return p.is_file() or p.is_dir()
+
+
+def build_subprocess_map() -> dict[str, Any]:
+    """Version registry enriched with Mag subprocess analogs (loops_registry style)."""
+    releases_out: list[dict[str, Any]] = []
+    for rel in list_releases():
+        vid = str(rel.get("id") or "")
+        sp = SUBPROCESS_MAP.get(vid, {})
+        notes = rel.get("notes_path") or ""
+        passed = _gates_passed_for(vid)
+        gates = rel.get("gates") or []
+        releases_out.append({
+            **rel,
+            "subprocess": sp,
+            "notes_on_disk": _path_exists(notes),
+            "gates_passed": passed,
+            "gates_remaining": [
+                g.get("id") for g in gates
+                if isinstance(g, dict) and g.get("id") not in passed
+            ],
+        })
+    return {
+        "schema": "mag_version_subprocess.v1",
+        "ts": _now(),
+        "law": "Versions are runs with trails — not marketing labels.",
+        "doc": "docs/ref/releases/MAG_VERSION_SUBPROCESS_MAP.md",
+        "releases": releases_out,
+        "operator_definitions": load_registry().get("operator_definitions") or {},
+    }
+
+
+def format_subprocess_text(reg: dict[str, Any] | None = None) -> str:
+    r = reg or build_subprocess_map()
+    lines = [
+        f"# Mag version subprocess map ({r.get('ts', '')[:19]})",
+        "",
+        "| Ver | Status | Subprocess | Layer | Gates |",
+        "|-----|--------|------------|-------|-------|",
+    ]
+    for row in r.get("releases") or []:
+        sp = row.get("subprocess") or {}
+        g_ok = len(row.get("gates_passed") or [])
+        g_tot = len(row.get("gates") or [])
+        lines.append(
+            f"| {row.get('id')} | {row.get('status')} | {sp.get('analog', '—')} | "
+            f"{sp.get('layer', '—')} | {g_ok}/{g_tot} |"
+        )
+    lines.extend(["", r.get("law") or "", "", f"Detail: {r.get('doc') or ''}"])
+    return "\n".join(lines)
 
 
 def _append_gate_log(row: dict[str, Any]) -> None:

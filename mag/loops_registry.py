@@ -120,6 +120,24 @@ LOOPS: list[dict[str, Any]] = [
         "status": "research",
         "cli": "main.py switchboard",
     },
+    {
+        "id": "releases",
+        "layer": "doctrine",
+        "loop": "notes → gate → release_milestone",
+        "trail": "memory/improve/releases/gates.jsonl",
+        "promote_gate": True,
+        "status": "shipped",
+        "cli": "main.py release",
+    },
+    {
+        "id": "steward",
+        "layer": "harness",
+        "loop": "scope → digest → one leaf",
+        "trail": "memory/steward/",
+        "promote_gate": False,
+        "status": "pilot",
+        "cli": "main.py steward",
+    },
 ]
 
 

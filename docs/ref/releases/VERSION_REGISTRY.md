@@ -19,7 +19,8 @@
 | **v4** | Mold — process before volume | planned | template |
 | **v5** | Pipe — GSTD, Vast, XRPL | planned | [MAG_v5_PIPE.md](../MAG_v5_PIPE.md) |
 
-**Witness:** [WITNESS_SPINE.md](WITNESS_SPINE.md) · [strike_origin.md](../strike_origin.md)
+**Witness:** [WITNESS_SPINE.md](WITNESS_SPINE.md) · [strike_origin.md](../strike_origin.md)  
+**Subprocess map:** [MAG_VERSION_SUBPROCESS_MAP.md](MAG_VERSION_SUBPROCESS_MAP.md)
 
 ---
 
