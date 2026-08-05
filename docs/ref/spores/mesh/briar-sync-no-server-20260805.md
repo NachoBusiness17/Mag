@@ -9,7 +9,10 @@
 | Field | Value |
 |-------|-------|
 | name | sync_without_central_server |
-| foreign form | P2P sync over Tor / BT / Wi-Fi; optional mailbox when offline |
+| foreign form | P2P sync over Tor / BT / Wi-Fi; optional [mailbox](https://github.com/briar/briar-mailbox) when device offline |
+| upstream | **GitLab primary:** [code.briarproject.org/briar/briar](https://code.briarproject.org/briar/briar) · GitHub mirror only |
+| local clone | `mine/raw/mesh_comm/briar/briar` @ 1.5.19 (`b46d008`) |
+| license | GPL-3.0 |
 | invariant | IF central server required THEN capture + lights-out failure |
 
 ## Evaluate
@@ -20,13 +23,15 @@
 | differ | Briar is messaging product; Mag is office harness |
 | overlap | **~90%** doctrine — document alignment, no new code |
 
-## Steal
+**Transport chain (from README):**
 
-| Briar | Mag (already) |
-|-------|---------------|
-| No central server | cold vertex on operator disk |
-| Mailbox (optional) | v5 willing relay peer — like GSTD edge |
-| Tor path | T2 research only — not default seat |
+```text
+Internet up   → Tor sync (surveillance-resistant)
+Internet down → Bluetooth or Wi-Fi direct sync
+Offline peer  → optional Briar Mailbox (willing relay — separate repo)
+```
+
+**Mag steal:** ordered fallback shape matches ILAP `transport_chain` draft (local → mesh → hub → defer).
 
 ## Enhance
 
