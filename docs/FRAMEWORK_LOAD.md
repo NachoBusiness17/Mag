@@ -90,6 +90,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | **Jones agent fleet** | `docs/ref/JONES_AGENT_FLEET_PACK.md` · `docs/ref/MAG_AGENT_ERROR_CATALOG.md` |
 | **LLM onboarding (paste pack)** | **`docs/ref/MAG_LLM_FEED_PACK.md`** — GitHub links + system prompts |
 | **Next coding run** | **`docs/ref/MAG_NEXT_CODING_RUN.md`** — subsystems map + RUN A–D order |
+| **Behavioral compounding** | **`docs/ref/MAG_BEHAVIORAL_COMPOUNDING.md`** — how steps auto-emerge, surface, resurrect |
 | **Ponytail / Caveman skills** | `docs/ref/PONYTAIL_CAVEMAN_SKILLS.md` · `python main.py skill-seat` |
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
