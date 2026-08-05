@@ -1,0 +1,84 @@
+# Home PC sync — Windows (operator Nacho)
+
+**Commitment:** `home-pc-sync-001`  
+**Job:** Pull branch work + refresh research clones. **Never assume cwd.**
+
+**Behavioral lesson (2026-08-05):** Pasting `git` / `./scripts/*.sh` / `mag.cmd` from cloud agent without `cd` to repo → fails in `C:\Users\foste`. Agents must **verify path** or ship a **repo script**, not assume.
+
+---
+
+## Rule for agents
+
+1. **Do not** give bare git/mag commands without repo root context.  
+2. **Do** use `scripts\home_sync.cmd` on Windows or verify `$PWD` contains `mag.cmd`.  
+3. **Do** use `.cmd` on Windows, `.sh` on Linux/cloud.  
+4. **Default repo path (Nacho):** `%USERPROFILE%\Documents\projects\local_sovereign_agent` — confirm with `Test-Path mag.cmd` before trusting.
+
+---
+
+## One command (from anywhere — script finds repo)
+
+```powershell
+# Set once if repo is not default path:
+# $env:MAG_ROOT = "D:\path\to\local_sovereign_agent"
+
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\projects\local_sovereign_agent\scripts\home_sync.cmd"
+```
+
+Or after `cd` to repo:
+
+```powershell
+cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
+scripts\home_sync.cmd
+scripts\home_sync.cmd cursor\mesh-comm-research-e2ce
+```
+
+---
+
+## What home_sync.cmd does
+
+1. Resolve repo root (`MAG_ROOT` or walk up for `mag.cmd`)  
+2. `git fetch origin`  
+3. `git checkout` + `git pull` target branch (default: current tracking branch)  
+4. `scripts\pull_mesh_comm_repos.cmd`  
+5. `scripts\pull_gstdcoin_repos.cmd`  
+6. `mag.cmd doctor`  
+7. `mag.cmd context-pack --mode janitor`  
+
+---
+
+## Manual (only if script fails)
+
+```powershell
+cd $env:USERPROFILE\Documents\projects\local_sovereign_agent   # adjust if needed
+git fetch origin
+git checkout cursor/mesh-comm-research-e2ce
+git pull origin cursor/mesh-comm-research-e2ce
+scripts\pull_mesh_comm_repos.cmd
+scripts\pull_gstdcoin_repos.cmd
+mag.cmd doctor
+mag.cmd context-pack --mode janitor
+```
+
+**Find repo if unknown:**
+
+```powershell
+Get-ChildItem -Path $env:USERPROFILE -Recurse -Filter "mag.cmd" -ErrorAction SilentlyContinue | Select-Object -First 3 DirectoryName
+```
+
+---
+
+## Active branch (our work)
+
+| Branch | PR | Contains |
+|--------|-----|----------|
+| `cursor/mesh-comm-research-e2ce` | #17 | ILAP + mesh forest + scout spores (fullest) |
+| `cursor/v3-deepseek-run-e2ce` | #15 | v3 wiring + ILAP (subset of mesh branch) |
+
+Prefer **mesh-comm-research** for latest research stack.
+
+---
+
+## Cloud agent
+
+Cloud workspace is already at repo root — use `./scripts/mesh_comm_ilap_run.sh` and `.venv/bin/python`, not `mag.cmd` unless on Windows.

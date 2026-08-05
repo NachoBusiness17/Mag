@@ -45,7 +45,16 @@ short recaps of what changed and where — not menus of options awaiting input.
 When several independent steps exist, run them in one pass. No sequential
 round-trips for things that can go together.
 
-## E4. (reserved)
+## E4. Home PC / operator shell — verify before instruct
+
+Never paste `git`, `mag.cmd`, or `./scripts/*` commands **without repo root context**.
+Nacho runs **Windows PowerShell**; default repo is `%USERPROFILE%\Documents\projects\local_sovereign_agent` — **confirm** with `Test-Path mag.cmd`, do not assume cwd.
+
+- Windows sync: `scripts\home_sync.cmd` or `docs/ref/HOME_PC_SYNC.md`
+- Cloud/Linux: already at repo root — use `.venv/bin/python` and `.sh` scripts
+- If operator screenshot shows `fatal: not a git repository` → wrong directory; file correction in behavioral log, fix script not repeat bad paste
+
+## E5. (reserved)
 
 ---
 Source file: memory/operator_directives.md · wired via mag/context_pack.py (L0c)

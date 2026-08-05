@@ -144,20 +144,13 @@ LOAD  →  hand AI a small pack (context-pack), not chat history
 
 **Always use Mag python** — never bare `python` on PATH (often Hermes venv).
 
+**Home PC sync from our branches:** `docs/ref/HOME_PC_SYNC.md` · `scripts\home_sync.cmd`  
+(Do not run git/mag from `C:\Users\…` — must be repo root or use home_sync.)
+
 ```powershell
-# Windows home PC (preferred)
-mag.cmd doctor
-mag.cmd lab                          # Office http://127.0.0.1:8765/
-mag.cmd context-pack                 # pack for any seat
-mag.cmd ask "what was I doing?"
-mag.cmd brief
-mag.cmd bonds
-mag.cmd improve --once
-mag.cmd improve --status
-python main.py autorun --once --dry  # plan overnight work (no execute)
-python main.py route "goal"          # after PR #8 merge
-python main.py verkle-audit --dry
-python main.py ponytail-audit
+# Windows home PC — after cd to repo OR use home_sync.cmd
+cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
+scripts\home_sync.cmd cursor\mesh-comm-research-e2ce
 ```
 
 ```bash
