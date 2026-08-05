@@ -245,6 +245,8 @@ python main.py ponytail-audit
 **Stop:** `python main.py virtual-desk-loop --stop` · **Status:** `--status` · **One shot:** `--once`  
 **Config:** `configs/virtual_desk.yaml` · **Run card:** `memory/research_packs/mag_virtual_desk/RUN.txt`
 
+**v3 scope:** spider, resonance, L-exp training, workstation GUI — see `docs/ref/MAG_v3_RESEARCH_PLAN.md`. Not v2 merge blockers.
+
 ---
 
 *End handoff — update after each merge and weekly verkle-audit.*
