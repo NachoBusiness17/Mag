@@ -85,6 +85,8 @@ Mag is a **private records office** on your computer — not a chat app.
 |------|-------|
 | **Implementer** | `docs/ref/MAG_v2_PLAN.md` · `configs/modules.yaml` |
 | **Research / v3** | `docs/ref/MAG_v3_RESEARCH_PLAN.md` · `docs/ref/MAG_v3_BACKLOG.md` |
+| **Multi-seat build** | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` · `docs/ref/BUILD-TEMPLATE.md` |
+| **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
 | **Container install** | `docs/CONTAINER.md` |
 | **Agentic steals** | `docs/ref/AGENTIC_LANDSCAPE_2026.md` |
@@ -248,6 +250,8 @@ Chat dies. Files persist.
 | v3 research | `docs/ref/MAG_v3_RESEARCH_PLAN.md` |
 | v3 ideas list | `docs/ref/MAG_v3_BACKLOG.md` |
 | Ops queue | `HANDOFF_MAG_AGENT_TODOS.md` |
+| Build factory | `docs/ref/MAG_BUILD_PIPELINE.md` · `docs/ref/MAG_FACTORY_PILOT.md` |
+| v4 theory | `docs/ref/MAG_v4_THEORY.md` |
 | Stateless seat paste | `memory/handoff/ACTIVATION.md` |
 | Card on wall | `docs/ref/MAG_Card.md` |
 

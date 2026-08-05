@@ -249,4 +249,37 @@ python main.py ponytail-audit
 
 ---
 
+## 11. Multi-seat build factory (plan → build → audit)
+
+**Doctrine:** `docs/ref/MAG_BUILD_PIPELINE.md`  
+**v4 theory:** `docs/ref/MAG_v4_THEORY.md`  
+**Pilot program:** `docs/ref/MAG_FACTORY_PILOT.md`  
+**Template:** `docs/ref/BUILD-TEMPLATE.md`  
+**Example:** `docs/ref/BUILD-factory-audit-json-EXAMPLE.md`  
+**Frozen specs:** copy to `queue/handoff/` (local, gitignored)
+
+### Seats
+
+| Phase | Seat | Model |
+|-------|------|-------|
+| Plan | Grok + Cursor | `[priority]` architecture only |
+| Freeze | You (L3) | `Status: frozen` on BUILD spec |
+| Build | DeepSeek | `orchestrator queue` / `agent --provider deepseek` |
+| Audit | Cursor | ponytail-audit + smoke + pytest — no new features |
+| Merge | You (L3) | verkle-audit --dry · merge PR |
+
+### Pilot epics (do after v2 merge #8–#11)
+
+| # | Spec | Status |
+|---|------|--------|
+| 1 | `docs/ref/BUILD-factory-audit-json-EXAMPLE.md` → `queue/handoff/` | draft |
+| 2 | factory-freeze-gate | not started |
+| 3 | plain-office-tagline | not started |
+
+**Token targets per epic:** Grok 5–15% · DeepSeek 50–70% · Cursor audit 15–25% · Ollama ~0.
+
+**Steiniger / [slashreboot.com](https://slashreboot.com/):** steal static/dynamic body split (spec = static, worker context = dynamic) — not EUT physics or persona theater.
+
+---
+
 *End handoff — update after each merge and weekly verkle-audit.*
