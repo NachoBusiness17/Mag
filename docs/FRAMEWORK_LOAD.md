@@ -210,6 +210,8 @@ verkle    audit → gaps → enqueue (history honesty)
 
 v3 research (scaffold on branch): resonance · spider · conductor · grove — see `MAG_v3_SWARM_VISION.md` · `python main.py v3-status`
 
+**Full blast (phone + Cursor + swarm):** `docs/ref/MAG_FULL_BLAST_PLAN.md` · `mag.cmd cost-sim wave "epic"` · `configs/cost_rates.yaml`
+
 ---
 
 ## 8. FILE block (end every session)

@@ -1014,6 +1014,21 @@ def main(argv: list[str] | None = None) -> int:
     p_power.add_argument("--json", action="store_true")
     p_power.add_argument("--browser", action="store_true", help="open dashboard after start")
 
+    p_cost = sub.add_parser(
+        "cost-sim",
+        help="Simulate swarm token/$ cost before dispatch (configs/cost_rates.yaml)",
+    )
+    p_cost.add_argument("cs_action", nargs="?", default="wave", choices=["wave", "goal"])
+    p_cost.add_argument("text", nargs="?", default="v3-epic")
+    p_cost.add_argument("--improve", type=int, default=2)
+    p_cost.add_argument("--build", type=int, default=3)
+    p_cost.add_argument("--audit", type=int, default=1)
+    p_cost.add_argument("--no-plan", action="store_true")
+    p_cost.add_argument("--seat", default="")
+    p_cost.add_argument("--pack", default="")
+    p_cost.add_argument("--dry", action="store_true")
+    p_cost.add_argument("--json", action="store_true")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1717,6 +1732,20 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(format_status_text(res))
         return 0 if res.get("ok", True) else 1
+    if args.cmd == "cost-sim":
+        from mag.cost_simulator import estimate_goal, estimate_wave, format_wave_text
+
+        action = getattr(args, "cs_action", "wave") or "wave"
+        text = getattr(args, "text", "") or "v3-epic"
+        if action == "goal":
+            res = estimate_goal(text, seat=(getattr(args, "seat", "") or None), pack_mode=(getattr(args, "pack", "") or None), dry=bool(getattr(args, "dry", False)))
+        else:
+            res = estimate_wave(text, improve_n=int(getattr(args, "improve", 2)), build_waves=int(getattr(args, "build", 3)), audits=int(getattr(args, "audit", 1)), plan=not bool(getattr(args, "no_plan", False)))
+        if getattr(args, "json", False) or action == "goal":
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(format_wave_text(res))
+        return 0 if res.get("ok") else 1
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
