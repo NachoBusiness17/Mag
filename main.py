@@ -884,6 +884,13 @@ def main(argv: list[str] | None = None) -> int:
     p_va.add_argument("--dry", action="store_true", help="Plan only; no writes or LLM")
     p_va.add_argument("--no-reconcile", action="store_true", help="Skip ticket reconciliation")
 
+    p_la = sub.add_parser(
+        "loop-audit",
+        help="Mine autorun/orchestrator trails for wasteful loops (plan theater, stuck queue)",
+    )
+    p_la.add_argument("--json", action="store_true", help="JSON output")
+    p_la.add_argument("--tail", type=int, default=2500, help="Autorun trail lines to scan")
+
     sub.add_parser(
         "ponytail-audit",
         help="Ponytail ladder scan — over-engineering only, not correctness",
@@ -1485,6 +1492,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "loop-audit":
+        from mag.loop_audit import format_report, run_audit
+
+        audit = run_audit(tail=int(getattr(args, "tail", 2500) or 2500))
+        if getattr(args, "json", False):
+            print(json.dumps(audit, indent=2, default=str))
+        else:
+            print(format_report(audit))
+        sev = [f for f in audit.get("findings") or [] if f.get("severity") == "error"]
+        return 1 if sev else 0
     if args.cmd == "ponytail-audit":
         from mag.ponytail_audit import format_report, run_audit
 

@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 TRAIL = ROOT / "memory" / "runs" / "governor_autorun_trail.jsonl"
+_LAST_PLAN_FP: str | None = None
 
 from mag.router import DEPTH_JOB_MAP  # single law — ponytail: no duplicate maps
 
@@ -330,6 +331,7 @@ def fill_queue(
             filled["handoff"].append({**rec, "handoff_file": p.name})
 
     try:
+        from mag.loop_audit import verkle_gap_goal
         from mag.verkle_audit import verkle_gaps
 
         for gap in verkle_gaps():
@@ -337,11 +339,9 @@ def fill_queue(
                 break
             if gap.get("severity") not in ("warn", "error"):
                 continue
-            act = str(gap.get("action") or "").strip()
-            detail = str(gap.get("detail") or "")[:200]
-            if not act:
+            goal = verkle_gap_goal(gap)
+            if not goal:
                 continue
-            goal = f"[verkle] {detail} — run: {act}"
             if queue_has_goal(goal):
                 filled["skipped"].append(goal[:60])
                 continue
@@ -368,9 +368,11 @@ def fill_queue(
     return filled
 
 
-def plan_pending() -> dict[str, Any]:
+def plan_pending(*, log_trail: bool = True) -> dict[str, Any]:
     """Annotate pending work with routes (cost, skills, provider)."""
+    global _LAST_PLAN_FP
     from mag.governor import queue_candidates
+    from mag.loop_audit import plan_fingerprint
     from mag.orchestrator import list_queue, queue_status
 
     orch_plans: list[dict[str, Any]] = []
@@ -402,7 +404,17 @@ def plan_pending() -> dict[str, Any]:
         "todo_mag": todo_plans,
         "queue_status": queue_status(),
     }
-    _log_trail({"phase": "plan", "queued_n": len(orch_plans), "todo_n": len(todo_plans)})
+    fp = plan_fingerprint(plan)
+    plan["fingerprint"] = fp
+    if log_trail:
+        if fp != _LAST_PLAN_FP:
+            _LAST_PLAN_FP = fp
+            _log_trail({"phase": "plan", "queued_n": len(orch_plans), "todo_n": len(todo_plans), "fingerprint": fp})
+        elif len(orch_plans) > 0:
+            # Same queue, no progress — avoid plan theater in trail (spider uses loop-audit).
+            pass
+        else:
+            _log_trail({"phase": "plan", "queued_n": 0, "todo_n": len(todo_plans), "fingerprint": fp})
     return plan
 
 
@@ -518,6 +530,48 @@ def execute_routed_task(text: str, *, who: str = "mag") -> tuple[bool, str]:
     return ok, detail
 
 
+def _trail_autorun_once(result: dict[str, Any]) -> None:
+    """Log autorun tick without embedding full route plans (plan theater prevention)."""
+    plan = result.get("plan") or {}
+    entry: dict[str, Any] = {
+        "schema": "autorun_once.v1",
+        "ts": result.get("ts") or _now(),
+        "action": result.get("action"),
+        "steps": result.get("steps"),
+        "plan_fp": plan.get("fingerprint"),
+        "queued_n": len(plan.get("orchestrator_queued") or []),
+    }
+    if result.get("detail"):
+        entry["detail"] = str(result.get("detail"))[:200]
+    if result.get("drain"):
+        d = result["drain"]
+        entry["drain"] = {
+            k: d.get(k)
+            for k in ("action", "goal", "queue_id", "detail", "task_id")
+            if d.get(k) is not None
+        }
+    if result.get("governor"):
+        g = result["governor"]
+        entry["governor"] = {
+            "action": g.get("action"),
+            "ok": g.get("ok"),
+            "detail": str(g.get("detail") or "")[:120],
+        }
+    fill = result.get("fill") or {}
+    if fill.get("total_queued"):
+        entry["fill_total"] = fill.get("total_queued")
+    progress = bool(
+        fill.get("total_queued")
+        or (result.get("drain") or {}).get("action") == "started"
+        or (result.get("governor") or {}).get("ok")
+    )
+    if progress and plan.get("orchestrator_queued"):
+        entry["queued_goals"] = [
+            str(q.get("goal") or "")[:100] for q in plan["orchestrator_queued"][:8]
+        ]
+    _log_trail(entry)
+
+
 def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
     """One intelligent autorun tick: fill → plan → drain or governor."""
     from mag.autorun_common import autorun_pause_reason
@@ -533,7 +587,7 @@ def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
         result["action"] = "paused"
         result["detail"] = pause
         result["steps"].append({"paused": pause})
-        _log_trail(result)
+        _trail_autorun_once(result)
         return result
 
     if fill and not dry:
@@ -552,7 +606,7 @@ def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
 
     if dry:
         result["action"] = "dry"
-        _log_trail(result)
+        _trail_autorun_once(result)
         return result
 
     from mag.orchestrator import _any_running_task, drain_once, list_queue
@@ -582,7 +636,7 @@ def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
         result["action"] = "busy"
         result["detail"] = "orchestrator task running"
 
-    _log_trail(result)
+    _trail_autorun_once(result)
     return result
 
 

@@ -89,6 +89,22 @@ def _check_autorun_trail() -> list[dict[str, Any]]:
             "action": "pause_suggest",
             "message": "Autorun trail shows repeated failures — consider MAG_OPERATOR_ACTIVE",
         })
+    try:
+        from mag.loop_audit import analyze_autorun_trail
+
+        audit = analyze_autorun_trail(_read_jsonl_tail(trail, 120))
+        for f in audit.get("findings") or []:
+            if f.get("kind") in ("plan_theater", "idle_autorun"):
+                signals.append({
+                    "kind": str(f.get("kind")),
+                    "severity": f.get("severity") or "warn",
+                    "count": f.get("count"),
+                    "goal": f.get("goal"),
+                    "action": "loop_audit",
+                    "message": f.get("message") or "Autorun plan theater — run loop-audit",
+                })
+    except Exception:
+        pass
     return signals
 
 

@@ -500,6 +500,22 @@ def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    try:
+        from mag.loop_audit import _goal_key
+
+        norm = _goal_key(goal)
+        for q in list_queue(limit=80):
+            if q.get("status") not in ("queued", "running"):
+                continue
+            if _goal_key(str(q.get("goal") or "")) == norm:
+                return {
+                    "ok": False,
+                    "error": "duplicate goal already queued",
+                    "existing_queue_id": q.get("queue_id"),
+                    "goal": goal[:120],
+                }
+    except Exception:
+        pass
     timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     q = {
         "queue_id": "q" + uuid.uuid4().hex[:10],

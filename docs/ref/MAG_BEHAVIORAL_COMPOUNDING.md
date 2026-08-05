@@ -16,6 +16,7 @@ Not "models got smarter." **The harness learned what to repeat.**
 | Behavior observed (v2→v3) | Lesson filed | Where it lives |
 |---------------------------|--------------|----------------|
 | Same goal spawned 8× | Dedupe + orphan reap | orchestrator, switchboard |
+| Autorun plan theater 100+× | Fingerprint trail + loop-audit | `MAG_LOOP_DISCIPLINE.md`, loop_audit |
 | Grok used for scut | Janitor-first routing | `route.v2`, seat economics |
 | Chat as handoff | Freeze BUILD spec on disk | factory pipeline |
 | Planner coded anyway | Phase detection + caveman gate | conductor, skill-seat |

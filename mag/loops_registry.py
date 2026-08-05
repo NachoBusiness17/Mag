@@ -40,6 +40,15 @@ LOOPS: list[dict[str, Any]] = [
         "cli": "main.py fkb",
     },
     {
+        "id": "loop_audit",
+        "layer": "meta",
+        "loop": "trail mine → findings → operator recs",
+        "trail": "memory/runs/governor_autorun_trail.jsonl",
+        "promote_gate": False,
+        "status": "shipped",
+        "cli": "main.py loop-audit",
+    },
+    {
         "id": "verkle",
         "layer": "cold",
         "loop": "audit → gaps → enqueue",
