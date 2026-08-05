@@ -3,16 +3,16 @@
 **Commitment:** `home-pc-sync-001`  
 **Job:** Pull branch work + refresh research clones. **Never assume cwd.**
 
-**Behavioral lesson (2026-08-05):** Pasting `git` / `./scripts/*.sh` / `mag.cmd` from cloud agent without `cd` to repo → fails in `C:\Users\foste`. Agents must **verify path** or ship a **repo script**, not assume.
-
----
+**Behavioral lessons (2026-08-05):**
+- Pasting `git` / `./scripts/*.sh` from cloud without `cd` → fails in `C:\Users\foste`
+- PowerShell: **`mag.cmd` alone fails** — use **`.\mag.cmd`** or **`.\mag.ps1`** from repo root (Command_Precedence)
 
 ## Rule for agents
 
-1. **Do not** give bare git/mag commands without repo root context.  
-2. **Do** use `scripts\home_sync.cmd` on Windows or verify `$PWD` contains `mag.cmd`.  
-3. **Do** use `.cmd` on Windows, `.sh` on Linux/cloud.  
-4. **Default repo path (Nacho):** `%USERPROFILE%\Documents\projects\local_sovereign_agent` — confirm with `Test-Path mag.cmd` before trusting.
+1. **Do not** give bare `mag.cmd` in PowerShell — always **`.\mag.cmd`** or **`.\mag.ps1`**.  
+2. **Do** use `scripts\home_sync.cmd` (batch handles paths) or verify repo root.  
+3. **Do** use `.cmd` scripts on Windows, `.sh` on Linux/cloud.  
+4. **Default repo (Nacho):** `%USERPROFILE%\Documents\projects\local_sovereign_agent`
 
 ---
 
@@ -42,8 +42,8 @@ scripts\home_sync.cmd cursor\mesh-comm-research-e2ce
 3. `git checkout` + `git pull` target branch (default: current tracking branch)  
 4. `scripts\pull_mesh_comm_repos.cmd`  
 5. `scripts\pull_gstdcoin_repos.cmd`  
-6. `mag.cmd doctor`  
-7. `mag.cmd context-pack --mode janitor`  
+6. `.\mag.cmd doctor` (or `.\mag.ps1 doctor`)  
+7. `.\mag.cmd context-pack --mode janitor`  
 
 ---
 
@@ -56,8 +56,8 @@ git checkout cursor/mesh-comm-research-e2ce
 git pull origin cursor/mesh-comm-research-e2ce
 scripts\pull_mesh_comm_repos.cmd
 scripts\pull_gstdcoin_repos.cmd
-mag.cmd doctor
-mag.cmd context-pack --mode janitor
+.\mag.cmd doctor
+.\mag.cmd context-pack --mode janitor
 ```
 
 **Find repo if unknown:**

@@ -148,9 +148,11 @@ LOAD  →  hand AI a small pack (context-pack), not chat history
 (Do not run git/mag from `C:\Users\…` — must be repo root or use home_sync.)
 
 ```powershell
-# Windows home PC — after cd to repo OR use home_sync.cmd
-cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
-scripts\home_sync.cmd cursor\mesh-comm-research-e2ce
+# Windows PowerShell — note .\ prefix (required)
+.\mag.cmd doctor
+.\mag.cmd context-pack --mode janitor
+# or
+.\mag.ps1 doctor
 ```
 
 ```bash

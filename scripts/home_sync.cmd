@@ -42,8 +42,8 @@ if exist "scripts\pull_mesh_comm_repos.cmd" call scripts\pull_mesh_comm_repos.cm
 if exist "scripts\pull_gstdcoin_repos.cmd" call scripts\pull_gstdcoin_repos.cmd
 
 if exist "mag.cmd" (
-  call mag.cmd doctor
-  call mag.cmd context-pack --mode janitor
+  call "%CD%\mag.cmd" doctor
+  call "%CD%\mag.cmd" context-pack --mode janitor
 ) else (
   echo [home_sync] warn: mag.cmd missing
 )

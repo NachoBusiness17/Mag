@@ -47,8 +47,9 @@ round-trips for things that can go together.
 
 ## E4. Home PC / operator shell — verify before instruct
 
-Never paste `git`, `mag.cmd`, or `./scripts/*` commands **without repo root context**.
-Nacho runs **Windows PowerShell**; default repo is `%USERPROFILE%\Documents\projects\local_sovereign_agent` — **confirm** with `Test-Path mag.cmd`, do not assume cwd.
+Never paste `git`, `mag.cmd`, or `./scripts/*` without repo root context.
+Nacho runs **Windows PowerShell** — **`.\mag.cmd`** or **`.\mag.ps1`** required (not bare `mag.cmd`).
+Default repo: `%USERPROFILE%\Documents\projects\local_sovereign_agent`
 
 - Windows sync: `scripts\home_sync.cmd` or `docs/ref/HOME_PC_SYNC.md`
 - Cloud/Linux: already at repo root — use `.venv/bin/python` and `.sh` scripts
