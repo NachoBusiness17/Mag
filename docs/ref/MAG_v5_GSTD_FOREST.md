@@ -3,7 +3,7 @@
 **Commitment:** `mag-v5-gstd-forest-001`  
 **As-of:** 2026-08-05  
 **Status:** **Piped for v5** — spore catalog + local clones now; test + implement after v4 gates  
-**Parents:** `GSTDCOIN_REPOS_INDEX.md` · `MAG_BEHAVIORAL_COMPOUNDING.md` · `DNA.md` · `docs/archive/ZEITGEIST.md`
+**Parents:** `MAG_v5_PIPE.md` · `GSTDCOIN_REPOS_INDEX.md` · `MAG_BEHAVIORAL_COMPOUNDING.md` · `DNA.md`
 
 **Job:** Keep [gstdcoin](https://github.com/gstdcoin) in the product pipe — reverse-engineer, catalog spores, probe MIT distributed compute, wire Mag routing — **without** blocking v3 substrate or v4 mold.
 

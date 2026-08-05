@@ -19,6 +19,9 @@
 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agentic steals |
 | `docs/ref/MAG_v3_BACKLOG.md` | Feature ideas + scores (not run order) |
 | `docs/ref/MAG_v5_GSTD_FOREST.md` | GSTD forest — **v5 pipe** (catalog now, test/implement later) |
+| `docs/ref/MAG_v5_PIPE.md` | v5 umbrella — GSTD + Vast train + XRPL |
+| `docs/ref/MAG_v5_VAST_TRAINING.md` | Vast.ai agent training pipeline |
+| `docs/ref/MAG_v5_XRPL.md` | XRPL via Mag tools (read T2, pay L3) |
 | `docs/ref/MAG_FACTORY_PILOT.md` | Factory epic ritual + prompts |
 | `configs/modules.yaml` | Module registry + upgrade contracts |
 
