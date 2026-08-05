@@ -282,4 +282,12 @@ python main.py ponytail-audit
 
 ---
 
+## 12. Jones agent fleet (attach pack)
+
+**All coding agents on Mag workstreams:** load `docs/ref/JONES_AGENT_FLEET_PACK.md` + `docs/ref/MAG_AGENT_ERROR_CATALOG.md`  
+**Manifest:** `configs/agent_fleet/jones.yaml`  
+**Roles:** JONES-PLAN · JONES-BUILD · JONES-AUDIT · JONES-V2 · JONES-V3 · JONES-VOICE · JONES-CLOUD
+
+---
+
 *End handoff — update after each merge and weekly verkle-audit.*

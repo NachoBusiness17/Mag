@@ -58,3 +58,13 @@ Load `docs/ref/MAG_BUILD_PIPELINE.md` before any multi-seat build.
 **Freeze gate:** DeepSeek does not start until operator sets `Status: frozen` on the BUILD spec.
 
 **Pilot epics:** `docs/ref/MAG_FACTORY_PILOT.md` · first example: `docs/ref/BUILD-factory-audit-json-EXAMPLE.md`
+
+---
+
+## Jones agent fleet (all attached agents)
+
+**Attach pack:** `docs/ref/JONES_AGENT_FLEET_PACK.md`  
+**Error catalog:** `docs/ref/MAG_AGENT_ERROR_CATALOG.md`  
+**Manifest:** `configs/agent_fleet/jones.yaml`
+
+Paste §1 activation from fleet pack before any Jones task. Pick role: PLAN · BUILD · AUDIT · V2 · V3 · VOICE · CLOUD.
