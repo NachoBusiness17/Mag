@@ -1793,6 +1793,44 @@ def deep_dive(
     return out
 
 
+def scout_due_today() -> bool:
+    """True when today's scout has not completed (state.last_day != today UTC)."""
+    paths = ensure_dirs()
+    state = _load_state(paths)
+    return state.get("last_day") != _day_str()
+
+
+def improve_light_status() -> dict[str, Any]:
+    """Compact status for dashboard / router (no heavy candidate dump)."""
+    paths = ensure_dirs()
+    state = _load_state(paths)
+    field_brief = paths["root"] / "field_brief.md"
+    rows = read_candidates(paths, limit=2000)
+    by_status: dict[str, int] = {}
+    for r in rows:
+        st = str(r.get("status") or "new")
+        by_status[st] = by_status.get(st, 0) + 1
+    fb_mtime: float | None = None
+    if field_brief.is_file():
+        try:
+            fb_mtime = field_brief.stat().st_mtime
+        except OSError:
+            fb_mtime = None
+    return {
+        "last_scout": state.get("last_scout"),
+        "last_day": state.get("last_day"),
+        "last_synthesis": state.get("last_synthesis"),
+        "last_field_brief": state.get("last_field_brief"),
+        "scout_due_today": scout_due_today(),
+        "field_brief": str(field_brief) if field_brief.is_file() else None,
+        "field_brief_mtime": fb_mtime,
+        "total_candidates": len(rows),
+        "by_status": by_status,
+        "top_ids": state.get("last_synthesis_top") or [],
+        "source_keys_today": _weekday_keys(load_config()),
+    }
+
+
 def status_summary(limit: int = 15) -> dict[str, Any]:
     cfg = load_config()
     paths = ensure_dirs(cfg)

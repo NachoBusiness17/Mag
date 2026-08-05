@@ -1005,6 +1005,13 @@ def h_router_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
         out["drainer"] = {"error": str(e)[:120]}
 
     try:
+        from mag.preferences import improve_daily_status
+
+        out["improve"] = improve_daily_status()
+    except Exception as e:
+        out["improve"] = {"error": str(e)[:120]}
+
+    try:
         import urllib.request
 
         mirror_up = False
@@ -1156,13 +1163,54 @@ def h_autopilot(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, d
     from mag.autopilot import autopilot_once
 
     body = body or {}
+    scout_raw = body.get("scout")
+    scout: bool | None
+    if scout_raw is None:
+        scout = None
+    else:
+        scout = bool(scout_raw)
     res = autopilot_once(
+        scout=scout,
         queue_improve=body.get("queue_improve", True) is not False,
         governor=body.get("governor", True) is not False,
         drain=bool(body.get("drain")),
         max_queue=int(body.get("max_queue") or 2),
     )
     return 200, res
+
+
+def h_improve_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.preferences import improve_daily_status
+
+    return 200, {"ok": True, **improve_daily_status()}
+
+
+def h_improve_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.improve import improve_once, scout, status_summary, synthesize_field_brief
+    from mag.preferences import improve_daily_status, set_improve_daily
+
+    body = body or {}
+    if "enabled" in body:
+        hour = body.get("hour")
+        set_improve_daily(bool(body["enabled"]), hour=int(hour) if hour is not None else None, tz=body.get("tz"))
+        st = improve_daily_status()
+        return 200, {"ok": True, "improve": st, "hint": st.get("hint")}
+
+    mode = str(body.get("mode") or "once").strip().lower()
+    dry = bool(body.get("dry"))
+
+    if mode == "status":
+        return 200, {"ok": True, **status_summary()}
+
+    if mode == "synthesize":
+        res = synthesize_field_brief(dry=dry)
+    elif mode == "scout":
+        res = scout(dry=dry)
+    else:
+        res = improve_once(dry=dry)
+
+    code = 200 if res.get("ok") else 500
+    return code, res
 
 
 def h_orchestrator_queue_post(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2011,7 +2059,9 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "POST /api/v1/operator-inbox": "Queue guidance {text} or clear pending",
             "GET /api/v1/seat-feed": "Unified activity feed (Grok/Cursor/agent/orchestrator)",
             "GET /api/v1/chronicle": "File-backed pulse (attention + fleet + sources)",
-            "POST /api/v1/seat/task": "Cursor→Mag task {goal?, seat?, mode: delegate|queue|autopilot|agent|dispatch}",
+            "POST /api/v1/autopilot": "Scout (if due) + queue improve + governor",
+            "GET /api/v1/improve": "Improve loop status + daily supervisor toggle",
+            "POST /api/v1/improve": "Run improve {mode: once|scout|synthesize} or toggle {enabled}",
             "GET /api/v1/viewports": "Cursor Canvas manifests (synced viewports)",
             "GET /api/v1/viewports/{id}": "One canvas viewport manifest",
             "POST /api/v1/viewports/sync": "Sync *.canvas.tsx → memory/viewports/",
@@ -2120,6 +2170,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("POST", "/api/v1/coordinate", h_coordinate),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
+    ("GET", "/api/v1/improve", h_improve_status),
+    ("POST", "/api/v1/improve", h_improve_post),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),
     ("GET", "/api/v1/workspace/file", h_workspace_file_get),
     ("POST", "/api/v1/workspace/file", h_workspace_file_post),
@@ -2179,6 +2231,8 @@ LEGACY: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/seat-feed", h_seat_feed),
     ("GET", "/api/drainer", h_drainer_status),
     ("POST", "/api/drainer", h_drainer_toggle),
+    ("GET", "/api/improve", h_improve_status),
+    ("POST", "/api/improve", h_improve_post),
     ("GET", "/api/workspace/tree", h_workspace_tree),
     ("GET", "/api/workspace/file", h_workspace_file_get),
     ("POST", "/api/workspace/file", h_workspace_file_post),

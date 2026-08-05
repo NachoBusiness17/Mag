@@ -1,4 +1,4 @@
-"""Three-track autopilot: improve -> queue, governor cycle, seed-mirror status."""
+"""Three-track autopilot: improve scout (daily) -> queue, governor cycle, seed-mirror status."""
 from __future__ import annotations
 
 import json
@@ -51,14 +51,27 @@ def _top_improve_candidates(limit: int = 3) -> list[dict[str, Any]]:
     return feasible[:limit]
 
 
+def _run_scout_if_due(*, force: bool = False) -> dict[str, Any] | None:
+    from mag.improve import improve_once, scout_due_today
+
+    if not force and not scout_due_today():
+        return None
+    return improve_once()
+
+
 def autopilot_once(
     *,
+    scout: bool | None = None,
     queue_improve: bool = True,
     governor: bool = True,
     drain: bool = False,
     max_queue: int = 2,
 ) -> dict[str, Any]:
-    """Run one parallel-friendly autopilot pass (brain + loop tracks)."""
+    """Run one parallel-friendly autopilot pass (brain + loop tracks).
+
+    scout: None = auto (improve --once if not yet run today); True = force scout;
+           False = skip scout (queue existing candidates only).
+    """
     out: dict[str, Any] = {
         "schema": "autopilot.v1",
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -67,6 +80,25 @@ def autopilot_once(
 
     out["seed_mirror"] = _seed_mirror_status()
     out["steps"].append({"seed_mirror": out["seed_mirror"].get("hint")})
+
+    if scout is not False:
+        try:
+            imp = _run_scout_if_due(force=scout is True)
+            if imp is not None:
+                out["improve"] = imp
+                phases = imp.get("phases") or {}
+                out["steps"].append(
+                    {
+                        "improve": (
+                            f"scout ok={phases.get('scout', {}).get('ok')} "
+                            f"candidates={phases.get('scout', {}).get('candidates_added', 0)}"
+                        ),
+                    }
+                )
+            else:
+                out["steps"].append({"improve": "skipped — already ran today"})
+        except Exception as e:
+            out["steps"].append({"improve": f"error: {e}"})
 
     queued: list[dict[str, Any]] = []
     if queue_improve:

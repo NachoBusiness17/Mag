@@ -109,6 +109,7 @@ def cmd_queue(goal: str, provider: str, tag: str) -> int:
 
 def cmd_autopilot(drain: bool) -> int:
     status, data = _req("POST", "/api/v1/autopilot", {
+        "scout": True,
         "queue_improve": True,
         "governor": True,
         "drain": drain,
