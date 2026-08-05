@@ -370,6 +370,7 @@ Register: **MagImproveDaily** 08:00 · **MagVerkleWeekly** Sat 09:00 · **MagAut
 | `MAG_v2_PLAN.md` | v2 phases + acceptance |
 | `MAG_v3_RESEARCH_PLAN.md` | v3 research + L-conductor frame |
 | `MAG_v3_BACKLOG.md` | Feature ledger (v3-001…) |
+| `LAYMAN_OFFICE_VISION.md` | Layman dashboard + Tesuji Grove (v3) |
 | `PRODUCT_VISION_AUTORUN.md` | Product one-liner + gates |
 | `DNA.md` | Residual constitution |
 | `CONTAINER.md` | Freedom cage install |
