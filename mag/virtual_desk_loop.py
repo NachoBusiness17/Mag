@@ -585,3 +585,95 @@ def stop_loop() -> dict[str, Any]:
     if t and t.is_alive():
         t.join(timeout=10.0)
     return {"ok": True, "stopped": True, "status": plant_status()}
+
+
+def _share_id_from_url(url: str) -> str | None:
+    m = re.search(r"chat\.deepseek\.com/share/([a-zA-Z0-9_-]+)", url or "")
+    return m.group(1) if m else None
+
+
+def _detect_done_questions(text: str) -> list[str]:
+    """Best-effort: mark Q1-Q10 done if headings appear in imported export."""
+    done: list[str] = []
+    upper = (text or "").upper()
+    for q in QUESTIONS:
+        qid = q["id"]
+        title = q["title"].upper()
+        if re.search(rf"\b{re.escape(qid)}\b", upper) and (
+            title in upper or "SECTION " + qid in upper
+        ):
+            done.append(qid)
+    return done
+
+
+def import_export(
+    path: str | Path,
+    *,
+    source_url: str = "",
+    replace: bool = False,
+) -> dict[str, Any]:
+    """Import a DeepSeek web export (paste/save as .txt) into REPORT.txt."""
+    src = Path(path)
+    if not src.is_file():
+        return {"ok": False, "error": f"file not found: {src}"}
+
+    raw = src.read_text(encoding="utf-8", errors="replace").strip()
+    if not raw:
+        return {"ok": False, "error": "empty file"}
+
+    cfg = load_config()
+    report = _report_path(cfg)
+    report.parent.mkdir(parents=True, exist_ok=True)
+    imports_dir = PACK_ROOT / "imports"
+    imports_dir.mkdir(parents=True, exist_ok=True)
+
+    share_id = _share_id_from_url(source_url) or src.stem
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    archive = imports_dir / f"deepseek_share_{share_id}_{stamp}.txt"
+    archive.write_text(raw, encoding="utf-8")
+
+    header = (
+        "Mag Virtual Desk - Research Report (imported)\n"
+        f"Imported: {_utc()}\n"
+        f"Source file: {src}\n"
+    )
+    if source_url:
+        header += f"Source URL: {source_url}\n"
+    header += f"Archive: {archive}\n\n"
+
+    if replace or not report.is_file():
+        report.write_text(header + raw + "\n", encoding="utf-8")
+    else:
+        block = (
+            f"\n\n{'='*72}\n"
+            f"IMPORT {stamp}\n"
+            f"source={src}\n"
+            f"url={source_url or 'n/a'}\n"
+            f"{'='*72}\n\n"
+            f"{raw}\n"
+        )
+        report.write_text(report.read_text(encoding="utf-8") + block, encoding="utf-8")
+
+    done = _detect_done_questions(raw)
+    st = read_state()
+    merged = list(st.get("done_questions") or [])
+    for qid in done:
+        if qid not in merged:
+            merged.append(qid)
+    st["done_questions"] = merged
+    st["last_ok"] = True
+    st["last_error"] = None
+    st["last_unit"] = f"import:{share_id}"
+    if source_url:
+        st["last_import_url"] = source_url
+    write_state(st)
+    _log({"phase": "import", "path": str(src), "url": source_url, "done": done})
+
+    return {
+        "ok": True,
+        "report_path": str(report),
+        "archive_path": str(archive),
+        "chars": len(raw),
+        "detected_done_questions": done,
+        "hint": "Feed REPORT.txt to implementer or run virtual-desk-loop --once for next gap",
+    }

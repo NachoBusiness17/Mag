@@ -807,6 +807,23 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Override provider (default deepseek from configs/virtual_desk.yaml)",
     )
+    p_vdesk.add_argument(
+        "--import",
+        dest="import_path",
+        metavar="FILE",
+        default="",
+        help="Import DeepSeek web export .txt into REPORT.txt",
+    )
+    p_vdesk.add_argument(
+        "--import-url",
+        default="",
+        help="Optional share URL metadata for --import",
+    )
+    p_vdesk.add_argument(
+        "--replace-report",
+        action="store_true",
+        help="With --import: replace REPORT.txt instead of append",
+    )
 
     p_csync = sub.add_parser(
         "canvas-sync",
@@ -1940,7 +1957,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "virtual-desk-loop":
         import os as _os
 
-        from mag.virtual_desk_loop import plant_status as vdesk_status, run_once, start_loop, stop_loop
+        from mag.virtual_desk_loop import (
+            import_export,
+            plant_status as vdesk_status,
+            run_once,
+            start_loop,
+            stop_loop,
+        )
 
         if getattr(args, "provider", None):
             prov = str(args.provider or "").strip()
@@ -1958,6 +1981,14 @@ def main(argv: list[str] | None = None) -> int:
                     pass
             print(json.dumps(res, indent=2, default=str)[:8000])
             return 0
+        if getattr(args, "import_path", None) and str(args.import_path).strip():
+            res = import_export(
+                str(args.import_path).strip(),
+                source_url=str(getattr(args, "import_url", "") or "").strip(),
+                replace=bool(getattr(args, "replace_report", False)),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
         if args.once or args.dry:
             res = run_once(dry=bool(args.dry))
             print(json.dumps(res, indent=2, default=str)[:12000])

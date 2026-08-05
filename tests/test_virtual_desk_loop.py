@@ -58,3 +58,21 @@ def test_all_questions_count():
     assert len(QUESTIONS) == 10
     ids = [q["id"] for q in QUESTIONS]
     assert ids[0] == "Q1" and ids[4] == "Q5"
+
+
+def test_import_export(monkeypatch, tmp_path):
+    monkeypatch.setattr("mag.virtual_desk_loop.PACK_ROOT", tmp_path / "pack")
+    monkeypatch.setattr("mag.virtual_desk_loop.ROOT", tmp_path)
+    src = tmp_path / "export.txt"
+    src.write_text(
+        "Q1 Isolation model\nAnswer about queues.\nQ2 Supervision pattern\nParent child.\n",
+        encoding="utf-8",
+    )
+    from mag.virtual_desk_loop import import_export
+
+    res = import_export(src, source_url="https://chat.deepseek.com/share/abc123")
+    assert res.get("ok") is True
+    assert "Q1" in (res.get("detected_done_questions") or [])
+    report = tmp_path / "memory/research_packs/mag_virtual_desk/REPORT.txt"
+    assert report.is_file()
+    assert "Isolation model" in report.read_text(encoding="utf-8")
