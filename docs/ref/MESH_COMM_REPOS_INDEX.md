@@ -10,16 +10,35 @@
 
 ---
 
-## Repos (10 targets)
+## Repos (13 targets)
 
 | ID | Local path | Upstream | License | One-line |
 |----|------------|----------|---------|----------|
 | **bitchat** | `mine/raw/mesh_comm/permissionlesstech/bitchat` | [permissionlesstech/bitchat](https://github.com/permissionlesstech/bitchat) | Unlicense | BLE mesh + Nostr dual transport; multi-hop (7) |
 | **bitchat-android** | `…/permissionlesstech/bitchat-android` | [bitchat-android](https://github.com/permissionlesstech/bitchat-android) | GPL-3.0 | Cross-platform binary protocol; Wi-Fi Aware |
 | **georelays** | `…/permissionlesstech/georelays` | [georelays](https://github.com/permissionlesstech/georelays) | check upstream | Nostr relay geography map |
+
+### Bridgefy org ([github.com/bridgefy](https://github.com/bridgefy))
+
+8 public repos — **all 6 SDK targets** now in manifest (stable + beta + cross-platform wrappers):
+
+| Repo | Role | Mag steal focus |
+|------|------|-----------------|
+| [sdk-android](https://github.com/bridgefy/sdk-android) | Stable Android BLE mesh SDK | P2P/Mesh/Broadcast modes, propagation profiles |
+| [sdk-ios](https://github.com/bridgefy/sdk-ios) | Stable iOS SDK | Cross-platform transmission enum |
+| [bridgefy_flutter](https://github.com/bridgefy/bridgefy_flutter) | Flutter plugin | Propagation profile enum in Dart |
+| [bridgefy-react-native](https://github.com/bridgefy/bridgefy-react-native) | RN bridge (top stars) | Household app wrapper — JS → native mesh |
+| [sdk-android-beta](https://github.com/bridgefy/sdk-android-beta) | Pre-release Android | API drift vs stable — contract stability |
+| [sdk-ios-beta](https://github.com/bridgefy/sdk-ios-beta) | Pre-release iOS | API drift vs stable — contract stability |
+
+**Law:** SDK is embeddable in *operator's* household app (L3 enroll) — never silent Mag background mesh.
+
 | **bridgefy-android** | `…/bridgefy/sdk-android` | [bridgefy/sdk-android](https://github.com/bridgefy/sdk-android) | check upstream | Embeddable BLE mesh SDK — P2P/Mesh/Broadcast |
 | **bridgefy-ios** | `…/bridgefy/sdk-ios` | [bridgefy/sdk-ios](https://github.com/bridgefy/sdk-ios) | check upstream | iOS mesh SDK |
 | **bridgefy-flutter** | `…/bridgefy/bridgefy_flutter` | [bridgefy_flutter](https://github.com/bridgefy/bridgefy_flutter) | check upstream | Flutter wrapper |
+| **bridgefy-react-native** | `…/bridgefy/bridgefy-react-native` | [bridgefy-react-native](https://github.com/bridgefy/bridgefy-react-native) | check upstream | RN bridge to native mesh SDK (top org repo) |
+| **bridgefy-android-beta** | `…/bridgefy/sdk-android-beta` | [sdk-android-beta](https://github.com/bridgefy/sdk-android-beta) | check upstream | Android SDK pre-release channel |
+| **bridgefy-ios-beta** | `…/bridgefy/sdk-ios-beta` | [sdk-ios-beta](https://github.com/bridgefy/sdk-ios-beta) | check upstream | iOS SDK pre-release channel |
 | **briar** | `…/briar/briar` | [briar/briar](https://github.com/briar/briar) · [GitLab primary](https://code.briarproject.org/briar/briar) | GPL-3.0 | Tor + BT/Wi-Fi sync; no central server |
 | **briar-mailbox** | `…/briar/briar-mailbox` | [briar-mailbox](https://github.com/briar/briar-mailbox) | AGPL-3.0 | Optional mailbox when device offline |
 | **briar-desktop** | `…/briar/briar-desktop` | [briar-desktop](https://github.com/briar/briar-desktop) | GPL-3.0 | Desktop peer |

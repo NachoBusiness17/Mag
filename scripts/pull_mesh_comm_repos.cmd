@@ -12,6 +12,9 @@ call :clone permissionlesstech/georelays https://github.com/permissionlesstech/g
 call :clone bridgefy/sdk-android https://github.com/bridgefy/sdk-android.git
 call :clone bridgefy/sdk-ios https://github.com/bridgefy/sdk-ios.git
 call :clone bridgefy/bridgefy_flutter https://github.com/bridgefy/bridgefy_flutter.git
+call :clone bridgefy/bridgefy-react-native https://github.com/bridgefy/bridgefy-react-native.git
+call :clone bridgefy/sdk-android-beta https://github.com/bridgefy/sdk-android-beta.git
+call :clone bridgefy/sdk-ios-beta https://github.com/bridgefy/sdk-ios-beta.git
 call :clone briar/briar https://github.com/briar/briar.git
 call :clone briar/briar-mailbox https://github.com/briar/briar-mailbox.git
 call :clone briar/briar-desktop https://github.com/briar/briar-desktop.git

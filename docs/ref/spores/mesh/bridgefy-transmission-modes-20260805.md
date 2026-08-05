@@ -1,8 +1,21 @@
 # FEATURE — Bridgefy P2P / Mesh / Broadcast transmission modes
 
 **Commitment:** `feat-bridgefy-transmission-001`  
-**Source:** `mine/raw/mesh_comm/bridgefy/sdk-android` README  
+**Source:** `mine/raw/mesh_comm/bridgefy/sdk-android` README · org map [github.com/bridgefy](https://github.com/bridgefy)  
 **Parent:** `docs/templates/FEATURE_COMPOSE.md`
+
+## Org map (8 public repos — 6 cloned)
+
+| Repo | Platform | Stars (approx) | Scout priority |
+|------|----------|----------------|----------------|
+| [bridgefy-react-native](https://github.com/bridgefy/bridgefy-react-native) | React Native | highest | cross-platform household wrapper |
+| [sdk-android](https://github.com/bridgefy/sdk-android) | Android | stable | **primary** — transmission modes |
+| [sdk-ios](https://github.com/bridgefy/sdk-ios) | iOS | stable | cross-platform enum parity |
+| [bridgefy_flutter](https://github.com/bridgefy/bridgefy_flutter) | Flutter | wrapper | propagation profiles |
+| [sdk-android-beta](https://github.com/bridgefy/sdk-android-beta) | Android | beta | API drift watch |
+| [sdk-ios-beta](https://github.com/bridgefy/sdk-ios-beta) | iOS | beta | API drift watch |
+
+**Product:** plug-and-play BLE mesh SDK — apps work offline via Bluetooth mesh. Commercial SDK; Mag steals **contracts only** (modes, profiles, willing enroll).
 
 ## Identify
 
@@ -18,6 +31,7 @@
 |--|--|
 | same | pigeonhole knot = directed; switchboard `steer_drop` = tier-bounded slice |
 | differ | Bridgefy is SDK for apps; Mag is harness — steal **enum**, not SDK dep |
+| differ | RN/Flutter wrappers = household app pattern; Mag never ships Bridgefy AAR/Pod |
 | Mag slot | `mag/pigeonhole.py` · switchboard drop kinds |
 
 ## Steal
@@ -28,6 +42,7 @@
 | Mesh | Multi-hop via enrolled relay peers (v5, willing) |
 | Broadcast | **reject** for Mag ops — spider/nervous only, not goals |
 | Propagation profiles (dense/sparse) | spider stall thresholds · autorun pause in crowded queue |
+| Propagation profiles (RN enum) | `standard` · `highDensityNetwork` · `sparseNetwork` · `longReach` · `shortReach` · `realTime` |
 
 ## Enhance
 

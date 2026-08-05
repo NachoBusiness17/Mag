@@ -78,6 +78,36 @@ repos:
     mag_slot: cross_platform_embed
     steal_focus: propagation_profile_enum
 
+  - id: bridgefy-react-native
+    path: bridgefy/bridgefy-react-native
+    url: https://github.com/bridgefy/bridgefy-react-native.git
+    license: check_upstream
+    platform: react_native
+    tags: [mesh_ble, sdk_embeddable, multi_hop, willing_participation]
+    mag_slot: cross_platform_embed
+    steal_focus: js_bridge_to_native_mesh, household_app_wrapper_pattern
+    note: Top-starred org repo; wraps native Android/iOS SDKs
+
+  - id: bridgefy-android-beta
+    path: bridgefy/sdk-android-beta
+    url: https://github.com/bridgefy/sdk-android-beta.git
+    license: check_upstream
+    platform: android
+    tags: [mesh_ble, sdk_embeddable]
+    mag_slot: household_edge_sdk_pattern
+    steal_focus: beta_api_drift_vs_stable_sdk
+    note: Pre-release channel — compare against sdk-android for contract stability
+
+  - id: bridgefy-ios-beta
+    path: bridgefy/sdk-ios-beta
+    url: https://github.com/bridgefy/sdk-ios-beta.git
+    license: check_upstream
+    platform: ios
+    tags: [mesh_ble, sdk_embeddable]
+    mag_slot: household_edge_sdk_pattern
+    steal_focus: beta_api_drift_vs_stable_sdk
+    note: Pre-release channel — compare against sdk-ios for contract stability
+
   # --- Briar (GitHub mirrors; primary dev on GitLab) ---
   - id: briar
     path: briar/briar
