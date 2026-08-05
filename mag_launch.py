@@ -482,6 +482,45 @@ def _sync_dynamic_slots(slots: list[dict]) -> None:
                     s["proc"] = None
 
 
+_improve_last_check = 0.0
+_improve_running = False
+
+
+def _maybe_run_daily_improve() -> None:
+    """Run improve --once once per day when MAG_IMPROVE_DAILY / prefs enabled."""
+    global _improve_last_check, _improve_running
+    if _improve_running:
+        return
+    now = time.time()
+    if now - _improve_last_check < 60:
+        return
+    _improve_last_check = now
+    try:
+        from mag.preferences import improve_daily_enabled, improve_daily_hour
+
+        if not improve_daily_enabled():
+            return
+        if not _health_ok("http://127.0.0.1:8765/"):
+            return
+        from mag.improve import improve_once, scout_due_today
+
+        if not scout_due_today():
+            return
+        if datetime.now().hour < improve_daily_hour():
+            return
+        _improve_running = True
+        _log("improve daily: starting improve --once (supervisor)")
+        res = improve_once()
+        _log(
+            "improve daily: done ok=%s field=%s"
+            % (res.get("ok"), res.get("field_brief"))
+        )
+    except Exception as e:
+        _log(f"improve daily: error {e}")
+    finally:
+        _improve_running = False
+
+
 def write_state(slots: list[dict]) -> None:
     payload = {
         "started": _now(),
@@ -542,6 +581,7 @@ def main() -> int:
                 time.sleep(CHECK_S)
                 _sync_dynamic_slots(slots)
                 ensure(slots)
+                _maybe_run_daily_improve()
                 write_state(slots)
         except KeyboardInterrupt:
             _log("supervisor stopping; terminating children")

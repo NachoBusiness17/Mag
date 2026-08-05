@@ -3777,6 +3777,92 @@ async function onDrainerToggleChange() {
   }
 }
 
+async function syncImprovePanel(router) {
+  const imp = router?.improve || {};
+  const toggle = $("#improveDailyToggle");
+  const hint = $("#improveHint");
+  const briefBtn = $("#btnViewFieldBrief");
+  if (toggle) {
+    toggle.disabled = !!imp.env_locked;
+    toggle.checked = !!imp.enabled;
+  }
+  if (hint) {
+    const hour = imp.hour != null ? `${String(imp.hour).padStart(2, "0")}:00` : "08:00";
+    const due = imp.scout_due_today ? "due today" : "ran today";
+    const n = imp.total_candidates != null ? ` · ${imp.total_candidates} candidates` : "";
+    hint.textContent = imp.last_scout
+      ? `Last scout ${imp.last_scout.slice(0, 19)} (${due})${n}`
+      : imp.enabled
+        ? `Supervisor ~${hour} local when Mag is up`
+        : "No scout yet — run Improve now or enable daily";
+  }
+  if (briefBtn) {
+    briefBtn.disabled = !imp.field_brief;
+    briefBtn.title = imp.field_brief || "Run improve first";
+  }
+}
+
+async function onImproveDailyToggleChange() {
+  const toggle = $("#improveDailyToggle");
+  if (!toggle || toggle.disabled) return;
+  try {
+    await postJSON("/api/v1/improve", { enabled: toggle.checked });
+    toast(
+      toggle.checked
+        ? "Daily improve ON — supervisor replaces Task Scheduler popup"
+        : "Daily improve OFF"
+    );
+    await loadStatus();
+  } catch (e) {
+    toast("Improve toggle failed: " + (e.message || e));
+  }
+}
+
+async function onImproveOnce() {
+  const hint = $("#improveHint");
+  const btn = $("#btnImproveOnce");
+  if (btn) btn.disabled = true;
+  if (hint) hint.textContent = "Running improve (scout + eval + brief)…";
+  try {
+    const j = await postJSON("/api/v1/improve", { mode: "once" });
+    const scout = j.phases?.scout || {};
+    if (hint) {
+      hint.textContent = j.ok
+        ? `Done · +${scout.candidates_added ?? "?"} candidates · see field brief`
+        : "Improve finished with errors — check logs/improve_daily.log";
+    }
+    toast(j.ok ? "Improve done — field_brief.md updated" : "Improve had errors");
+    await loadStatus();
+  } catch (e) {
+    if (hint) hint.textContent = "Improve failed";
+    toast("Improve failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function onViewFieldBrief() {
+  try {
+    const j = await getJSON(
+      "/api/v1/workspace/file?path=" + encodeURIComponent("memory/improve/field_brief.md")
+    );
+    if (!j.ok || !j.text) {
+      toast("No field brief yet — run Improve now");
+      return;
+    }
+    const w = window.open("", "_blank", "noopener");
+    if (w) {
+      w.document.title = "Mag field brief";
+      w.document.body.innerHTML =
+        "<pre style='font:13px/1.45 monospace;padding:1rem;white-space:pre-wrap'>" +
+        esc(j.text) +
+        "</pre>";
+    }
+  } catch (e) {
+    toast("Could not load field brief: " + (e.message || e));
+  }
+}
+
 async function onAutopilotOnce() {
   const hint = $("#autopilotHint");
   const btn = $("#btnAutopilotOnce");
@@ -3784,6 +3870,7 @@ async function onAutopilotOnce() {
   if (hint) hint.textContent = "Running autopilot…";
   try {
     const j = await postJSON("/api/v1/autopilot", {
+      scout: true,
       queue_improve: true,
       governor: true,
       drain: false,
@@ -3791,10 +3878,11 @@ async function onAutopilotOnce() {
     });
     const seed = j.seed_mirror || {};
     const queued = (j.queued || []).length;
+    const impStep = (j.steps || []).find((s) => s.improve);
     if (hint) {
       hint.textContent = seed.blocked
         ? `seed-mirror blocked — ${seed.hint || "no archive"}`
-        : `ok · queued ${queued} · ${(j.steps || []).length} steps`;
+        : `ok · ${impStep?.improve || "improve n/a"} · queued ${queued}`;
     }
     toast("Autopilot done — see logs/autopilot_latest.json");
   } catch (e) {
@@ -3997,6 +4085,7 @@ const recent = ingest.recent_urls || [];
       ]);
     }
     await syncDrainerToggle(router);
+    await syncImprovePanel(router);
     await loadSeatFeed();
     await loadGovernance();
 
@@ -5061,6 +5150,9 @@ async function bind() {
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
+  $("#btnImproveOnce")?.addEventListener("click", () => onImproveOnce());
+  $("#btnViewFieldBrief")?.addEventListener("click", () => onViewFieldBrief());
+  $("#improveDailyToggle")?.addEventListener("change", () => onImproveDailyToggleChange());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
   $("#govDrainerToggle")?.addEventListener("change", () => onGovDrainerChange());
   $("#govBehavioralToggle")?.addEventListener("change", () => onGovBehavioralChange());
