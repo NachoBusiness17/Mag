@@ -302,3 +302,17 @@ We cannot predict which v3 items compound like case law. We **can** file possibi
 ---
 
 *Append items at section 2. Link from HANDOFF when an item graduates to spec.*
+
+---
+
+## 6. v5 pipe (deferred — do not implement on v3/v4)
+
+| ID | Title | Doc | Status |
+|----|-------|-----|--------|
+| **v5-GSTD** | GSTD forest — MIT DePIN seat + spore catalog + route map | `docs/ref/MAG_v5_GSTD_FOREST.md` | **piped** — catalog/probe in v4; test/implement v5 |
+| **v5-VAST** | Vast.ai training pipeline — rent GPU, LoRA from export, promote weights | `docs/ref/MAG_v5_VAST_TRAINING.md` | **piped** — infer today; train orchestration v5 |
+| **v5-XRPL** | XRPL read tools + L3 payment rails via Mag frameworks | `docs/ref/MAG_v5_XRPL.md` | **piped** — spores v4; tools v5 |
+
+Umbrella: `docs/ref/MAG_v5_PIPE.md` · one-pagers 09–12
+
+One-pager: `docs/ref/onepagers/09-gstd-v5-pipe.md`

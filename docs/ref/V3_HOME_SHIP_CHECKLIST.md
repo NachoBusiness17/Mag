@@ -20,7 +20,10 @@
 
 ```cmd
 scripts\v3_home_smoke.cmd
+scripts\v3_deepseek_run.cmd
 ```
+
+See **`docs/ref/V3_DEEPSEEK_RUN.md`** for DeepSeek build drain setup.
 
 Or step by step:
 

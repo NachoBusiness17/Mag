@@ -274,6 +274,7 @@ def fill_queue(
         "agent_state": [],
         "handoff": [],
         "verkle": [],
+        "steward": [],
         "skipped": [],
     }
 
@@ -350,18 +351,34 @@ def fill_queue(
     except Exception as e:
         filled["verkle_error"] = str(e)
 
+    try:
+        from mag.steward import fill_steward_queue
+
+        filled["steward"] = fill_steward_queue(max_jobs=2)
+    except Exception as e:
+        filled["steward_error"] = str(e)
+
     filled["total_queued"] = (
         len(filled["improve"])
         + len(filled["agent_state"])
         + len(filled["handoff"])
         + len(filled["verkle"])
+        + len(filled["steward"])
     )
     _log_trail(
         {
             "phase": "fill",
             **{
                 k: filled[k]
-                for k in ("improve", "agent_state", "handoff", "verkle", "total_queued", "skipped")
+                for k in (
+                    "improve",
+                    "agent_state",
+                    "handoff",
+                    "verkle",
+                    "steward",
+                    "total_queued",
+                    "skipped",
+                )
             },
         }
     )

@@ -4,6 +4,8 @@
 **Commitment:** `mag-project-proposal-001`  
 **As-of:** 2026-08-05  
 **Status:** **Alpha** — constitution + loops exist; product brain is young  
+**Direction (v2):** **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** — where we are/going  
+**Versions:** **`docs/ref/releases/VERSION_REGISTRY.md`** — v1=Grok origin · v2=this repo · v3=planning  
 **Operator:** Nacho · **Repo:** Mag (`local_sovereign_agent`)  
 **Sister:** [mycelial-republic](https://github.com/NachoBusiness17/Mag) (forest law, public fork, optional training)
 
@@ -365,7 +367,8 @@ Register: **MagImproveDaily** 08:00 · **MagVerkleWeekly** Sat 09:00 · **MagAut
 | Doc | Role |
 |-----|------|
 | **`docs/FRAMEWORK_LOAD.md`** | **LLM/human navigation — load order, metaphors, use cases (start here)** |
-| **`MAG_PROJECT_PROPOSAL.md`** (this) | Full where-we-are / where-we're-going |
+| **`MAG_DIRECTION_ARTIFACT_v2.md`** | **Direction v2 — load first for navigation** |
+| **`MAG_PROJECT_PROPOSAL.md`** (this) | Full where-we-are / problem / inventory |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Operational queue, merge order |
 | `MAG_v2_PLAN.md` | v2 phases + acceptance |
 | `MAG_v3_RESEARCH_PLAN.md` | v3 research + L-conductor frame |

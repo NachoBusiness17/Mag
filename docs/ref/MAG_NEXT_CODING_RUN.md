@@ -18,6 +18,11 @@
 | **This file** | Next coding run order + subsystem map |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agentic steals |
 | `docs/ref/MAG_v3_BACKLOG.md` | Feature ideas + scores (not run order) |
+| `docs/ref/MAG_v5_GSTD_FOREST.md` | GSTD forest — **v5 pipe** (catalog now, test/implement later) |
+| `docs/ref/MAG_v5_PIPE.md` | v5 umbrella — GSTD + Vast train + XRPL |
+| `docs/ref/MAG_v5_VAST_TRAINING.md` | Vast.ai agent training pipeline |
+| `docs/ref/MAG_v5_XRPL.md` | XRPL via Mag tools (read T2, pay L3) |
+| `docs/ref/MAG_DIRECTION_ARTIFACT_v2.md` | Direction artifact v2 — v3 gate + v4/v5 mold |
 | `docs/ref/MAG_FACTORY_PILOT.md` | Factory epic ritual + prompts |
 | `configs/modules.yaml` | Module registry + upgrade contracts |
 
@@ -175,6 +180,11 @@ Priority order — **one subsystem per PR slice:**
 | C4 | Factory freeze gate: reject `[build]` without frozen handoff | `conductor` + `switchboard` | `conductor.py`, new check in `route` or conductor | test: build goal without BUILD file → defer |
 | C5 | Spider → switchboard `steer_drop` for stall (not raw post_steer) | `spider`, `switchboard` | `spider.py` | spider tick inject uses tier |
 | C6 | `switchboard_status.cmd` calls `switchboard status` | ops | `switchboard_status.cmd` | Windows smoke |
+| C7 | **v3 DeepSeek run** scripts + BUILD handoff | ops | `scripts/v3_deepseek_run.cmd`, `docs/ref/V3_DEEPSEEK_RUN.md` | `training-events` shows `task_lifecycle` |
+
+**C1–C7 shipped on branch `cursor/v3-deepseek-run-e2ce`** (2026-08-05): orchestrator lifecycle, grove REST, spider→switchboard, switchboard_status, DeepSeek run scripts.
+
+**Wave 1 shipped on branch `cursor/v3-deepseek-run-e2ce`:** `pack mode` on context_pack + `--mode janitor` default path for ask/steward; `steward-scope` job + CLI.
 
 **Explicitly defer (not this run):**
 

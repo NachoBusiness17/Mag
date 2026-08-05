@@ -15,9 +15,10 @@
 ```text
 LOAD Mag framework — read in order:
   1. docs/FRAMEWORK_LOAD.md (this file — navigation + metaphors)
-  2. docs/ref/MAG_PROJECT_PROPOSAL.md (where we are / where we're going)
-  3. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
-  4. AGENTS.md (python env + commands — do not skip)
+  2. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md (direction v2 — where we are / going / v3 gate)
+  3. docs/ref/MAG_PROJECT_PROPOSAL.md (full proposal depth — problem, inventory)
+  4. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
+  5. AGENTS.md (python env + commands — do not skip)
 
 Then run: mag.cmd context-pack (or python main.py context-pack)
 Then: ONE job from queue/todo.md or operator goal.
@@ -61,10 +62,11 @@ Mag is a **private records office** on your computer — not a chat app.
 | # | File | Function |
 |---|------|----------|
 | 0 | **`docs/FRAMEWORK_LOAD.md`** | This navigation map |
-| 1 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal: alpha status, v2/v3 path |
-| 2 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
-| 3 | **`AGENTS.md`** | Python env law + command cheatsheet |
-| 4 | **`docs/DNA.md`** | What "filed" means — residual constitution |
+| 1 | **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** | Direction v2 — been / are / going / v3 gate / v4–v5 mold |
+| 2 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal depth |
+| 3 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
+| 4 | **`AGENTS.md`** | Python env law + command cheatsheet |
+| 5 | **`docs/DNA.md`** | What "filed" means — residual constitution |
 
 **After read:** `mag.cmd doctor` · `mag.cmd context-pack`
 
@@ -78,6 +80,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | 8 | `memory/bonds_active.md` | Carry to next session |
 | 9 | `memory/improve/SEATS.md` | Who does what (janitor vs consultant) |
 | 10 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agent queue |
+| 11 | `docs/ref/releases/VERSION_REGISTRY.md` | v1–v5 release notes + graduation gates |
 
 ### Tier 2 — Role-specific (load if your job needs it)
 
@@ -128,6 +131,7 @@ LOAD  →  hand AI a small pack (context-pack), not chat history
 | Queue overnight work | FILE | Add line to `queue/todo.md` · `MAG_DRAINER=1` · `mag.cmd autorun` |
 | Code in Cursor while Mag waits | LOAD | `MAG_OPERATOR_ACTIVE=1` · `launch_cursor_seat.cmd` |
 | Research a public URL | FIND+FILE | `mag.cmd research-pack --ask "…" --url "…"` |
+| **Aim before big BUILD / version jump** | FIND+FILE | **`docs/ref/MAG_ILAP_PROTOCOL.md`** · template `docs/ref/templates/ILAP-PROPOSAL.md` |
 | Improve Mag itself (gated) | FILE | `mag.cmd improve --once` · human `promote --apply` |
 | Check what failed before | LOAD | `python main.py fkb stats` |
 | Audit history gaps | FIND | `python main.py verkle-audit --dry` |

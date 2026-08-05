@@ -120,6 +120,42 @@ LOOPS: list[dict[str, Any]] = [
         "status": "research",
         "cli": "main.py switchboard",
     },
+    {
+        "id": "releases",
+        "layer": "doctrine",
+        "loop": "notes → gate → release_milestone",
+        "trail": "memory/improve/releases/gates.jsonl",
+        "promote_gate": True,
+        "status": "shipped",
+        "cli": "main.py release",
+    },
+    {
+        "id": "steward",
+        "layer": "harness",
+        "loop": "scope → digest → one leaf",
+        "trail": "memory/steward/",
+        "promote_gate": False,
+        "status": "pilot",
+        "cli": "main.py steward",
+    },
+    {
+        "id": "ilap",
+        "layer": "doctrine",
+        "loop": "propose → research → aim → eval → freeze → build",
+        "trail": "memory/improve/evals/features/",
+        "promote_gate": True,
+        "status": "pilot",
+        "cli": "docs/ref/MAG_ILAP_PROTOCOL.md",
+    },
+    {
+        "id": "research_dive",
+        "layer": "viewport",
+        "loop": "scout sources → steal compose → one leaf",
+        "trail": "memory/research_packs/",
+        "promote_gate": True,
+        "status": "shipped",
+        "cli": "main.py improve / research-pack / field-steal",
+    },
 ]
 
 

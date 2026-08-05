@@ -26,8 +26,9 @@ Not "models got smarter." **The harness learned what to repeat.**
 | Good routing forgotten | training_events `route_decision` | events.jsonl |
 | "We should do X next" lost | RUN A–D manual sheet | MAG_NEXT_CODING_RUN.md |
 | Idea deprecated too early | Backlog scored, not deleted | MAG_v3_BACKLOG.md |
+| Version shipped claimed without gate | Release registry + `release_milestone` | `configs/releases.yaml`, `release record` |
 
-**Meta-lesson:** Constitution thinking beats roadmap guessing. You don't predict v5 — you **file episodes**, **score patterns**, **promote** what compounds, **defer** what doesn't — and let **resonance** surface old ideas when soil rhymes.
+**Meta-lesson:** Constitution thinking beats roadmap guessing. You don't predict v5 — you **file episodes**, **score patterns**, **promote** what compounds, **defer** what doesn't — and let **resonance** surface old ideas when soil rhymes. **Version gates** are episodes too — `python main.py release record`.
 
 ```text
 Behavior = what happened
@@ -72,6 +73,7 @@ Every loop emits `mag_training_event.v1`:
 | `factory_cycle` | plan→build→audit chain |
 | `spider_signal` | stall/orphan/autorun burst |
 | `promote_gate` | human approved habit |
+| `release_milestone` | version graduation gate recorded |
 
 **v4 add:** `run_proposal` — conductor outputs suggested next RUN row + confidence + evidence links.
 
@@ -118,6 +120,9 @@ Deposited learning is useless if only grep finds it.
 
 | Surface | Audience | Content |
 |---------|----------|---------|
+| **Release notes** | Operator + agents | `docs/ref/releases/RELEASE_NOTES_vN.md` |
+| **Version registry** | Router / conductor | `configs/releases.yaml` + `release status` |
+| **Gate log** | Behavioral synth | `memory/improve/releases/gates.jsonl` |
 | **Office :8765** | Layman | "Last night: RUN B step 3 done · next: audit" |
 | **context-pack L0** | Remote seats | bonds + nervous + next RUN one-liner |
 | **Grove poems** | Human browse | factory shift / curious error / revived pattern |

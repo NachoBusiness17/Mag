@@ -222,11 +222,58 @@ def _save(task: dict[str, Any]) -> None:
     )
 
 
+def _goal_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--query" in cmd:
+        i = cmd.index("--query")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])[:240]
+    return ""
+
+
+def _provider_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--provider" in cmd:
+        i = cmd.index("--provider")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])
+    return "deepseek"
+
+
+def _emit_task_lifecycle(phase: str, task_id: str, **extra: Any) -> None:
+    """Training hook — spawn/terminal edges for improve + seat posterior."""
+    try:
+        from mag.training_events import emit
+
+        task = _load(task_id) or {}
+        cmd = task.get("cmd") or []
+        emit(
+            "task_lifecycle",
+            join={"task_id": task_id},
+            input_data={
+                "goal": (task.get("goal") or _goal_from_cmd(cmd))[:200],
+                "provider": task.get("provider") or _provider_from_cmd(cmd),
+                "tag": task.get("tag") or "",
+            },
+            action={"phase": phase, **extra},
+            outcome={
+                "status": task.get("status"),
+                "exit_code": task.get("exit_code"),
+                "duration_s": task.get("duration_s"),
+            },
+            pattern_tags=[f"orc_{phase}"],
+        )
+    except Exception:
+        pass
+
+
 def _trail(event: str, task_id: str, **meta: Any) -> None:
     _ensure_dirs()
     entry = {"timestamp": _now(), "event": event, "task_id": task_id, **meta}
     with TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def _kill_tree(pid: int) -> None:
     """Terminate the process and its children (Windows process tree)."""
     if sys.platform == "win32":
@@ -299,6 +346,7 @@ def _finalize(task_id: str, status: str, exit_code: int | None = None,
             pass
     _save(task)
     _trail(status, task_id, exit_code=exit_code, detail=detail, killed=killed)
+    _emit_task_lifecycle(status, task_id, killed=killed, detail=(detail or "")[:120])
     return task
 
 
@@ -355,6 +403,7 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
     task["started_at"] = _now()
     _save(task)
     _trail("spawn", task_id, pid=proc.pid, timeout_s=timeout)
+    _emit_task_lifecycle("spawn", task_id, pid=proc.pid, timeout_s=timeout)
 
     def _monitor() -> None:
         """Supervise: exit -> finalize; stall -> nudge (!steer) then kill;
@@ -437,6 +486,33 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+
+    if goal.lower().startswith("[steward]"):
+        try:
+            from mag.steward import execute_steward_goal
+
+            res = execute_steward_goal(goal, dry=False)
+            tid = "t-steward-" + uuid.uuid4().hex[:8]
+            status = "done" if res.get("ok") else "failed"
+            rec: dict[str, Any] = {
+                "ok": res.get("ok", False),
+                "task_id": tid,
+                "goal": goal,
+                "status": status,
+                "provider": "ollama",
+                "tag": tag or "steward",
+                "detail": str(res.get("path") or res.get("reason") or res.get("error") or "")[:300],
+                "steward_result": res,
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec)
+            _trail("steward-inline", tid, goal=goal[:120], ok=res.get("ok"))
+            return rec
+        except Exception as exc:
+            return {"ok": False, "error": f"steward: {exc}"}
+
     timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     for t in _running_tasks():
         if t.get("goal") == goal:

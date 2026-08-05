@@ -61,6 +61,9 @@ memory/improve/**
 !memory/improve/MIRROR.md
 !memory/improve/pins/
 !memory/improve/pins/spine_posts.json
+!memory/improve/releases/
+!memory/improve/releases/README.md
+memory/improve/releases/gates.jsonl
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -128,6 +131,9 @@ _tmp*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local reference clones (third-party inspiration — see reference/README.md)
+reference/gstdcoin/
 
 # Android build artifacts (source tracked; builds not)
 android/**/build/

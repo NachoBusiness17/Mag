@@ -32,12 +32,14 @@ def refresh_context_for_goal(goal: str) -> dict[str, Any]:
             build_context_pack,
             format_agent_preamble,
             format_context_pack_text,
+            infer_pack_mode,
         )
 
-        pack = build_context_pack()
+        mode = infer_pack_mode(goal)
+        pack = build_context_pack(mode=mode, goal=goal)
         out_md = ROOT / "memory" / "context_pack_latest.md"
         out_md.parent.mkdir(parents=True, exist_ok=True)
-        text = format_context_pack_text(pack)
+        text = format_context_pack_text(pack, mode=mode)
         out_md.write_text(text, encoding="utf-8")
         (ROOT / "memory" / "context_pack_latest.json").write_text(
             json.dumps(pack, indent=2, default=str), encoding="utf-8"

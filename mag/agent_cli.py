@@ -2061,8 +2061,11 @@ def api_agent_turn(
 
     sess = load_session(session_id)
     if reset or not sess.get("messages"):
-        pack = build_context_pack(max_brief=900, max_live=400)
-        pack_text = format_context_pack_text(pack)
+        from mag.context_pack import build_context_pack, infer_pack_mode
+
+        mode = infer_pack_mode(goal, depth=depth if depth else "")
+        pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+        pack_text = format_context_pack_text(pack, mode=mode)
         try:
             (ROOT / "memory" / "context_pack_latest.md").write_text(pack_text, encoding="utf-8")
         except Exception:
@@ -2075,8 +2078,11 @@ def api_agent_turn(
         messages = list(sess.get("messages") or [])
         # ensure system present
         if not messages or messages[0].get("role") != "system":
-            pack = build_context_pack(max_brief=900, max_live=400)
-            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack))}] + messages
+            from mag.context_pack import infer_pack_mode
+
+            mode = infer_pack_mode(goal, depth=depth)
+            pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack, mode=mode))}] + messages
         tip = "session-continued"
 
     if on_stream is None:

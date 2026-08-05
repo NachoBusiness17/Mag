@@ -177,7 +177,7 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
     injected = []
     reaped = None
     if inject and not dry:
-        from mag import pigeonhole as ph
+        from mag.switchboard import steer_drop
 
         for sig in signals:
             if sig.get("action") != "steer":
@@ -185,8 +185,14 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
             tid = sig.get("task_id")
             if not tid:
                 continue
-            msg = f"[spider] {sig.get('message', 'course correct')}"
-            ph.post_steer(str(tid), msg[:400])
+            msg = sig.get("message") or "course correct"
+            steer_drop(
+                "spider",
+                str(tid),
+                f"[spider] {msg}"[:1200],
+                tier="T2",
+                reason=str(sig.get("kind") or "stall"),
+            )
             injected.append(tid)
 
     if not dry:
