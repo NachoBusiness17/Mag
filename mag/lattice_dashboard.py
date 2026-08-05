@@ -205,7 +205,7 @@ def build_lattice_summary() -> dict[str, Any]:
             plan["suggested_focus"] = open_a[0].get("title") or open_a[0].get("id")
 
     root = tip.get("root") or evo.get("verkle_root") or ""
-    return {
+    out: dict[str, Any] = {
         "ok": True,
         "schema": "lattice_dashboard.v1",
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -248,3 +248,10 @@ def build_lattice_summary() -> dict[str, Any]:
             ),
         },
     }
+    try:
+        from mag.lattice_query import graph_viewport
+
+        out["graph"] = graph_viewport(sample_n=8)
+    except Exception:
+        out["graph"] = {"store_exists": False}
+    return out

@@ -331,6 +331,12 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
                 "status": t.get("status"),
             }
     task_id = "t" + uuid.uuid4().hex[:10]
+    try:
+        from mag.autorun_common import refresh_context_for_goal
+
+        refresh_context_for_goal(goal)
+    except Exception:
+        pass
     cmd = [sys.executable, str(ROOT / "main.py"), "agent", "--query", goal,
            "--provider", provider]
     if model:
@@ -487,6 +493,14 @@ def drain_once() -> dict[str, Any]:
     queue drains one goal at a time, moving to the next the moment the
     current one finishes. Returns what happened.
     """
+    try:
+        from mag.autorun_common import autorun_pause_reason
+
+        pause = autorun_pause_reason()
+        if pause:
+            return {"ok": True, "action": "paused", "detail": pause}
+    except Exception:
+        pass
     _ensure_dirs()
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     _reconcile_queue()

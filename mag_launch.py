@@ -188,7 +188,7 @@ def build_slots() -> list[dict]:
     if _drainer_wanted():
         slots.append({
             "name": "drainer",
-            "cmd": [PY, str(ROOT / "main.py"), "orchestrator", "drain"],
+            "cmd": [PY, str(ROOT / "main.py"), "autorun"],
             "wanted": True,
             "proc": None,
         })

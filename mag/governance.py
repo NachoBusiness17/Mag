@@ -121,7 +121,7 @@ def broadcast_steer(cmd: str) -> dict[str, Any]:
 
 
 def build_governance() -> dict[str, Any]:
-    from mag.preferences import autonomy_status, drainer_status
+    from mag.preferences import autonomy_status, drainer_status, operator_status
     from mag.remedy import cards as remedy_cards
     from mag.operator_inbox import status as inbox_status
 
@@ -168,6 +168,7 @@ def build_governance() -> dict[str, Any]:
         },
         "autonomy": autonomy_status(),
         "drainer": drainer_status(),
+        "operator": operator_status(),
         "cursor_note": (
             "Cursor IDE shell/tool approvals are separate from Mag. "
             "Use watch/cursor_bridge.py (REST) or Agent mode in Chat to avoid per-command clicks. "
