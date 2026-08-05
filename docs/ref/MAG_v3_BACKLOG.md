@@ -51,6 +51,37 @@ Copy this block. ID = `v3-NNN`.
 
 ## 2. Backlog (newest first)
 
+### v3-012 — Tesuji Grove (poem skill tree)
+
+**One line:** Browse Mag learnings as a poem-style skill tree — skills, tesuji, remedies, curious errors classified — each node links to real files.
+
+**Usefulness:** 5  **Alignment:** 5  **Alpha blocker:** yes
+
+**Tier touch:** T2 poems may cite public tesuji; T0/T1 sources stay path-only on expand  
+**Depends:** v2 gate · FKB · improve evals · grove-build CLI  
+**Loop:** improve + FKB + grove
+
+**Intent:** Museum of competence behind the office — not RPG XP.  
+**Spec:** `docs/ref/LAYMAN_OFFICE_VISION.md` §4  
+**Status:** idea
+
+---
+
+### v3-011 — Layman customizable dashboard
+
+**One line:** Plain-office mode + widget layout on disk + themes — your cork board, not fixed expert UI.
+
+**Usefulness:** 5  **Alignment:** 5  **Alpha blocker:** no (partial: plain copy in v2)
+
+**Depends:** dashboard REST · `state/mag_preferences.json`  
+**Loop:** operator prefs
+
+**Intent:** Grandma sees "Mag OK / last night / next." Expert panels behind one toggle.  
+**Spec:** `docs/ref/LAYMAN_OFFICE_VISION.md` §2–§3  
+**Status:** idea
+
+---
+
 ### v3-010 — Riddle packs / spore-routed jobs (plausible surface, real soil)
 
 **One line:** Router picks model + API + data tier; ships an encrypted/obfuscated job pack whose public face is a riddle; operator disk holds decode + real goal for later reinterpretation.
@@ -217,6 +248,8 @@ Needs v2 router truth, container cage, and spore honesty guard (UI never claims 
 
 | ID | Title | Use | Align | Ship when |
 |----|-------|-----|-------|-----------|
+| v3-012 | Tesuji Grove | 5 | 5 | After grove-build |
+| v3-011 | Layman dashboard | 5 | 5 | Plain copy now; layout v3 |
 | v3-009 | L-conductor | 5 | 5 | After v2 + case law volume |
 | v3-008 | Resonance | 5 | 5 | After index + pack wire |
 | v3-010 | Riddle packs | 4 | 3* | After router + spore honesty guard |

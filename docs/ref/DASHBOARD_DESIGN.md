@@ -76,6 +76,8 @@ Sources informing this (general UX consensus): progressive disclosure, KPI-first
 - [ ] Hard refresh not required for basic function (cache-bust static)  
 - [ ] Phoenix hidden when ship is OK  
 
+**v3 vision (custom layout + Tesuji Grove):** `docs/ref/LAYMAN_OFFICE_VISION.md`
+
 ---
 
 ## One line
