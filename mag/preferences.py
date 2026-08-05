@@ -35,6 +35,48 @@ def drainer_enabled() -> bool:
     return bool(load_prefs().get("drainer"))
 
 
+def operator_active() -> bool:
+    """True when operator is in an interactive seat (Composer/Cursor) — pause autorun."""
+    env = os.environ.get("MAG_OPERATOR_ACTIVE", "").strip().lower()
+    if env in ("1", "true", "yes"):
+        return True
+    if env in ("0", "false", "no"):
+        return False
+    return bool(load_prefs().get("operator_active"))
+
+
+def set_operator_active(enabled: bool) -> dict:
+    prefs = load_prefs()
+    prefs["operator_active"] = bool(enabled)
+    prefs["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_prefs(prefs)
+    return prefs
+
+
+def operator_status() -> dict:
+    env = os.environ.get("MAG_OPERATOR_ACTIVE", "").strip().lower()
+    pref = bool(load_prefs().get("operator_active"))
+    locked = env in ("1", "true", "yes", "0", "false", "no")
+    return {
+        "operator_active": operator_active(),
+        "pref": pref,
+        "env": env or None,
+        "env_locked": locked,
+        "hint": (
+            "MAG_OPERATOR_ACTIVE=1 pauses drainer while you work in Composer/Cursor"
+            if locked
+            else "Set in dashboard or MAG_OPERATOR_ACTIVE=1 when coding in IDE"
+        ),
+    }
+
+
+def autorun_allowed() -> bool:
+    """Drainer may tick only when enabled and operator is not actively coding."""
+    if os.environ.get("MAG_DRAINER_FORCE", "").strip().lower() in ("1", "true", "yes"):
+        return drainer_enabled()
+    return drainer_enabled() and not operator_active()
+
+
 def set_drainer(enabled: bool) -> dict:
     prefs = load_prefs()
     prefs["drainer"] = bool(enabled)
@@ -47,11 +89,14 @@ def drainer_status() -> dict:
     env = os.environ.get("MAG_DRAINER", "").strip().lower()
     pref = bool(load_prefs().get("drainer"))
     locked = env in ("1", "true", "yes", "0", "false", "no")
+    op = operator_status()
     return {
         "enabled": drainer_enabled(),
+        "autorun_allowed": autorun_allowed(),
         "pref": pref,
         "env": env or None,
         "env_locked": locked,
+        "operator_active": op.get("operator_active"),
         "hint": (
             "MAG_DRAINER env overrides dashboard toggle"
             if locked
@@ -80,6 +125,8 @@ def autonomy_status() -> dict:
     return {
         "inject_behavioral_pack": inject_behavioral_pack(),
         "drainer": drainer_enabled(),
+        "autorun_allowed": autorun_allowed(),
+        "operator_active": operator_active(),
         "compass_autonomous_continue": True,
         "note": (
             "Ambiguous input (continue/go) is wrapped by compass — agent decides from blueprint + case law, "

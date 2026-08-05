@@ -1,4 +1,8 @@
-"""Operator inbox — deferred guidance while the agent is working.
+"""Operator inbox — deferred guidance (interference layer).
+
+Breadcrumbs are operator interference — dropped on the agent's path, absorbed at
+checkpoint. Routing decisions come from mag/decision_framework + mag/router.
+See docs/DECISION_LAYERS.md.
 
 Operator types in the dashboard guidance dock (or API), hits Enter to queue.
 At the next checkpoint (between tool rounds / model calls), the seat drains
@@ -265,6 +269,40 @@ def log_behavioral_event(
                 f"behavioral {kind}",
                 detail[:200],
                 f"logged {EVENTS_PATH.name} — remedy/candidate pipeline may rank",
+            )
+        except Exception:
+            pass
+    # FKB: dedupe failures + auto-draft remedies on recurrence
+    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash"):
+        try:
+            from mag.failure_kb import log_failure
+
+            log_failure(
+                kind=kind,
+                detail=detail,
+                tool=tool,
+                error=error,
+                phase=phase,
+                session_id=session_id,
+                provider=provider,
+                model=model,
+            )
+        except Exception:
+            pass
+    # FKB: dedupe failures + auto-draft remedies on recurrence
+    if kind in ("tool_fail", "collapse", "degenerate", "seat_crash"):
+        try:
+            from mag.failure_kb import log_failure
+
+            log_failure(
+                kind=kind,
+                detail=detail,
+                tool=tool,
+                error=error,
+                phase=phase,
+                session_id=session_id,
+                provider=provider,
+                model=model,
             )
         except Exception:
             pass

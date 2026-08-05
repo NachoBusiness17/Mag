@@ -12,15 +12,15 @@ if not exist "%PY%" (
 )
 
 echo ============================================================
-echo   MAG - Stop Everything
-echo   Kills supervisor, backend, dashboard, scribe, mag daemon
+echo   MAG - Stop Everything (kill switch)
+echo   Stops supervisor, backend, dashboard, workers, seat-guard
 echo ============================================================
 echo.
 
-"%PY%" "%~dp0mag_launch.py" --stop
+"%PY%" "%~dp0main.py" power stop
 echo.
 echo Done. Ports 8000, 8765, and 8743 should be free.
-echo Run "MAG - Start Everything" to bring the stack back.
+echo Run "mag_on.cmd" or "start_everything.cmd" to bring the stack back.
 echo.
 pause
 endlocal

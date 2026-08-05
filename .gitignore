@@ -59,6 +59,8 @@ memory/improve/**
 !memory/improve/HABIT.md
 !memory/improve/SEATS.md
 !memory/improve/MIRROR.md
+!memory/improve/pins/
+!memory/improve/pins/spine_posts.json
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -75,6 +77,9 @@ memory/handoff/**
 !memory/handoff/DEEPSEEK_START.md
 memory/remedies/**
 !memory/remedies/.gitkeep
+!memory/remedies/rem-write-file-shape.md
+memory/failure_kb/**
+!memory/failure_kb/.gitkeep
 memory/working/**
 memory/working_*.py
 memory/portable_bags/**

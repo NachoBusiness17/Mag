@@ -165,6 +165,21 @@ def main() -> int:
     if sid and he in {"sessionend", "stop", "composerstop"}:
         try:
             sys.path.insert(0, str(AGENT_ROOT))
+            tid = os.environ.get("MAG_TASK_ID", "").strip()
+            if not tid:
+                ptr = POINTER.read_text(encoding="utf-8") if POINTER.is_file() else "{}"
+                try:
+                    tid = str(json.loads(ptr).get("task_id") or "")
+                except Exception:
+                    tid = ""
+            if tid:
+                from mag.seat_registry import unregister
+
+                unregister(tid, status="done", detail=f"cursor hook {hook_event}")
+        except Exception:
+            pass
+        try:
+            sys.path.insert(0, str(AGENT_ROOT))
             from mag.biography import pack_status, summarize_session
             from mag.chat_source import agent_bio_id
 

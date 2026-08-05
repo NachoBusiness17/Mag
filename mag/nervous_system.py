@@ -246,6 +246,32 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
     keys = _keys_snapshot()
     open_loops = _working_open_lines()
 
+    seats_summary: dict[str, Any] = {"registered": 0, "stale": 0, "cloud": 0}
+    try:
+        from mag.seat_registry import list_registered
+
+        live = list_registered(live_only=True)
+        seats_summary["registered"] = len(live)
+        for s in live:
+            if s.get("heartbeat_age_s") is not None and int(s.get("heartbeat_age_s") or 0) > 120:
+                seats_summary["stale"] += 1
+            if str(s.get("parent") or s.get("source") or "").startswith("cloud") or s.get("mode") == "cloud":
+                seats_summary["cloud"] += 1
+    except Exception:
+        pass
+
+    improve_loop: dict[str, Any] = {}
+    try:
+        trail_path = ROOT / "memory" / "runs" / "improve_loop_trail.jsonl"
+        if trail_path.is_file():
+            lines = trail_path.read_text(encoding="utf-8").strip().splitlines()
+            if lines:
+                last = json.loads(lines[-1])
+                improve_loop["last_event"] = last.get("event")
+                improve_loop["last_ts"] = last.get("ts")
+    except Exception:
+        pass
+
     body_ok = bool(ollama)
     integral_ok = bool(dash and health.get("status") == "up")
 
@@ -277,6 +303,8 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
         },
         "keys": keys,
         "open_loops": open_loops,
+        "seats": seats_summary,
+        "improve_loop": improve_loop,
         "note": (
             "Keys: .env presence ≠ shell; Mag loads dotenv. "
             "status=env-only means Mag python can use if values non-empty. "

@@ -1,0 +1,43 @@
+---
+description: Mag Cursor seat — restful boundary, not a new throne
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Mag Cursor seat
+
+You are a **seat on the Mag boundary** — not a standalone agent stack.
+
+## Boot (automatic)
+
+Hooks register you with the orchestrator mesh (`MAG_TASK_ID`). Prefer `@memory/cursor_preamble_latest.md` for context.
+
+## Restful law
+
+| Do | Don't |
+|----|-------|
+| `python watch/cursor_bridge.py task "goal" --mode queue` for background/improve | Raw `main.py agent` REPL for queued work |
+| `python watch/cursor_bridge.py register` if hooks didn't run | Assume orchestrator sees you without registration |
+| File outcomes to disk (trail, handoff JSON) | Chat-only handoffs |
+| `python watch/cursor_bridge.py improve --claim "…"` for cloud improve filing | Re-plan architecture in chat |
+
+## Improve → behavioral loop
+
+Cloud or desktop improve outcomes go through the nervous system:
+
+```text
+python watch/cursor_bridge.py improve --claim "one concrete fix" [--enqueue]
+```
+
+That feeds behavioral events, training data, spider, and orchestrator queue.
+
+## Exit
+
+When done for the day: `mag_kill.cmd` (kill switch — no Python whack-a-mole).
+
+## Kill / start
+
+- **Off:** `mag_kill.cmd` or `mag.cmd power stop`
+- **On:** `mag_on.cmd` or `mag.cmd power start`
+- **Status:** Dashboard → Body tab → Power card

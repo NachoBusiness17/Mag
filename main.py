@@ -369,6 +369,15 @@ def main(argv: list[str] | None = None) -> int:
     p_auto.add_argument("--no-governor", action="store_true", help="skip governor cycle")
     p_auto.add_argument("--drain", action="store_true", help="drain once after queue")
     p_auto.add_argument("--max-queue", type=int, default=2, help="max improve tickets to queue")
+    p_autorun = sub.add_parser(
+        "autorun",
+        help="Intelligent autorun: fill queue, route, drain DeepSeek jobs (drainer loop)",
+    )
+    p_autorun.add_argument("--once", action="store_true", help="single tick then exit")
+    p_autorun.add_argument("--dry", action="store_true", help="plan only, no execute")
+    p_autorun.add_argument("--no-fill", action="store_true", help="skip queue fill")
+    p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
+    p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval seconds")
     p_sg = sub.add_parser(
         "seat-guard",
         help="Supervise the seat REPL: relaunch on crash/glitch/stall/hard-stop",
@@ -579,16 +588,6 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="start: privacy.never_remote (tier_max T1)",
     )
-    p_route = sub.add_parser(
-        "route",
-        help="Grok-facing router: classify lane; optional --local execute",
-    )
-    p_route.add_argument("goal", nargs="+", help="Goal text")
-    p_route.add_argument(
-        "--local",
-        action="store_true",
-        help="If lane=local, run ask/doctor/smoke now",
-    )
     sub.add_parser(
         "providers",
         help="List platforms (OpenAI/Gemini/DeepSeek/…) + keys + quota remaining",
@@ -634,6 +633,42 @@ def main(argv: list[str] | None = None) -> int:
         help="Queue heavy_code on orchestrator instead of inline delegate",
     )
     p_coord.add_argument("--session", default="", help="Agent session id for delegate mode")
+    p_route = sub.add_parser(
+        "route",
+        help="Unified routing decision (seat, provider, mode) — honest failures",
+    )
+    p_route.add_argument("goal", nargs="+", help="What to route")
+    p_route.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth (else auto-classify)",
+    )
+    p_route.add_argument(
+        "--local",
+        action="store_true",
+        help="If lane=local, execute ask/doctor/smoke now (legacy local runner)",
+    )
+    p_decide = sub.add_parser(
+        "decide",
+        help="Framework decision: route + behavioral tips + interference status",
+    )
+    p_decide.add_argument("goal", nargs="+", help="What to decide")
+    p_decide.add_argument(
+        "--depth",
+        default="",
+        choices=("overview", "plan", "heavy_code", "simple_code", "scut", ""),
+        help="Force depth",
+    )
+    p_fkb = sub.add_parser(
+        "fkb",
+        help="Failure Knowledge Base: search recurring failures / stats",
+    )
+    p_fkb.add_argument(
+        "fkb_args",
+        nargs="*",
+        help="stats | list [n] | search <query> | record <kind> <tool> <detail>",
+    )
     p_agent = sub.add_parser(
         "agent",
         help="Tool-using CLI (DeepSeek/Ollama + Mag tools). Use when Grok tokens are empty.",
@@ -724,6 +759,26 @@ def main(argv: list[str] | None = None) -> int:
         help="With --deep: max ranked tickets to dig (default 4)",
     )
 
+    p_il = sub.add_parser(
+        "improve-loop",
+        help="Unified improve cycle — cloud handoff + queue + nervous + spider",
+    )
+    p_il.add_argument(
+        "il_action",
+        nargs="?",
+        default="cycle",
+        choices=["cycle", "cloud-handoff", "ingest"],
+    )
+    p_il.add_argument("--goal", default="")
+    p_il.add_argument("--claim", default="")
+    p_il.add_argument("--brief", default="")
+    p_il.add_argument("--source", default="local")
+    p_il.add_argument("--max-improve", type=int, default=2)
+    p_il.add_argument("--drain", action="store_true")
+    p_il.add_argument("--scout", action="store_true")
+    p_il.add_argument("--enqueue", action="store_true", help="cloud-handoff: run cycle after file")
+    p_il.add_argument("--json", action="store_true")
+
     p_lat = sub.add_parser(
         "lattice-loop",
         help="Conspiracy test lattice dig loop (Ollama self-directed research)",
@@ -743,6 +798,51 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=0,
         help="0 = unlimited until --stop",
+    )
+
+    p_vdesk = sub.add_parser(
+        "virtual-desk-loop",
+        help="DeepSeek research loop on Mag virtual desk brief (REPORT.txt)",
+    )
+    p_vdesk.add_argument("--status", action="store_true", help="Loop + report state")
+    p_vdesk.add_argument("--run", action="store_true", help="Start loop (foreground)")
+    p_vdesk.add_argument("--once", action="store_true", help="Single DeepSeek cycle then exit")
+    p_vdesk.add_argument("--dry", action="store_true", help="Plan next unit only")
+    p_vdesk.add_argument("--bg", action="store_true", help="With --run: detached process")
+    p_vdesk.add_argument("--stop", action="store_true", help="Stop virtual desk loop")
+    p_vdesk.add_argument(
+        "--cycle-seconds",
+        type=int,
+        default=120,
+        help="Seconds between cycles (default 120)",
+    )
+    p_vdesk.add_argument(
+        "--max-cycles",
+        type=int,
+        default=0,
+        help="0 = unlimited until --stop or all units done",
+    )
+    p_vdesk.add_argument(
+        "--provider",
+        default="",
+        help="Override provider (default deepseek from configs/virtual_desk.yaml)",
+    )
+    p_vdesk.add_argument(
+        "--import",
+        dest="import_path",
+        metavar="FILE",
+        default="",
+        help="Import DeepSeek web export .txt into REPORT.txt",
+    )
+    p_vdesk.add_argument(
+        "--import-url",
+        default="",
+        help="Optional share URL metadata for --import",
+    )
+    p_vdesk.add_argument(
+        "--replace-report",
+        action="store_true",
+        help="With --import: replace REPORT.txt instead of append",
     )
 
     p_csync = sub.add_parser(
@@ -773,6 +873,168 @@ def main(argv: list[str] | None = None) -> int:
         help="Rebuild instrument verkle chain + seed memory/lattice store",
     )
     p_lbf.add_argument("--dry-run", action="store_true", help="Report counts only")
+
+    p_va = sub.add_parser(
+        "verkle-audit",
+        help="Verkle chain audit, ticket reconcile, optional local synth",
+    )
+    p_va.add_argument("--full", action="store_true", help="Backfill lattice + synth + reconcile")
+    p_va.add_argument("--synth", action="store_true", help="Local clerk pass per residual session")
+    p_va.add_argument("--backfill", action="store_true", help="Run lattice-backfill first")
+    p_va.add_argument("--dry", action="store_true", help="Plan only; no writes or LLM")
+    p_va.add_argument("--no-reconcile", action="store_true", help="Skip ticket reconciliation")
+
+    p_la = sub.add_parser(
+        "loop-audit",
+        help="Mine autorun/orchestrator trails for wasteful loops (plan theater, stuck queue)",
+    )
+    p_la.add_argument("--json", action="store_true", help="JSON output")
+    p_la.add_argument("--tail", type=int, default=2500, help="Autorun trail lines to scan")
+
+    sub.add_parser(
+        "ponytail-audit",
+        help="Ponytail ladder scan — over-engineering only, not correctness",
+    )
+
+    p_v3 = sub.add_parser(
+        "v3-status",
+        help="v3 loop registry + research module health",
+    )
+    p_v3.add_argument("--json", action="store_true", help="JSON output")
+
+    p_spider = sub.add_parser(
+        "spider",
+        help="v3 meta-supervisor tick (rule Phase 0)",
+    )
+    p_spider.add_argument("--once", action="store_true", help="Single tick then exit")
+    p_spider.add_argument("--dry", action="store_true", help="No steer injection")
+    p_spider.add_argument("--inject", action="store_true", help="Post steer to stalled tasks")
+
+    p_res = sub.add_parser(
+        "resonance",
+        help="v3 corpus lens — soil echoes into pack L0e",
+    )
+    p_res.add_argument("--tick", action="store_true", help="Score and optionally FILE findings")
+    p_res.add_argument("--dry", action="store_true", help="No writes")
+    p_res.add_argument("--goal", default="", help="Goal hint for scoring")
+
+    p_cond = sub.add_parser(
+        "conductor",
+        help="v3 orchestration overlay on route.v2",
+    )
+    p_cond.add_argument("goal", nargs="?", default="", help="Goal to route")
+    p_cond.add_argument("--dry", action="store_true", help="No trail write")
+    p_cond.add_argument("--json", action="store_true", help="JSON output")
+
+    p_grove = sub.add_parser(
+        "grove-build",
+        help="v3 Tesuji Grove — scan remedies/skills → poem nodes",
+    )
+    p_grove.add_argument("--dry", action="store_true", help="Plan only; no writes")
+    p_grove.add_argument("--list", action="store_true", help="List recent nodes")
+    p_grove.add_argument("--json", action="store_true", help="JSON output")
+
+    p_train = sub.add_parser(
+        "training-events",
+        help="Unified orchestration training events (v3-005)",
+    )
+    p_train.add_argument("--stats", action="store_true", help="Event counts by pattern")
+    p_train.add_argument("--export", action="store_true", help="Export T2-redacted JSONL")
+    p_train.add_argument("--pattern", default="", help="Filter by pattern type")
+    p_train.add_argument("--json", action="store_true", help="JSON output")
+
+    p_cm = sub.add_parser(
+        "caveman-audit",
+        help="Caveman doc density scan — filler, long lines",
+    )
+    p_cm.add_argument("--path", default="", help="File or dir to scan (default: docs/ref)")
+    p_cm.add_argument("--json", action="store_true", help="JSON output")
+
+    p_skill = sub.add_parser(
+        "skill-seat",
+        help="Ponytail / caveman agent skill preambles + audit gates",
+    )
+    p_skill.add_argument(
+        "action",
+        choices=["status", "pick", "preamble", "gate"],
+        help="status|pick|preamble|gate",
+    )
+    p_skill.add_argument("text", nargs="*", help="Goal text for pick/preamble")
+    p_skill.add_argument("--skill", default="", help="ponytail|caveman for preamble/gate")
+    p_skill.add_argument("--path", default="", help="Path for caveman gate")
+    p_skill.add_argument("--json", action="store_true", help="JSON output")
+
+    p_sw = sub.add_parser(
+        "switchboard",
+        help="Unified seat mesh — peers, reap, tier-bounded steer drops",
+    )
+    p_sw.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["status", "mesh", "peers", "reap", "drop", "route", "self-test"],
+        help="status|mesh|peers|reap|drop|route|self-test",
+    )
+    p_sw.add_argument("rest", nargs="*", help="drop target + context, or route goal")
+    p_sw.add_argument("--from", dest="from_ref", default="operator", help="drop source peer")
+    p_sw.add_argument("--tier", default="T2", help="drop tier T0-T3")
+    p_sw.add_argument("--spooky", action="store_true", help="Lawful cross-seat share label")
+    p_sw.add_argument("--dry", action="store_true", help="Plan only")
+    p_sw.add_argument("--live", action="store_true", help="peers: running tasks only")
+    p_sw.add_argument("--group", default="", help="peers: filter by group")
+    p_sw.add_argument("--json", action="store_true", help="JSON output for status")
+
+    p_seats = sub.add_parser(
+        "seats",
+        help="Unified seat registry — register desktop/cloud seats with orchestrator mesh",
+    )
+    p_seats.add_argument(
+        "action",
+        nargs="?",
+        default="list",
+        choices=["register", "heartbeat", "unregister", "list"],
+    )
+    p_seats.add_argument("rest", nargs="*", help="task_id for heartbeat/unregister")
+    p_seats.add_argument("--seat", default="cursor")
+    p_seats.add_argument("--goal", default="")
+    p_seats.add_argument("--mode", default="interactive")
+    p_seats.add_argument("--task-id", default="")
+    p_seats.add_argument("--pid", type=int, default=None)
+    p_seats.add_argument("--tag", default="")
+    p_seats.add_argument("--parent", default="desktop")
+    p_seats.add_argument("--phase", default="")
+    p_seats.add_argument("--status", default="done")
+    p_seats.add_argument("--detail", default="")
+    p_seats.add_argument("--live", action="store_true")
+    p_seats.add_argument("--json", action="store_true")
+
+    p_power = sub.add_parser(
+        "power",
+        help="Kill switch / turn-on / stack status (no whack-a-mole)",
+    )
+    p_power.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["status", "stop", "start"],
+    )
+    p_power.add_argument("--json", action="store_true")
+    p_power.add_argument("--browser", action="store_true", help="open dashboard after start")
+
+    p_cost = sub.add_parser(
+        "cost-sim",
+        help="Simulate swarm token/$ cost before dispatch (configs/cost_rates.yaml)",
+    )
+    p_cost.add_argument("cs_action", nargs="?", default="wave", choices=["wave", "goal"])
+    p_cost.add_argument("text", nargs="?", default="v3-epic")
+    p_cost.add_argument("--improve", type=int, default=2)
+    p_cost.add_argument("--build", type=int, default=3)
+    p_cost.add_argument("--audit", type=int, default=1)
+    p_cost.add_argument("--no-plan", action="store_true")
+    p_cost.add_argument("--seat", default="")
+    p_cost.add_argument("--pack", default="")
+    p_cost.add_argument("--dry", action="store_true")
+    p_cost.add_argument("--json", action="store_true")
 
     p_blast = sub.add_parser(
         "blast",
@@ -1218,6 +1480,289 @@ def main(argv: list[str] | None = None) -> int:
         res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "verkle-audit":
+        from mag.verkle_audit import run_audit
+
+        res = run_audit(
+            full=bool(getattr(args, "full", False)),
+            synth=bool(getattr(args, "synth", False)),
+            reconcile=not bool(getattr(args, "no_reconcile", False)),
+            backfill_lattice=bool(getattr(args, "backfill", False) or getattr(args, "full", False)),
+            dry=bool(getattr(args, "dry", False)),
+        )
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok") else 1
+    if args.cmd == "loop-audit":
+        from mag.loop_audit import format_report, run_audit
+
+        audit = run_audit(tail=int(getattr(args, "tail", 2500) or 2500))
+        if getattr(args, "json", False):
+            print(json.dumps(audit, indent=2, default=str))
+        else:
+            print(format_report(audit))
+        sev = [f for f in audit.get("findings") or [] if f.get("severity") == "error"]
+        return 1 if sev else 0
+    if args.cmd == "ponytail-audit":
+        from mag.ponytail_audit import format_report, run_audit
+
+        res = run_audit(hints=True)
+        print(format_report(res))
+        return 0
+    if args.cmd == "v3-status":
+        from mag.loops_registry import build_registry, format_registry_text
+
+        reg = build_registry()
+        if getattr(args, "json", False):
+            print(json.dumps(reg, indent=2, default=str))
+        else:
+            print(format_registry_text(reg))
+        return 0
+    if args.cmd == "spider":
+        from mag.spider import tick
+
+        res = tick(dry=bool(getattr(args, "dry", False)), inject=bool(getattr(args, "inject", False)))
+        print(json.dumps(res, indent=2, default=str)[:12000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "resonance":
+        from mag.resonance import format_l0e, tick, top_cards
+
+        goal = getattr(args, "goal", "") or ""
+        if getattr(args, "tick", False):
+            res = tick(goal, dry=bool(getattr(args, "dry", False)))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        cards = top_cards(goal, n=5)
+        print(format_l0e(cards) or "(no resonance cards)")
+        return 0
+    if args.cmd == "conductor":
+        from mag.conductor import conduct
+
+        goal = (getattr(args, "goal", None) or "").strip()
+        if not goal:
+            print("Usage: main.py conductor \"goal text\"")
+            return 2
+        res = conduct(goal, dry=bool(getattr(args, "dry", False)))
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str)[:12000])
+        else:
+            route = res.get("route") or {}
+            overlay = res.get("overlay") or {}
+            print(f"phase: {res.get('phase')}")
+            print(f"seat: {route.get('seat')} provider: {route.get('provider')} depth: {route.get('depth')}")
+            print(f"note: {overlay.get('conductor_note', '')}")
+            if overlay.get("case_law_hints"):
+                print("case_law:", "; ".join(overlay["case_law_hints"]))
+        return 0
+    if args.cmd == "grove-build":
+        from mag.grove import build, list_nodes
+
+        if getattr(args, "list", False):
+            nodes = list_nodes()
+            if getattr(args, "json", False):
+                print(json.dumps(nodes, indent=2, default=str)[:12000])
+            else:
+                for n in nodes:
+                    print(f"- [{n.get('kind')}] {n.get('title')}: {n.get('poem', '').replace(chr(10), ' / ')}")
+            return 0
+        res = build(dry=bool(getattr(args, "dry", False)))
+        print(json.dumps(res, indent=2, default=str)[:12000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "training-events":
+        from mag.training_events import export_jsonl, read_events, stats
+
+        if getattr(args, "export", False):
+            res = export_jsonl(pattern=(getattr(args, "pattern", "") or None) or None)
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if getattr(args, "stats", False) or getattr(args, "json", False):
+            print(json.dumps(stats(), indent=2, default=str)[:12000])
+            return 0
+        rows = read_events(limit=20, pattern=(getattr(args, "pattern", "") or None) or None)
+        for r in rows:
+            print(f"{r.get('ts', '')[:19]} [{r.get('pattern')}] tags={r.get('pattern_tags')}")
+        return 0
+    if args.cmd == "caveman-audit":
+        from mag.caveman_audit import format_report, run_audit
+
+        path = (getattr(args, "path", "") or "").strip()
+        paths = [path] if path else None
+        res = run_audit(paths=paths)
+        if getattr(args, "json", False):
+            print(json.dumps(res, indent=2, default=str)[:12000])
+        else:
+            print(format_report(res))
+        return 0
+    if args.cmd == "skill-seat":
+        from mag.skill_seat import build_preamble, pick_skill_for_goal, run_gate, skill_status
+
+        action = getattr(args, "action", "status")
+        goal = " ".join(getattr(args, "text", []) or []).strip()
+        if action == "status":
+            print(json.dumps(skill_status(), indent=2, default=str))
+            return 0
+        if action == "pick":
+            sid = pick_skill_for_goal(goal)
+            out = {"goal": goal[:200], "skill": sid}
+            print(json.dumps(out, indent=2) if getattr(args, "json", False) else f"skill: {sid}")
+            return 0
+        if action == "preamble":
+            sid = (getattr(args, "skill", "") or "").strip() or pick_skill_for_goal(goal)
+            pre = build_preamble(sid, goal=goal)
+            print(pre if not getattr(args, "json", False) else json.dumps({"skill": sid, "preamble": pre}))
+            return 0
+        if action == "gate":
+            sid = (getattr(args, "skill", "") or "ponytail").strip()
+            res = run_gate(sid, path=(getattr(args, "path", "") or "").strip())
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("pass", res.get("ok")) else 1
+        return 2
+    if args.cmd == "switchboard":
+        from mag.switchboard import (
+            format_status_text,
+            mesh,
+            peers,
+            reap,
+            route_intent,
+            self_test,
+            status,
+            steer_drop,
+        )
+
+        action = getattr(args, "action", "status") or "status"
+        if action == "self-test":
+            res = self_test()
+            print(json.dumps(res, indent=2, default=str))
+            return 0 if res.get("ok") else 1
+        if action == "status":
+            s = status()
+            if getattr(args, "json", False):
+                print(json.dumps(s, indent=2, default=str)[:12000])
+            else:
+                print(format_status_text(s))
+            return 0
+        if action == "mesh":
+            print(json.dumps(mesh(), indent=2, default=str)[:16000])
+            return 0
+        if action == "peers":
+            print(json.dumps(
+                peers(
+                    group=(getattr(args, "group", "") or None) or None,
+                    live_only=bool(getattr(args, "live", False)),
+                ),
+                indent=2,
+                default=str,
+            )[:12000])
+            return 0
+        if action == "reap":
+            print(json.dumps(reap(), indent=2, default=str))
+            return 0
+        if action == "drop":
+            rest = list(getattr(args, "rest", []) or [])
+            if len(rest) < 2:
+                print("Usage: main.py switchboard drop <to_peer> <context...>")
+                return 2
+            to_ref = rest[0]
+            context = " ".join(rest[1:]).strip()
+            res = steer_drop(
+                getattr(args, "from_ref", "operator") or "operator",
+                to_ref,
+                context,
+                tier=getattr(args, "tier", "T2") or "T2",
+                spooky=bool(getattr(args, "spooky", False)),
+                dry=bool(getattr(args, "dry", False)),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if action == "route":
+            goal = " ".join(getattr(args, "rest", []) or []).strip()
+            if not goal:
+                print('Usage: main.py switchboard route "goal text"')
+                return 2
+            res = route_intent(goal, dry=bool(getattr(args, "dry", False)))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0
+        return 2
+    if args.cmd == "seats":
+        from mag.seat_registry import heartbeat, list_registered, register, unregister
+
+        action = getattr(args, "action", "list") or "list"
+        if action == "register":
+            rec = register(
+                seat=getattr(args, "seat", "cursor") or "cursor",
+                goal=getattr(args, "goal", "") or "",
+                mode=getattr(args, "mode", "interactive") or "interactive",
+                task_id=(getattr(args, "task_id", "") or None) or None,
+                pid=getattr(args, "pid", None),
+                tag=getattr(args, "tag", "") or "",
+                parent=getattr(args, "parent", "desktop") or "desktop",
+            )
+            if getattr(args, "json", False):
+                print(json.dumps(rec, indent=2, default=str))
+            else:
+                print(f"registered {rec['task_id']} — MAG_TASK_ID={rec['task_id']}")
+                print(rec.get("hint", ""))
+            return 0
+        if action == "heartbeat":
+            rest = list(getattr(args, "rest", []) or [])
+            tid = rest[0] if rest else (getattr(args, "task_id", "") or "")
+            if not tid:
+                print("Usage: main.py seats heartbeat <task_id>")
+                return 2
+            rec = heartbeat(
+                tid,
+                phase=(getattr(args, "phase", "") or None) or None,
+                goal=(getattr(args, "goal", "") or None) or None,
+                seat=(getattr(args, "seat", "") or None) or None,
+            )
+            print(json.dumps(rec, indent=2, default=str) if getattr(args, "json", False) else f"heartbeat ok {tid}")
+            return 0 if rec.get("ok") else 1
+        if action == "unregister":
+            rest = list(getattr(args, "rest", []) or [])
+            tid = rest[0] if rest else (getattr(args, "task_id", "") or "")
+            if not tid:
+                print("Usage: main.py seats unregister <task_id>")
+                return 2
+            rec = unregister(tid, status=getattr(args, "status", "done") or "done", detail=getattr(args, "detail", "") or "")
+            print(json.dumps(rec, indent=2, default=str) if getattr(args, "json", False) else f"unregistered {tid}")
+            return 0 if rec.get("ok") else 1
+        if action == "list":
+            rows = list_registered(live_only=bool(getattr(args, "live", False)))
+            if getattr(args, "json", False):
+                print(json.dumps(rows, indent=2, default=str))
+            else:
+                for r in rows:
+                    print(f"  {r.get('task_id')} {r.get('seat')} {r.get('status')} {str(r.get('goal',''))[:50]}")
+            return 0
+        return 2
+    if args.cmd == "power":
+        from mag.power import format_status_text, stack_status, start_all, stop_all
+
+        action = getattr(args, "action", "status") or "status"
+        if action == "stop":
+            res = stop_all()
+        elif action == "start":
+            res = start_all(open_browser=bool(getattr(args, "browser", False)))
+        else:
+            res = stack_status()
+        if getattr(args, "json", False) or action != "status":
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(format_status_text(res))
+        return 0 if res.get("ok", True) else 1
+    if args.cmd == "cost-sim":
+        from mag.cost_simulator import estimate_goal, estimate_wave, format_wave_text
+
+        action = getattr(args, "cs_action", "wave") or "wave"
+        text = getattr(args, "text", "") or "v3-epic"
+        if action == "goal":
+            res = estimate_goal(text, seat=(getattr(args, "seat", "") or None), pack_mode=(getattr(args, "pack", "") or None), dry=bool(getattr(args, "dry", False)))
+        else:
+            res = estimate_wave(text, improve_n=int(getattr(args, "improve", 2)), build_waves=int(getattr(args, "build", 3)), audits=int(getattr(args, "audit", 1)), plan=not bool(getattr(args, "no_plan", False)))
+        if getattr(args, "json", False) or action == "goal":
+            print(json.dumps(res, indent=2, default=str))
+        else:
+            print(format_wave_text(res))
+        return 0 if res.get("ok") else 1
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
 
@@ -1567,12 +2112,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps({"ok": False, "error": f"unknown action {action}"}))
         return 1
-    if args.cmd == "route":
-        from mag.route import route_goal
-
-        res = route_goal(" ".join(args.goal), run_local=args.local)
-        print(json.dumps(res, indent=2, default=str))
-        return 0 if res.get("ok") else 1
     if args.cmd == "providers":
         from models.providers import status_table
 
@@ -1638,6 +2177,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(res, indent=2, default=str)[:8000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "route":
+        goal = " ".join(args.goal)
+        if getattr(args, "local", False):
+            from mag.route import route_goal
+
+            res = route_goal(goal, run_local=True)
+        else:
+            from mag.router import route
+
+            res = route(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "decide":
+        from mag.decision_framework import decide
+
+        goal = " ".join(args.goal)
+        res = decide(goal, depth=(args.depth or None))
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        return 0 if res.get("ok") else 1
+    if args.cmd == "fkb":
+        from mag.failure_kb import _cli as fkb_cli
+
+        return fkb_cli(list(getattr(args, "fkb_args", []) or []))
     if args.cmd == "orchestrator":
         from mag.orchestrator import main as orc_main
 
@@ -1686,6 +2248,29 @@ def main(argv: list[str] | None = None) -> int:
         res = process_one(str(enq.get("id")))
         print(json.dumps({"queued": enq, "result": res}, indent=2, default=str)[:6000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "improve-loop":
+        from mag.improve_loop import ingest_cloud_handoffs, run_improve_cycle, write_cloud_handoff
+
+        action = getattr(args, "il_action", "cycle") or "cycle"
+        if action == "cloud-handoff":
+            res = write_cloud_handoff(
+                goal=getattr(args, "goal", "") or "",
+                claim=getattr(args, "claim", "") or "",
+                brief=getattr(args, "brief", "") or "",
+                source=getattr(args, "source", "cursor-cloud") or "cursor-cloud",
+                enqueue=bool(getattr(args, "enqueue", False)),
+            )
+        elif action == "ingest":
+            res = {"ok": True, "handoffs": ingest_cloud_handoffs()}
+        else:
+            res = run_improve_cycle(
+                source=getattr(args, "source", "local") or "local",
+                max_improve=int(getattr(args, "max_improve", 2) or 2),
+                drain_one=bool(getattr(args, "drain", False)),
+                scout=bool(getattr(args, "scout", False)),
+            )
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok", True) else 1
     if args.cmd == "improve":
         from mag.improve import improve_once, scout, status_summary, run_eval, deep_dive
 
@@ -1737,12 +2322,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "lattice-loop":
         from mag.lattice_loop import plant_status as lattice_status, start_loop, stop_loop
 
-        if getattr(args, "backfill", False):
-            from mag.lattice_backfill import run_backfill
-
-            res = run_backfill(dry_run=bool(getattr(args, "dry_run", False)))
-            print(json.dumps(res, indent=2, default=str))
-            return 0 if res.get("ok") else 1
         if args.stop:
             # signal stop via state file (works for detached process too)
             st_path = (
@@ -1830,6 +2409,109 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if res.get("ok") else 1
         print(json.dumps(lattice_status(), indent=2, default=str)[:12000])
         return 0
+    if args.cmd == "virtual-desk-loop":
+        import os as _os
+
+        from mag.virtual_desk_loop import (
+            import_export,
+            plant_status as vdesk_status,
+            run_once,
+            start_loop,
+            stop_loop,
+        )
+
+        if getattr(args, "provider", None):
+            prov = str(args.provider or "").strip()
+            if prov:
+                _os.environ["MAG_VIRTUAL_DESK_PROVIDER"] = prov
+        if args.stop:
+            st_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "state.json"
+            res = stop_loop()
+            if st_path.is_file():
+                try:
+                    st = json.loads(st_path.read_text(encoding="utf-8"))
+                    st["run"] = False
+                    st_path.write_text(json.dumps(st, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+            print(json.dumps(res, indent=2, default=str)[:8000])
+            return 0
+        if getattr(args, "import_path", None) and str(args.import_path).strip():
+            res = import_export(
+                str(args.import_path).strip(),
+                source_url=str(getattr(args, "import_url", "") or "").strip(),
+                replace=bool(getattr(args, "replace_report", False)),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if args.once or args.dry:
+            res = run_once(dry=bool(args.dry))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if args.run and args.bg:
+            import subprocess
+            import sys
+
+            py = sys.executable
+            log = ROOT / "logs" / "virtual_desk_loop_stdout.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            cmd = [
+                py,
+                str(ROOT / "main.py"),
+                "virtual-desk-loop",
+                "--run",
+                f"--cycle-seconds={int(args.cycle_seconds or 120)}",
+                f"--max-cycles={int(args.max_cycles or 0)}",
+            ]
+            if getattr(args, "provider", None) and str(args.provider).strip():
+                cmd.append(f"--provider={str(args.provider).strip()}")
+            creation = 0
+            if sys.platform == "win32":
+                creation = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+                creation |= getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            from datetime import datetime, timezone
+
+            with log.open("a", encoding="utf-8") as lf:
+                lf.write(f"\n--- spawn {datetime.now(timezone.utc).isoformat()} ---\n")
+                lf.write(" ".join(cmd) + "\n")
+            log_handle = log.open("a", encoding="utf-8")
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(ROOT),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                env={**__import__("os").environ},
+                creationflags=creation if sys.platform == "win32" else 0,
+                start_new_session=(sys.platform != "win32"),
+            )
+            pid_path = ROOT / "memory" / "research_packs" / "mag_virtual_desk" / "loop.pid"
+            pid_path.parent.mkdir(parents=True, exist_ok=True)
+            pid_path.write_text(str(proc.pid), encoding="utf-8")
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "started": True,
+                        "detached": True,
+                        "pid": proc.pid,
+                        "log": str(log),
+                        "status": vdesk_status(),
+                    },
+                    indent=2,
+                    default=str,
+                )[:12000]
+            )
+            return 0
+        if args.run:
+            res = start_loop(
+                background=False,
+                cycle_seconds=int(args.cycle_seconds or 120),
+                max_cycles=int(args.max_cycles or 0),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        print(json.dumps(vdesk_status(), indent=2, default=str)[:12000])
+        return 0
     if args.cmd == "blast":
         from mag.blast import (
             plant_status,
@@ -1915,6 +2597,21 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(_json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok") else 1
+    if args.cmd == "autorun":
+        from mag.governor_autorun import main as autorun_main
+
+        argv: list[str] = []
+        if getattr(args, "once", False):
+            argv.append("--once")
+        if getattr(args, "dry", False):
+            argv.append("--dry")
+        if getattr(args, "no_fill", False):
+            argv.append("--no-fill")
+        if getattr(args, "fill_only", False):
+            argv.append("--fill-only")
+        if getattr(args, "interval", None):
+            argv.extend(["--interval", str(args.interval)])
+        return autorun_main(argv)
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)
