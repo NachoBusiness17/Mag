@@ -308,6 +308,33 @@ def _live_peers() -> list[ProcessPeer]:
     except Exception:
         pass
 
+    # External/desktop seats + seat-guard (unified registry union)
+    try:
+        from mag.seat_registry import mesh_peers
+
+        for mp in mesh_peers():
+            peers.append(
+                ProcessPeer(
+                    peer_id=str(mp.get("peer_id") or ""),
+                    kind=str(mp.get("kind") or "external"),
+                    seat=str(mp.get("seat") or "unknown"),
+                    platform=str(mp.get("platform") or "unknown"),
+                    tier_max=str(mp.get("tier_max") or "T2"),
+                    status=str(mp.get("status") or "running"),
+                    group=str(mp.get("group") or "external_seats"),
+                    importance=int(mp.get("importance") or 70),
+                    alive=mp.get("alive"),
+                    phase=mp.get("phase"),
+                    goal=str(mp.get("goal") or "")[:200],
+                    task_id=mp.get("task_id"),
+                    pid=mp.get("pid"),
+                    heartbeat_age_s=mp.get("heartbeat_age_s"),
+                    why=list(mp.get("why") or []),
+                )
+            )
+    except Exception:
+        pass
+
     import os
 
     if os.environ.get("MAG_OPERATOR_ACTIVE", "").strip().lower() in ("1", "true", "yes"):

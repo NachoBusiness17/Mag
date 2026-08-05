@@ -117,6 +117,24 @@ def cmd_autopilot(drain: bool) -> int:
     return 0 if data.get("ok") else 1
 
 
+def cmd_register(goal: str, seat: str, mode: str) -> int:
+    """Register this Cursor session with orchestrator mesh (MAG_TASK_ID for steer/reap)."""
+    status, data = _req("POST", "/api/v1/seats/register", {
+        "seat": seat,
+        "goal": goal or "Cursor session",
+        "mode": mode,
+        "parent": "cursor_bridge",
+    })
+    if status != 200 or not data.get("ok", True):
+        print(f"[cursor_bridge] register failed ({status}): {data}", file=sys.stderr)
+        return 1
+    tid = data.get("task_id") or data.get("mag_task_id")
+    print(json.dumps(data, indent=2, default=str)[:4000])
+    if tid:
+        print(f"\nMAG_TASK_ID={tid}", file=sys.stderr)
+    return 0
+
+
 def cmd_delegate(goal: str, session: str, provider: str) -> int:
     """Heavy tool work through Mag's loop — use from Cursor when edits need Mag tools."""
     print(f"[cursor_bridge] delegating to Mag agent ({provider})…", file=sys.stderr)
@@ -218,6 +236,12 @@ def main() -> int:
     p_ap.add_argument("--drain", action="store_true")
     p_ap.set_defaults(cmd="autopilot")
 
+    p_reg = sub.add_parser("register", help="register Cursor session with orchestrator mesh")
+    p_reg.add_argument("goal", nargs="?", default="Cursor session", help="session goal label")
+    p_reg.add_argument("--seat", default="cursor")
+    p_reg.add_argument("--mode", default="interactive", choices=("interactive", "cloud", "oneshot"))
+    p_reg.set_defaults(cmd="register")
+
     p_del = sub.add_parser("delegate", help="Mag agent turn for tool-heavy work")
     p_del.add_argument("goal", help="goal")
     p_del.add_argument("--session", default="cursor")
@@ -262,6 +286,8 @@ def main() -> int:
         return cmd_queue(args.goal, args.provider, args.tag)
     if args.cmd == "autopilot":
         return cmd_autopilot(args.drain)
+    if args.cmd == "register":
+        return cmd_register(args.goal, args.seat, args.mode)
     if args.cmd == "delegate":
         return cmd_delegate(args.goal, args.session, args.provider)
     if args.cmd == "task":

@@ -957,6 +957,30 @@ def main(argv: list[str] | None = None) -> int:
     p_sw.add_argument("--group", default="", help="peers: filter by group")
     p_sw.add_argument("--json", action="store_true", help="JSON output for status")
 
+    p_seats = sub.add_parser(
+        "seats",
+        help="Unified seat registry — register desktop/cloud seats with orchestrator mesh",
+    )
+    p_seats.add_argument(
+        "action",
+        nargs="?",
+        default="list",
+        choices=["register", "heartbeat", "unregister", "list"],
+    )
+    p_seats.add_argument("rest", nargs="*", help="task_id for heartbeat/unregister")
+    p_seats.add_argument("--seat", default="cursor")
+    p_seats.add_argument("--goal", default="")
+    p_seats.add_argument("--mode", default="interactive")
+    p_seats.add_argument("--task-id", default="")
+    p_seats.add_argument("--pid", type=int, default=None)
+    p_seats.add_argument("--tag", default="")
+    p_seats.add_argument("--parent", default="desktop")
+    p_seats.add_argument("--phase", default="")
+    p_seats.add_argument("--status", default="done")
+    p_seats.add_argument("--detail", default="")
+    p_seats.add_argument("--live", action="store_true")
+    p_seats.add_argument("--json", action="store_true")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1591,6 +1615,58 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             res = route_intent(goal, dry=bool(getattr(args, "dry", False)))
             print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0
+        return 2
+    if args.cmd == "seats":
+        from mag.seat_registry import heartbeat, list_registered, register, unregister
+
+        action = getattr(args, "action", "list") or "list"
+        if action == "register":
+            rec = register(
+                seat=getattr(args, "seat", "cursor") or "cursor",
+                goal=getattr(args, "goal", "") or "",
+                mode=getattr(args, "mode", "interactive") or "interactive",
+                task_id=(getattr(args, "task_id", "") or None) or None,
+                pid=getattr(args, "pid", None),
+                tag=getattr(args, "tag", "") or "",
+                parent=getattr(args, "parent", "desktop") or "desktop",
+            )
+            if getattr(args, "json", False):
+                print(json.dumps(rec, indent=2, default=str))
+            else:
+                print(f"registered {rec['task_id']} — MAG_TASK_ID={rec['task_id']}")
+                print(rec.get("hint", ""))
+            return 0
+        if action == "heartbeat":
+            rest = list(getattr(args, "rest", []) or [])
+            tid = rest[0] if rest else (getattr(args, "task_id", "") or "")
+            if not tid:
+                print("Usage: main.py seats heartbeat <task_id>")
+                return 2
+            rec = heartbeat(
+                tid,
+                phase=(getattr(args, "phase", "") or None) or None,
+                goal=(getattr(args, "goal", "") or None) or None,
+                seat=(getattr(args, "seat", "") or None) or None,
+            )
+            print(json.dumps(rec, indent=2, default=str) if getattr(args, "json", False) else f"heartbeat ok {tid}")
+            return 0 if rec.get("ok") else 1
+        if action == "unregister":
+            rest = list(getattr(args, "rest", []) or [])
+            tid = rest[0] if rest else (getattr(args, "task_id", "") or "")
+            if not tid:
+                print("Usage: main.py seats unregister <task_id>")
+                return 2
+            rec = unregister(tid, status=getattr(args, "status", "done") or "done", detail=getattr(args, "detail", "") or "")
+            print(json.dumps(rec, indent=2, default=str) if getattr(args, "json", False) else f"unregistered {tid}")
+            return 0 if rec.get("ok") else 1
+        if action == "list":
+            rows = list_registered(live_only=bool(getattr(args, "live", False)))
+            if getattr(args, "json", False):
+                print(json.dumps(rows, indent=2, default=str))
+            else:
+                for r in rows:
+                    print(f"  {r.get('task_id')} {r.get('seat')} {r.get('status')} {str(r.get('goal',''))[:50]}")
             return 0
         return 2
     if args.cmd == "field-steal":

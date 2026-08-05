@@ -13,6 +13,9 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 echo   Building context pack inside container...
 docker compose exec -T mag python main.py context-pack --agent --goal "Cursor session — follow Mag preamble; file outcomes to trail"
 
+echo   Registering Cursor seat with orchestrator mesh...
+docker compose exec -T mag python main.py seats register --seat cursor --goal "Cursor session" --parent launcher
+
 echo.
 echo   Preamble: memory\cursor_preamble_latest.md  (host mount)
 echo   Feed:     watch\cursor_feed.jsonl

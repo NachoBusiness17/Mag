@@ -1691,6 +1691,27 @@ def run_agent(
     except Exception:
         pass
 
+    # Restful contract: queued/orchestrator seats must be one-shot, not REPL.
+    if not one_shot:
+        noninteractive = os.environ.get("MAG_NONINTERACTIVE", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        allow_repl = os.environ.get("MAG_ALLOW_REPL", "").strip().lower() in ("1", "true", "yes")
+        if noninteractive:
+            print(
+                "MAG_NONINTERACTIVE=1 — pass --query \"goal\" (restful one-shot seat).",
+                file=sys.stderr,
+            )
+            return 2
+        if not sys.stdin.isatty() and not allow_repl:
+            print(
+                "stdin is not a tty — use --query for one-shot work (or MAG_ALLOW_REPL=1 for REPL).",
+                file=sys.stderr,
+            )
+            return 2
+
     system = _system_prompt(pack_text)
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     last_answer = ""

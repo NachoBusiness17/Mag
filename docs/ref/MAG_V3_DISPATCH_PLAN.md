@@ -139,6 +139,36 @@ v3 graduates in **waves**. Each wave = one frozen BUILD epic, dispatched cheap a
 
 ---
 
+### Wave 2.5 — Seat registry union (desktop ↔ orchestrator)
+
+**Slug:** `seat-registry-union`  
+**Depends:** Wave 0 (switchboard on disk from PR #13)
+
+| Phase | Dispatch | Deliverable |
+|-------|----------|-------------|
+| Build | DeepSeek | `mag/seat_registry.py` — register/heartbeat/unregister |
+| Build | DeepSeek | `orchestrator.register_external` + external reap (stale heartbeat) |
+| Build | DeepSeek | switchboard mesh includes external + seat-guard peers |
+| Build | DeepSeek | REST `POST /api/v1/seats/register` · CLI `mag seats register` |
+| Build | Clerk | `launch_cursor_seat.cmd` + `cursor_bridge register` on boot |
+| Build | DeepSeek | restful contract: `MAG_NONINTERACTIVE=1` · improve timeout 420s |
+| Audit | Cursor | `tests/test_seat_registry.py` |
+
+**Exit:** Desktop-launched agents appear in orchestrator/switchboard; improve loops use one-shot + shorter timeout; no stdin hang on queued work.
+
+**Operator habit after merge:**
+
+```text
+launch_cursor_seat.cmd                    # registers ext-* task automatically
+python watch/cursor_bridge.py register    # or from Cursor terminal when lab up
+mag.cmd switchboard peers --live          # see cursor + orchestrator children
+mag.cmd seats list --live                 # external seats only
+```
+
+Improve / autopilot: prefer `cursor_bridge task "…" --mode queue` over raw `agent` REPL.
+
+---
+
 ### Wave 3 — Factory FILE (first v4-shaped artifact)
 
 **Slug:** `factory-audit-json`  

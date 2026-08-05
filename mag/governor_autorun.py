@@ -231,6 +231,13 @@ def enqueue_routed(goal: str, *, tag: str = "", depth: str | None = None) -> dic
         }
 
     refresh_context_for_goal(goal)
+    if "[improve]" in goal.lower():
+        try:
+            from mag.conductor import conduct
+
+            conduct(goal, dry=False)
+        except Exception:
+            pass
     rec = enqueue(
         goal,
         provider=str(route.get("provider") or "deepseek"),

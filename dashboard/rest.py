@@ -150,9 +150,68 @@ def h_chronicle(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
 
 def h_seats(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """Inbound clients (Cursor, dashboard, Grok TUI) + outbound API providers."""
+    from mag.seat_registry import list_registered
     from mag.seats import build_seats_registry
 
-    return 200, build_seats_registry()
+    reg = build_seats_registry()
+    reg["registered"] = list_registered(limit=40, live_only=True)
+    return 200, reg
+
+
+def h_seats_register(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Register desktop/cloud seat with orchestrator mesh — returns MAG_TASK_ID."""
+    from mag.seat_registry import register
+
+    data = dict(body or {})
+    seat = str(data.get("seat") or "cursor").strip() or "cursor"
+    goal = str(data.get("goal") or data.get("detail") or "").strip()
+    mode = str(data.get("mode") or "interactive").strip() or "interactive"
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or "").strip() or None
+    pid = data.get("pid")
+    try:
+        pid = int(pid) if pid is not None else None
+    except (TypeError, ValueError):
+        pid = None
+    rec = register(
+        seat=seat,
+        goal=goal,
+        mode=mode,
+        task_id=task_id,
+        pid=pid,
+        tag=str(data.get("tag") or "").strip(),
+        parent=str(data.get("parent") or "api").strip() or "api",
+    )
+    return 200, rec
+
+
+def h_seats_heartbeat(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Refresh liveness for a registered seat."""
+    from mag.seat_registry import heartbeat
+
+    data = dict(body or {})
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or _p.get("id") or "").strip()
+    if not task_id:
+        return _err(400, "task_id required")
+    rec = heartbeat(
+        task_id,
+        phase=str(data.get("phase") or "").strip() or None,
+        goal=str(data.get("goal") or "").strip() or None,
+        seat=str(data.get("seat") or "").strip() or None,
+    )
+    return (200 if rec.get("ok") else 404), rec
+
+
+def h_seats_unregister(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.seat_registry import unregister
+
+    data = dict(body or {})
+    task_id = str(data.get("task_id") or data.get("mag_task_id") or _p.get("id") or "").strip()
+    if not task_id:
+        return _err(400, "task_id required")
+    status = str(data.get("status") or "done").strip() or "done"
+    detail = str(data.get("detail") or "").strip()
+    rec = unregister(task_id, status=status, detail=detail)
+    return (200 if rec.get("ok") else 404), rec
 
 
 def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2057,7 +2116,10 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "POST /api/v1/agents/{id}/cmd": "Live knot cmd: steer|pause|continue|escape",
             "POST /api/v1/agents/reap": "Mark dead-pid tasks as died",
             "POST /api/v1/agents/heal": "Watchdog: mark dead died + auto-respawn (bounded)",
-            "GET /api/v1/seats": "Inbound + outbound seats (Cursor, APIs) with file proof",
+            "GET /api/v1/seats": "Inbound + outbound seats + live registered external seats",
+            "POST /api/v1/seats/register": "Register desktop/cloud seat → MAG_TASK_ID",
+            "POST /api/v1/seats/heartbeat": "Refresh registered seat liveness",
+            "POST /api/v1/seats/unregister": "Mark registered seat done/failed",
             "GET /api/v1/governance": "Steering + behavioral loop + autonomy prefs",
             "POST /api/v1/governance": "Toggle drainer/behavioral pack or broadcast steer",
             "GET /api/v1/operator-inbox": "Deferred guidance queue (process at checkpoint)",
@@ -2163,6 +2225,9 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     # Tripartite Chronicle (Synthesis Agent running commentary)
     ("GET", "/api/v1/chronicle", h_chronicle),
     ("GET", "/api/v1/seats", h_seats),
+    ("POST", "/api/v1/seats/register", h_seats_register),
+    ("POST", "/api/v1/seats/heartbeat", h_seats_heartbeat),
+    ("POST", "/api/v1/seats/unregister", h_seats_unregister),
     ("GET", "/api/v1/governance", h_governance),
     ("POST", "/api/v1/governance", h_post_governance),
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),
