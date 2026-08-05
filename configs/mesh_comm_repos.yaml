@@ -21,7 +21,8 @@ tags:
   - willing_participation
 
 repos:
-  # --- Bitchat (permissionlesstech) ---
+  # --- Bitchat (permissionlesstech) — org complete: 3/3 public repos ---
+  # Org: https://github.com/permissionlesstech
   - id: bitchat
     path: permissionlesstech/bitchat
     url: https://github.com/permissionlesstech/bitchat.git
@@ -30,7 +31,7 @@ repos:
     tags: [mesh_ble, dual_transport, nostr_fallback, multi_hop, no_central_server]
     mag_slot: switchboard_peer_transport_research
     steal_focus: dual_transport_routing, ttl_relay, noise_sessions
-    note: Primary iOS/macOS; whitepaper in repo
+    note: Primary iOS/macOS; whitepaper in repo; verify builds per docs/VERIFYING-A-BUILD.md
 
   - id: bitchat-android
     path: permissionlesstech/bitchat-android
@@ -40,6 +41,7 @@ repos:
     tags: [mesh_ble, dual_transport, nostr_fallback, multi_hop, tor_offline]
     mag_slot: cross_platform_mesh_protocol
     steal_focus: wifi_aware, foreground_service_mesh, binary_packet_format
+    note: Protocol-compatible with iOS bitchat; UnifiedMeshService + MessageRouter
 
   - id: bitchat-georelays
     path: permissionlesstech/georelays
@@ -49,6 +51,7 @@ repos:
     tags: [nostr_fallback, dual_transport]
     mag_slot: relay_topology_research
     steal_focus: geohash_channels, relay_location_map
+    note: Nostr relay crawl + BitChat kind-20000 filter; pairs with bitchat location channels
 
   # --- Bridgefy SDK ---
   - id: bridgefy-android

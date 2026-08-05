@@ -12,34 +12,46 @@
 
 ## Repos (13 targets)
 
+### permissionlesstech org ([github.com/permissionlesstech](https://github.com/permissionlesstech))
+
+**3 public repos — complete (3/3 cloned).** Decentralized mesh chat stack: dual-transport app + relay geography tooling.
+
 | ID | Local path | Upstream | License | One-line |
 |----|------------|----------|---------|----------|
-| **bitchat** | `mine/raw/mesh_comm/permissionlesstech/bitchat` | [permissionlesstech/bitchat](https://github.com/permissionlesstech/bitchat) | Unlicense | BLE mesh + Nostr dual transport; multi-hop (7) |
-| **bitchat-android** | `…/permissionlesstech/bitchat-android` | [bitchat-android](https://github.com/permissionlesstech/bitchat-android) | GPL-3.0 | Cross-platform binary protocol; Wi-Fi Aware |
-| **georelays** | `…/permissionlesstech/georelays` | [georelays](https://github.com/permissionlesstech/georelays) | check upstream | Nostr relay geography map |
-
-### Bridgefy org ([github.com/bridgefy](https://github.com/bridgefy))
-
-8 public repos — **all 6 SDK targets** now in manifest (stable + beta + cross-platform wrappers):
+| **bitchat** | `mine/raw/mesh_comm/permissionlesstech/bitchat` | [bitchat](https://github.com/permissionlesstech/bitchat) | Unlicense | iOS/macOS; BLE mesh + Nostr; WHITEPAPER; max 7 hops |
+| **bitchat-android** | `…/permissionlesstech/bitchat-android` | [bitchat-android](https://github.com/permissionlesstech/bitchat-android) | GPL-3.0 | Android; binary protocol compatible with iOS; Wi-Fi Aware + Tor |
+| **georelays** | `…/permissionlesstech/georelays` | [georelays](https://github.com/permissionlesstech/georelays) | check upstream | Nostr relay discovery + geolocation; BitChat kind-20000 filter |
 
 | Repo | Role | Mag steal focus |
 |------|------|-----------------|
-| [sdk-android](https://github.com/bridgefy/sdk-android) | Stable Android BLE mesh SDK | P2P/Mesh/Broadcast modes, propagation profiles |
-| [sdk-ios](https://github.com/bridgefy/sdk-ios) | Stable iOS SDK | Cross-platform transmission enum |
-| [bridgefy_flutter](https://github.com/bridgefy/bridgefy_flutter) | Flutter plugin | Propagation profile enum in Dart |
-| [bridgefy-react-native](https://github.com/bridgefy/bridgefy-react-native) | RN bridge (top stars) | Household app wrapper — JS → native mesh |
-| [sdk-android-beta](https://github.com/bridgefy/sdk-android-beta) | Pre-release Android | API drift vs stable — contract stability |
-| [sdk-ios-beta](https://github.com/bridgefy/sdk-ios-beta) | Pre-release iOS | API drift vs stable — contract stability |
+| [bitchat](https://github.com/permissionlesstech/bitchat) | Primary iOS/macOS app | `MessageRouter` BLE→Nostr fallback; Noise sessions; geohash channels |
+| [bitchat-android](https://github.com/permissionlesstech/bitchat-android) | Cross-platform Android | `UnifiedMeshService`, TTL/dedup, foreground mesh service, Wi-Fi Aware |
+| [georelays](https://github.com/permissionlesstech/georelays) | Relay infra research | Hub seat topology — **not** Mag DNA; informs GSTD/hub fallback routing |
 
-**Law:** SDK is embeddable in *operator's* household app (L3 enroll) — never silent Mag background mesh.
+**Law:** Unlicense primary + GPL Android — steal **routing contracts** only; verify source builds (org has faced takedown pressure).
 
-| **bridgefy-android** | `…/bridgefy/sdk-android` | [bridgefy/sdk-android](https://github.com/bridgefy/sdk-android) | check upstream | Embeddable BLE mesh SDK — P2P/Mesh/Broadcast |
-| **bridgefy-ios** | `…/bridgefy/sdk-ios` | [bridgefy/sdk-ios](https://github.com/bridgefy/sdk-ios) | check upstream | iOS mesh SDK |
+### Bridgefy org ([github.com/bridgefy](https://github.com/bridgefy))
+
+**8 public repos — 6 SDK targets cloned** (stable + beta + cross-platform wrappers):
+
+| ID | Local path | Upstream | License | One-line |
+|----|------------|----------|---------|----------|
+| **bridgefy-android** | `…/bridgefy/sdk-android` | [sdk-android](https://github.com/bridgefy/sdk-android) | check upstream | Embeddable BLE mesh SDK — P2P/Mesh/Broadcast |
+| **bridgefy-ios** | `…/bridgefy/sdk-ios` | [sdk-ios](https://github.com/bridgefy/sdk-ios) | check upstream | iOS mesh SDK |
 | **bridgefy-flutter** | `…/bridgefy/bridgefy_flutter` | [bridgefy_flutter](https://github.com/bridgefy/bridgefy_flutter) | check upstream | Flutter wrapper |
 | **bridgefy-react-native** | `…/bridgefy/bridgefy-react-native` | [bridgefy-react-native](https://github.com/bridgefy/bridgefy-react-native) | check upstream | RN bridge to native mesh SDK (top org repo) |
 | **bridgefy-android-beta** | `…/bridgefy/sdk-android-beta` | [sdk-android-beta](https://github.com/bridgefy/sdk-android-beta) | check upstream | Android SDK pre-release channel |
 | **bridgefy-ios-beta** | `…/bridgefy/sdk-ios-beta` | [sdk-ios-beta](https://github.com/bridgefy/sdk-ios-beta) | check upstream | iOS SDK pre-release channel |
-| **briar** | `…/briar/briar` | [briar/briar](https://github.com/briar/briar) · [GitLab primary](https://code.briarproject.org/briar/briar) | GPL-3.0 | Tor + BT/Wi-Fi sync; no central server |
+
+**Law:** SDK is embeddable in *operator's* household app (L3 enroll) — never silent Mag background mesh.
+
+### Briar org ([github.com/briar](https://github.com/briar) · [GitLab primary](https://code.briarproject.org/briar))
+
+**4 GitHub mirrors cloned** — upstream GitLab is canonical for active dev:
+
+| ID | Local path | Upstream | License | One-line |
+|----|------------|----------|---------|----------|
+| **briar** | `…/briar/briar` | [briar/briar](https://github.com/briar/briar) | GPL-3.0 | Tor + BT/Wi-Fi sync; no central server |
 | **briar-mailbox** | `…/briar/briar-mailbox` | [briar-mailbox](https://github.com/briar/briar-mailbox) | AGPL-3.0 | Optional mailbox when device offline |
 | **briar-desktop** | `…/briar/briar-desktop` | [briar-desktop](https://github.com/briar/briar-desktop) | GPL-3.0 | Desktop peer |
 | **briar-onionwrapper** | `…/briar/onionwrapper` | [onionwrapper](https://github.com/briar/onionwrapper) | GPL-3.0 | Tor transport library |
@@ -65,10 +77,10 @@
 | Foreign pattern | Mag slot (when wired) |
 |-----------------|------------------------|
 | Bitchat dual transport | `route.v2` fallback chain: LAN → mesh → hub → defer |
+| Bitchat geohash + georelays | hub seat topology research — Nostr relays ≠ Mag DNA |
 | Bridgefy P2P/Mesh/Broadcast | pigeonhole transmission modes (steer not flood) |
 | Briar sync-without-server | beads on disk + sync when paths exist (zeitgeist) |
 | Briar mailbox | optional **willing** relay peer — like GSTD edge, not identity |
-| Georelays | research only — Nostr != Mag DNA |
 
 See `MAG_v5_MESH_FOREST.md` for **eventual service** vision (self-governing mesh agent, MIT/permissive forest seat).
 
