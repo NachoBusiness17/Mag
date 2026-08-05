@@ -759,6 +759,26 @@ def main(argv: list[str] | None = None) -> int:
         help="With --deep: max ranked tickets to dig (default 4)",
     )
 
+    p_il = sub.add_parser(
+        "improve-loop",
+        help="Unified improve cycle — cloud handoff + queue + nervous + spider",
+    )
+    p_il.add_argument(
+        "il_action",
+        nargs="?",
+        default="cycle",
+        choices=["cycle", "cloud-handoff", "ingest"],
+    )
+    p_il.add_argument("--goal", default="")
+    p_il.add_argument("--claim", default="")
+    p_il.add_argument("--brief", default="")
+    p_il.add_argument("--source", default="local")
+    p_il.add_argument("--max-improve", type=int, default=2)
+    p_il.add_argument("--drain", action="store_true")
+    p_il.add_argument("--scout", action="store_true")
+    p_il.add_argument("--enqueue", action="store_true", help="cloud-handoff: run cycle after file")
+    p_il.add_argument("--json", action="store_true")
+
     p_lat = sub.add_parser(
         "lattice-loop",
         help="Conspiracy test lattice dig loop (Ollama self-directed research)",
@@ -2182,6 +2202,29 @@ def main(argv: list[str] | None = None) -> int:
         res = process_one(str(enq.get("id")))
         print(json.dumps({"queued": enq, "result": res}, indent=2, default=str)[:6000])
         return 0 if res.get("ok") else 1
+    if args.cmd == "improve-loop":
+        from mag.improve_loop import ingest_cloud_handoffs, run_improve_cycle, write_cloud_handoff
+
+        action = getattr(args, "il_action", "cycle") or "cycle"
+        if action == "cloud-handoff":
+            res = write_cloud_handoff(
+                goal=getattr(args, "goal", "") or "",
+                claim=getattr(args, "claim", "") or "",
+                brief=getattr(args, "brief", "") or "",
+                source=getattr(args, "source", "cursor-cloud") or "cursor-cloud",
+                enqueue=bool(getattr(args, "enqueue", False)),
+            )
+        elif action == "ingest":
+            res = {"ok": True, "handoffs": ingest_cloud_handoffs()}
+        else:
+            res = run_improve_cycle(
+                source=getattr(args, "source", "local") or "local",
+                max_improve=int(getattr(args, "max_improve", 2) or 2),
+                drain_one=bool(getattr(args, "drain", False)),
+                scout=bool(getattr(args, "scout", False)),
+            )
+        print(json.dumps(res, indent=2, default=str))
+        return 0 if res.get("ok", True) else 1
     if args.cmd == "improve":
         from mag.improve import improve_once, scout, status_summary, run_eval, deep_dive
 

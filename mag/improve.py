@@ -1915,9 +1915,35 @@ def promote_apply(cid: str, *, force_model: bool = False) -> dict[str, Any]:
         return {"ok": True, "id": cid, "kind": kind, "action": "playbook_promoted"}
 
     update_candidate_status(cid, "promoted", note="Promoted by operator")
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "promote_gate",
+            join={"candidate_id": cid},
+            input_data={"claim": (row.get("claim") or "")[:200], "kind": kind},
+            action={"verdict": "promoted", "force_model": force_model},
+            outcome={"ok": True},
+            pattern_tags=[f"kind_{kind}"],
+        )
+    except Exception:
+        pass
     return {"ok": True, "id": cid, "kind": kind, "action": "status_promoted"}
 
 
 def promote_reject(cid: str, reason: str = "") -> dict[str, Any]:
     ok = update_candidate_status(cid, "rejected", note=reason or "rejected by operator")
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "promote_gate",
+            join={"candidate_id": cid},
+            input_data={"reason": (reason or "")[:200]},
+            action={"verdict": "rejected"},
+            outcome={"ok": ok},
+            pattern_tags=["reject"],
+        )
+    except Exception:
+        pass
     return {"ok": ok, "id": cid, "status": "rejected"}

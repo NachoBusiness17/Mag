@@ -45,6 +45,19 @@ def _log_trail(entry: dict[str, Any]) -> None:
     row = {"ts": _now(), **entry}
     with TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    try:
+        from mag.training_events import emit
+
+        phase = str(entry.get("phase") or "autorun")
+        emit(
+            "autorun_cycle",
+            input_data={"phase": phase, "keys": list(entry.keys())[:12]},
+            action={k: entry[k] for k in ("phase", "goal", "tag") if k in entry},
+            outcome={"logged": True},
+            pattern_tags=[f"gov_{phase}"],
+        )
+    except Exception:
+        pass
 
 
 def _drainer_active() -> bool:

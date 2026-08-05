@@ -126,10 +126,35 @@ def _check_operator_active() -> list[dict[str, Any]]:
     return []
 
 
+def _check_cloud_seats() -> list[dict[str, Any]]:
+    """Stale cloud/desktop external seats — orphan detection."""
+    signals: list[dict[str, Any]] = []
+    try:
+        from mag.seat_registry import list_registered
+
+        for seat in list_registered(live_only=True):
+            age = seat.get("heartbeat_age_s")
+            src = str(seat.get("source") or seat.get("parent") or "")
+            if age is not None and age >= STALL_THRESHOLD_S:
+                signals.append({
+                    "kind": "cloud_seat_stale",
+                    "severity": "warn",
+                    "task_id": seat.get("task_id"),
+                    "age_s": age,
+                    "source": src,
+                    "action": "steer",
+                    "message": f"External seat {seat.get('task_id')} stale {age}s — heartbeat or unregister",
+                })
+    except Exception:
+        pass
+    return signals
+
+
 def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
     signals = []
     signals.extend(_check_operator_active())
     signals.extend(_check_orchestrator_tasks())
+    signals.extend(_check_cloud_seats())
     signals.extend(_check_autorun_trail())
     signals.extend(_check_fkb_repeat())
 

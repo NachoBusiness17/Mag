@@ -135,6 +135,30 @@ def cmd_register(goal: str, seat: str, mode: str) -> int:
     return 0
 
 
+def cmd_improve(claim: str, goal: str, brief: str, enqueue: bool, drain: bool) -> int:
+    """File cloud/desktop improve claim → behavioral + nervous + spider + optional queue."""
+    body: dict = {
+        "claim": claim,
+        "goal": goal or (f"[improve] {claim}" if claim else ""),
+        "brief": brief,
+        "source": "cursor-bridge",
+        "enqueue": enqueue or drain,
+    }
+    if drain:
+        status, data = _req("POST", "/api/v1/improve/cycle", {
+            "source": "cursor-bridge",
+            "drain": True,
+            "max_improve": 2,
+        })
+    else:
+        status, data = _req("POST", "/api/v1/improve/cloud", body)
+    if status not in (200, 422) or not data.get("ok", True):
+        print(f"[cursor_bridge] improve failed ({status}): {data}", file=sys.stderr)
+        return 1
+    print(json.dumps(data, indent=2, default=str)[:8000])
+    return 0
+
+
 def cmd_delegate(goal: str, session: str, provider: str) -> int:
     """Heavy tool work through Mag's loop — use from Cursor when edits need Mag tools."""
     print(f"[cursor_bridge] delegating to Mag agent ({provider})…", file=sys.stderr)
@@ -242,6 +266,14 @@ def main() -> int:
     p_reg.add_argument("--mode", default="interactive", choices=("interactive", "cloud", "oneshot"))
     p_reg.set_defaults(cmd="register")
 
+    p_imp = sub.add_parser("improve", help="file improve claim → behavioral + queue + spider")
+    p_imp.add_argument("--claim", default="", help="concrete improve claim")
+    p_imp.add_argument("--goal", default="", help="full goal (default: [improve] claim)")
+    p_imp.add_argument("--brief", default="", help="optional brief for handoff file")
+    p_imp.add_argument("--enqueue", action="store_true", help="file handoff + run improve cycle")
+    p_imp.add_argument("--drain", action="store_true", help="run improve cycle + drain one task")
+    p_imp.set_defaults(cmd="improve")
+
     p_del = sub.add_parser("delegate", help="Mag agent turn for tool-heavy work")
     p_del.add_argument("goal", help="goal")
     p_del.add_argument("--session", default="cursor")
@@ -288,6 +320,11 @@ def main() -> int:
         return cmd_autopilot(args.drain)
     if args.cmd == "register":
         return cmd_register(args.goal, args.seat, args.mode)
+    if args.cmd == "improve":
+        if not args.claim and not args.goal and not args.drain:
+            print("[cursor_bridge] improve needs --claim or --goal or --drain", file=sys.stderr)
+            return 1
+        return cmd_improve(args.claim, args.goal, args.brief, args.enqueue, args.drain)
     if args.cmd == "delegate":
         return cmd_delegate(args.goal, args.session, args.provider)
     if args.cmd == "task":

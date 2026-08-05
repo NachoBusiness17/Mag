@@ -247,6 +247,46 @@ def h_power_start(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int,
     return 200, start_all(open_browser=open_browser)
 
 
+def h_improve_cloud(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Cloud agent files handoff + optional improve cycle enqueue."""
+    from mag.improve_loop import write_cloud_handoff
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("question") or "").strip()
+    claim = str(data.get("claim") or "").strip()
+    brief = str(data.get("brief") or data.get("body") or "").strip()
+    if not (goal or claim or brief):
+        return _err(400, "goal, claim, or brief required")
+    enqueue = bool(data.get("enqueue") or data.get("queue"))
+    res = write_cloud_handoff(
+        goal=goal,
+        claim=claim,
+        brief=brief,
+        source=str(data.get("source") or "cursor-cloud").strip(),
+        depth=str(data.get("depth") or "simple_code").strip(),
+        enqueue=enqueue,
+        run_id=str(data.get("run_id") or "").strip() or None,
+        meta=data.get("meta") if isinstance(data.get("meta"), dict) else None,
+    )
+    return (200 if res.get("ok") else 422), res
+
+
+def h_improve_cycle(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Run one improve cycle — behavioral + queue + nervous + spider."""
+    from mag.improve_loop import run_improve_cycle
+
+    data = dict(body or {})
+    source = str(data.get("source") or "api").strip() or "api"
+    res = run_improve_cycle(
+        source=source,
+        max_improve=int(data.get("max_improve") or 2),
+        drain_one=bool(data.get("drain") or data.get("drain_one")),
+        spider_inject=bool(data.get("spider_inject")),
+        scout=bool(data.get("scout")),
+    )
+    return (200 if res.get("ok") else 500), res
+
+
 def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     from mag.governance import build_governance
 
@@ -2156,6 +2196,8 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "GET /api/v1/power": "Stack status — kill switch / turn-on glance",
             "POST /api/v1/power/stop": "Kill switch — stop entire Mag stack",
             "POST /api/v1/power/start": "Turn-on — boot supervisor + core services",
+            "POST /api/v1/improve/cloud": "Cloud handoff JSON → behavioral + optional queue",
+            "POST /api/v1/improve/cycle": "Improve cycle → queue + nervous + spider",
             "GET /api/v1/governance": "Steering + behavioral loop + autonomy prefs",
             "POST /api/v1/governance": "Toggle drainer/behavioral pack or broadcast steer",
             "GET /api/v1/operator-inbox": "Deferred guidance queue (process at checkpoint)",
@@ -2267,6 +2309,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/power", h_power),
     ("POST", "/api/v1/power/stop", h_power_stop),
     ("POST", "/api/v1/power/start", h_power_start),
+    ("POST", "/api/v1/improve/cloud", h_improve_cloud),
+    ("POST", "/api/v1/improve/cycle", h_improve_cycle),
     ("GET", "/api/v1/governance", h_governance),
     ("POST", "/api/v1/governance", h_post_governance),
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),

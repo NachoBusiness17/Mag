@@ -3859,6 +3859,22 @@ async function loadPowerPanel() {
   }
 }
 
+async function onImproveCycle() {
+  const btn = $("#btnImproveCycle");
+  if (btn) btn.disabled = true;
+  toast("Improve cycle running…");
+  try {
+    const res = await postJSON("/api/v1/improve/cycle", { source: "dashboard", drain: true, max_improve: 2 });
+    toast(res.ok ? "Improve cycle OK — check Body + Workers" : "Improve cycle incomplete");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Improve cycle failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function onPowerStop() {
   if (!confirm("Stop entire Mag stack? Dashboard will go down.")) return;
   const btn = $("#btnPowerStop");
@@ -5145,6 +5161,7 @@ async function bind() {
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
   $("#btnPowerStop")?.addEventListener("click", () => onPowerStop());
   $("#btnPowerStart")?.addEventListener("click", () => onPowerStart());
+  $("#btnImproveCycle")?.addEventListener("click", () => onImproveCycle());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
