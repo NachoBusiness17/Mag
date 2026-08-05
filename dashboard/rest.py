@@ -1487,6 +1487,27 @@ def h_nervous(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]
     return 200, build_glance(write=True)
 
 
+def h_grove(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Tesuji Grove — poem skill tree nodes (v3-012)."""
+    from mag.grove import build, list_nodes
+
+    limit = 20
+    try:
+        limit = max(1, min(100, int(_p.get("limit") or "20")))
+    except ValueError:
+        pass
+    refresh = str(_p.get("refresh") or "").lower() in ("1", "true", "yes")
+    build_report = build(dry=False) if refresh else None
+    nodes = list_nodes(limit=limit)
+    return 200, {
+        "ok": True,
+        "schema": "grove_list.v1",
+        "nodes": nodes,
+        "count": len(nodes),
+        "build": build_report,
+    }
+
+
 def h_lattice_history(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """Verkle lattice history + planning summary for dashboard."""
     from mag.lattice_dashboard import build_lattice_summary
@@ -2164,6 +2185,7 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             # --- Body / router ---
             "GET /api/v1/health": "Is the lab up?",
             "GET /api/v1/nervous": "Containment glance (no secrets)",
+            "GET /api/v1/grove": "Tesuji Grove nodes ?limit=20&refresh=1",
             "GET /api/v1/status": "Router: providers, quota, honesty",
             "GET /api/v1/providers": "Provider status",
             "GET /api/v1/quota": "Quota budgets",
@@ -2243,6 +2265,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/overview", h_overview),
     ("GET", "/api/v1/nervous", h_nervous),
     ("GET", "/api/nervous", h_nervous),
+    ("GET", "/api/v1/grove", h_grove),
+    ("GET", "/api/grove", h_grove),
     ("GET", "/api/v1/lattice-history", h_lattice_history),
     ("GET", "/api/lattice-history", h_lattice_history),
     ("GET", "/api/v1/viewports", h_viewports),

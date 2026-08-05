@@ -175,6 +175,9 @@ Priority order — **one subsystem per PR slice:**
 | C4 | Factory freeze gate: reject `[build]` without frozen handoff | `conductor` + `switchboard` | `conductor.py`, new check in `route` or conductor | test: build goal without BUILD file → defer |
 | C5 | Spider → switchboard `steer_drop` for stall (not raw post_steer) | `spider`, `switchboard` | `spider.py` | spider tick inject uses tier |
 | C6 | `switchboard_status.cmd` calls `switchboard status` | ops | `switchboard_status.cmd` | Windows smoke |
+| C7 | **v3 DeepSeek run** scripts + BUILD handoff | ops | `scripts/v3_deepseek_run.cmd`, `docs/ref/V3_DEEPSEEK_RUN.md` | `training-events` shows `task_lifecycle` |
+
+**C1–C7 shipped on branch `cursor/v3-deepseek-run-e2ce`** (2026-08-05): orchestrator lifecycle, grove REST, spider→switchboard, switchboard_status, DeepSeek run scripts.
 
 **Explicitly defer (not this run):**
 

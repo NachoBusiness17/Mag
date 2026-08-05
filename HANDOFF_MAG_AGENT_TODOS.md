@@ -32,7 +32,11 @@ mag.cmd doctor
 .\.venv\Scripts\python.exe scripts\routing_smoke.py
 python main.py verkle-audit --dry
 python main.py autorun --once --dry
+scripts\v3_home_smoke.cmd
+scripts\v3_deepseek_run.cmd "[build] first v3 goal"
 ```
+
+DeepSeek runbook: `docs/ref/V3_DEEPSEEK_RUN.md` · BUILD: `docs/ref/BUILD-v3-deepseek-run.md`
 
 ---
 
