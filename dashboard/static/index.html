@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MAG · マグ · 勾玉</title>
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=canvas-viewports-v1" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-d0-v1" />
   <script type="importmap">
   {
     "imports": {
@@ -60,15 +60,16 @@
   <nav class="cli-dock sticky-chrome" aria-label="primary doors">
     <button type="button" class="dock-btn on" data-win="home" title="Where you were, are, and go next">Office</button>
     <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
-    <button type="button" class="dock-btn" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
-    <button type="button" class="dock-btn" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
     <button type="button" class="dock-btn" data-win="ideas" title="What you still hold — primary board for Mag as OS">Ideas</button>
     <button type="button" class="dock-btn" data-win="chat" title="Ask Mag from filed memory">Chat</button>
-    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Body</button>
+    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Status</button>
+    <button type="button" class="dock-btn dock-more-toggle" id="btnDockMore" title="Diary, Story, Pulse, Canvas">More ▾</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
+    <button type="button" class="dock-btn dock-depth hidden" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
     <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
     <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
-    <button type="button" class="dock-btn" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
-    <button type="button" class="dock-btn" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
   </nav>
   <div class="desk" id="desk">
 
@@ -143,6 +144,13 @@
             </article>
           </div>
 
+          <article class="card autorun-card" id="homeAutorunCard" aria-live="polite">
+            <h2>Mag overnight</h2>
+            <p class="title" id="homeAutorunHeadline">—</p>
+            <p class="meta" id="homeAutorunMeta">—</p>
+            <p class="muted sm">Artifact: queue/todo.md · trails under memory/runs/</p>
+          </article>
+
           <div class="row home-cta">
             <button type="button" class="btn primary" id="btnHomeChat">Chat · what was I doing?</button>
             <button type="button" class="btn ghost" id="btnHomeDays">Open Days</button>
@@ -196,11 +204,11 @@
 
     <div class="win" data-win="chat" id="win-chat">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ TTY // CHAT</span>
+        <span class="win-title">▶ TTY // CHAT</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -362,11 +370,11 @@
 
     <div class="win" data-win="board" id="win-board">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ BOARD // SCRAPS</span>
+        <span class="win-title">▶ BOARD // SCRAPS</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -381,13 +389,13 @@
                       <button type="button" class="btn" id="btnAsk">Ask (local)</button>
                       <button type="button" class="btn ghost" id="btnBrief">Rebuild brief</button>
                     </div>
-                    <pre class="pre" id="askOut">â€”</pre>
+                    <pre class="pre" id="askOut">—</pre>
                   </article>
-                  <article class="card"><h3>Latest brief</h3><pre class="pre" id="briefOut">â€”</pre></article>
-                  <article class="card"><h3>Attention</h3><pre class="pre" id="attOut">â€”</pre></article>
-                  <article class="card"><h3>Todo</h3><pre class="pre" id="todoOut">â€”</pre></article>
-                  <article class="card"><h3>Live from Grok</h3><pre class="pre" id="liveOut">â€”</pre></article>
-                  <article class="card"><h3>CURRENT</h3><pre class="pre" id="statusOut">â€”</pre></article>
+                  <article class="card"><h3>Latest brief</h3><pre class="pre" id="briefOut">—</pre></article>
+                  <article class="card"><h3>Attention</h3><pre class="pre" id="attOut">—</pre></article>
+                  <article class="card"><h3>Todo</h3><pre class="pre" id="todoOut">—</pre></article>
+                  <article class="card"><h3>Live from Grok</h3><pre class="pre" id="liveOut">—</pre></article>
+                  <article class="card"><h3>CURRENT</h3><pre class="pre" id="statusOut">—</pre></article>
                 </div>
         </section>
       </div>
@@ -396,19 +404,19 @@
 
     <div class="win" data-win="operate" id="win-operate">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ BRIEF // PASTE</span>
+        <span class="win-title">▶ BRIEF // PASTE</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
         <section id="panel-operate" class="panel">
 <div class="stats" id="osStats"></div>
-                <p class="title" id="osBeadTitle">â€”</p>
-                <p class="meta" id="osBeadMeta">â€”</p>
-                <p class="blurb" id="osBeadBlurb">â€”</p>
+                <p class="title" id="osBeadTitle">—</p>
+                <p class="meta" id="osBeadMeta">—</p>
+                <p class="blurb" id="osBeadBlurb">—</p>
                 <ul id="osBeadBullets"></ul>
                 <div id="osTicket" class="card" style="margin:0.5rem 0"></div>
                 <ul id="osSysList"></ul>
@@ -468,11 +476,11 @@
 
     <div class="win" data-win="visual" id="win-visual">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ MAP // VISUAL</span>
+        <span class="win-title">▶ MAP // VISUAL</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -516,13 +524,13 @@
         <span class="win-title">Token flow (lab)</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
         <section id="panel-flow" class="panel">
-<p class="muted" id="flowNote">â€”</p>
+<p class="muted" id="flowNote">—</p>
                 <div class="stats" id="flowStats"></div>
                 <div id="flowModelBars"></div>
                 <div id="flowRoleBars"></div>
@@ -532,7 +540,7 @@
                 <div id="flowIdeas"></div>
                 <div id="flowArtifacts"></div>
                 <div id="flowArtifactList"></div>
-                <pre class="pre" id="flowTimeline">â€”</pre>
+                <pre class="pre" id="flowTimeline">—</pre>
                 <button type="button" class="btn ghost" id="btnFlowRefresh">Refresh flow</button>
                 <span id="flowMeta" class="hidden"></span>
         </section>
@@ -542,32 +550,32 @@
 
     <div class="win" data-win="orchestrate" id="win-orchestrate">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ SEATS // MODELS</span>
+        <span class="win-title">▶ SEATS // MODELS</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
         <section id="panel-orchestrate" class="panel">
 <div class="stats" id="orchStats"></div>
-                <pre class="pre" id="modelsMap">â€”</pre>
-                <p class="muted" id="modelsLine">â€”</p>
+                <pre class="pre" id="modelsMap">—</pre>
+                <p class="muted" id="modelsLine">—</p>
                 <div class="row">
                   <button type="button" class="btn" id="btnMultiSmoke">Run multi-smoke</button>
                   <button type="button" class="btn ghost" id="btnModelsRefresh">Refresh models</button>
                   <button type="button" class="btn ghost" id="btnQuotaRefresh">Refresh quota</button>
                   <button type="button" class="btn ghost" id="btnProbeNow">Probe live</button>
                 </div>
-                <pre class="pre" id="smokeOut">â€”</pre>
+                <pre class="pre" id="smokeOut">—</pre>
                 <div id="usageReport"></div>
                 <div id="quotaTable"></div>
                 <div id="probeTable"></div>
-                <pre class="pre" id="providersHint">â€”</pre>
-                <pre class="pre" id="laneCfg">â€”</pre>
-                <pre class="pre" id="usageToday">â€”</pre>
-                <pre class="pre" id="usageTail">â€”</pre>
+                <pre class="pre" id="providersHint">—</pre>
+                <pre class="pre" id="laneCfg">—</pre>
+                <pre class="pre" id="usageToday">—</pre>
+                <pre class="pre" id="usageTail">—</pre>
                 <p class="muted" id="usageReportLine"></p>
         </section>
       </div>
@@ -576,11 +584,11 @@
 
     <div class="win" data-win="blast" id="win-blast">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ BLAST // SELF-IMPROVE</span>
+        <span class="win-title">▶ BLAST // SELF-IMPROVE</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -602,7 +610,7 @@
           <article class="card" style="margin-bottom:0.85rem">
             <h2>Influence</h2>
             <label class="muted" for="blastFocus">Focus (steers every dig)</label>
-            <textarea id="blastFocus" rows="4" style="width:100%;margin:0.35rem 0" placeholder="e.g. memory contracts for Mag trail/residual; refuse product worship; steal from SubtleMemory paper onlyâ€¦"></textarea>
+            <textarea id="blastFocus" rows="4" style="width:100%;margin:0.35rem 0" placeholder="e.g. memory contracts for Mag trail/residual; refuse product worship; steal from SubtleMemory paper only…"></textarea>
             <div class="row" style="flex-wrap:wrap;gap:0.5rem;align-items:end">
               <div>
                 <label class="muted" for="blastMinutes">dig min</label><br />
@@ -618,15 +626,15 @@
               </div>
               <button type="button" class="btn" id="btnBlastSave">Save influence</button>
             </div>
-            <p class="meta" id="blastInfluenceMeta" style="margin-top:0.5rem">â€”</p>
+            <p class="meta" id="blastInfluenceMeta" style="margin-top:0.5rem">—</p>
           </article>
           <article class="card" style="margin-bottom:0.85rem">
             <h2>Plant status</h2>
-            <pre class="pre" id="blastStatusOut">â€”</pre>
+            <pre class="pre" id="blastStatusOut">—</pre>
           </article>
           <article class="card" style="margin-bottom:0.85rem">
             <h2>Ollama seat</h2>
-            <pre class="pre" id="blastOllamaOut">â€”</pre>
+            <pre class="pre" id="blastOllamaOut">—</pre>
           </article>
           <article class="card full">
             <h2>Top tickets (promote gate)</h2>
@@ -639,21 +647,21 @@
 
     <div class="win" data-win="verkle" id="win-verkle">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ LATTICE // HISTORY + PLAN</span>
+        <span class="win-title">▶ LATTICE // HISTORY + PLAN</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
         <section id="panel-verkle" class="panel">
           <p class="help-bar">
             <strong>Verkle lattice thus far.</strong>
-            Tip = chain alive. History = theme + tension over days. Plan = working open + agent next â€” not a second throne.
+            Tip = chain alive. History = theme + tension over days. Plan = working open + agent next — not a second throne.
           </p>
           <div class="stats" id="latticeStats"></div>
-          <p class="blurb" id="latticeOneLine">â€”</p>
+          <p class="blurb" id="latticeOneLine">—</p>
           <div class="grid lattice-grid">
             <article class="card">
               <h2>Graph · queryable store</h2>
@@ -662,7 +670,7 @@
             </article>
             <article class="card">
               <h2>Plan Â· open irons</h2>
-              <p class="meta" id="latticeFocus">Focus: â€”</p>
+              <p class="meta" id="latticeFocus">Focus: —</p>
               <ul id="latticePlanList"></ul>
               <p class="meta" style="margin-top:0.6rem">Agent next (versioned self)</p>
               <ul id="latticeAgentNext"></ul>
@@ -679,7 +687,7 @@
           </article>
           <article class="card" style="margin-top:0.85rem">
             <h2>Chain tip Â· tail</h2>
-            <pre class="pre" id="verkleOut" style="max-height:12rem">â€”</pre>
+            <pre class="pre" id="verkleOut" style="max-height:12rem">—</pre>
           </article>
           <div class="row" style="margin-top:0.75rem">
             <button type="button" class="btn ghost" id="btnLatticeRefresh">Refresh lattice</button>
@@ -718,11 +726,11 @@
 
     <div class="win" data-win="ingest" id="win-ingest">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ INGEST // CAT</span>
+        <span class="win-title">▶ INGEST // CAT</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
-          <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">

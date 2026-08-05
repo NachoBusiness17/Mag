@@ -728,6 +728,38 @@ def h_home_summary(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, 
         payload["launch_pad"] = build_launch_pad(n_sessions=n_sessions, ship=ship)
     except Exception:
         payload["launch_pad"] = {"show": False}
+    try:
+        from mag.autorun_status import autorun_dashboard_status
+
+        ar = autorun_dashboard_status()
+        gov = ar.get("governor") or {}
+        last_auto = (ar.get("autorun") or {}).get("last_tick") or {}
+        drainer_on = bool(gov.get("drainer_enabled"))
+        alive = bool(gov.get("autorun_alive"))
+        open_mag = int(gov.get("open_todo_mag") or 0)
+        if not drainer_on:
+            autorun_headline = "Autorun off — add queue lines or set MAG_DRAINER=1"
+            autorun_state = "idle"
+        elif alive:
+            autorun_headline = "Mag is working away"
+            autorun_state = "active"
+        elif open_mag:
+            autorun_headline = f"Queued — {open_mag} [mag] item(s) waiting"
+            autorun_state = "queued"
+        else:
+            autorun_headline = "Drainer on — nothing queued"
+            autorun_state = "idle"
+        payload["autorun"] = {
+            "state": autorun_state,
+            "headline": autorun_headline,
+            "drainer_enabled": drainer_on,
+            "open_todo_mag": open_mag,
+            "last_tick_ts": last_auto.get("ts"),
+            "last_action": last_auto.get("action") or (gov.get("last_cycle") or {}).get("action"),
+            "hints": (ar.get("hints") or {}),
+        }
+    except Exception as e:
+        payload["autorun"] = {"state": "unknown", "headline": "Autorun status unavailable", "error": str(e)[:120]}
     return 200, payload
 
 

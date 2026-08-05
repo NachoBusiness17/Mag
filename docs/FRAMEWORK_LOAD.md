@@ -97,7 +97,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | **Behavioral compounding** | **`docs/ref/MAG_BEHAVIORAL_COMPOUNDING.md`** — how steps auto-emerge, surface, resurrect |
 | **Ponytail / Caveman skills** | `docs/ref/PONYTAIL_CAVEMAN_SKILLS.md` · `python main.py skill-seat` |
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
-| **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
+| **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/DASHBOARD_ITERATION_PLAN.md`** · `LAYMAN_OFFICE_VISION.md` |
 | **Container install** | `docs/CONTAINER.md` |
 | **Agentic steals** | `docs/ref/AGENTIC_LANDSCAPE_2026.md` · **`docs/ref/MAG_STEAL_AUTOPILOT.md`** |
 | **Strike / chord** | `docs/ref/strike_origin.md` · `docs/ref/MAG_Activation.md` |

@@ -591,6 +591,24 @@ async function loadHome() {
     $("#homeHeadline").textContent = h.headline || "Your last filed day";
   }
 
+  const ar = h.autorun || {};
+  if ($("#homeAutorunHeadline")) {
+    $("#homeAutorunHeadline").textContent = ar.headline || "Autorun — check queue/todo.md";
+  }
+  if ($("#homeAutorunMeta")) {
+    const parts = [];
+    if (ar.state) parts.push(ar.state);
+    if (ar.open_todo_mag != null) parts.push(`${ar.open_todo_mag} queued`);
+    if (ar.last_action) parts.push(String(ar.last_action));
+    if (ar.last_tick_ts) parts.push(String(ar.last_tick_ts).slice(0, 19));
+    $("#homeAutorunMeta").textContent = parts.length ? parts.join(" · ") : "Drainer off unless MAG_DRAINER=1";
+  }
+  const arCard = $("#homeAutorunCard");
+  if (arCard) {
+    arCard.classList.toggle("autorun-active", ar.state === "active");
+    arCard.classList.toggle("autorun-queued", ar.state === "queued");
+  }
+
   const lp = h.launch_pad || {};
   const launchEl = $("#homeLaunchPad");
   if (launchEl) {
@@ -5177,7 +5195,13 @@ async function bind() {
       sendGovernanceSteer($("#govSteerInput")?.value);
     }
   });
-  $("#btnOpenWorkers")?.addEventListener("click", () => setTab("agents"));
+  $("#btnOpenWorkers")?.addEventListener("click", () => {
+    window.location.href = "/static/agents.html";
+  });
+  $("#btnDockMore")?.addEventListener("click", () => {
+    document.body.classList.toggle("dock-expanded");
+    document.querySelectorAll(".dock-depth").forEach((el) => el.classList.toggle("hidden"));
+  });
   $("#btnProbeChains")?.addEventListener("click", async () => {
     const hint = $("#chainsHint");
     if (hint) hint.textContent = "probing (can take ~minutes for many keys)...";

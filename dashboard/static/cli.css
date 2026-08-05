@@ -4238,3 +4238,17 @@ ul.viewport-todo-list .todo-completed .todo-status {
 ul.viewport-todo-list .todo-pending .todo-status {
   color: var(--warn, #e8c468);
 }
+
+/* Dashboard iteration — core dock + More depth tabs */
+body.cli.desk-tabs .dock-depth.hidden {
+  display: none;
+}
+body.cli.desk-tabs.dock-expanded .dock-more-toggle {
+  color: var(--accent, #39ff9a);
+}
+article.card.autorun-card.autorun-active {
+  border-color: rgba(57, 255, 154, 0.35);
+}
+article.card.autorun-card.autorun-queued {
+  border-color: rgba(232, 196, 104, 0.35);
+}
