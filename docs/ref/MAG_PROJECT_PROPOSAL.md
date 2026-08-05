@@ -364,6 +364,7 @@ Register: **MagImproveDaily** 08:00 · **MagVerkleWeekly** Sat 09:00 · **MagAut
 
 | Doc | Role |
 |-----|------|
+| **`docs/FRAMEWORK_LOAD.md`** | **LLM/human navigation — load order, metaphors, use cases (start here)** |
 | **`MAG_PROJECT_PROPOSAL.md`** (this) | Full where-we-are / where-we're-going |
 | `HANDOFF_MAG_AGENT_TODOS.md` | Operational queue, merge order |
 | `MAG_v2_PLAN.md` | v2 phases + acceptance |
