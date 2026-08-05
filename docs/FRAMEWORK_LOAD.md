@@ -95,7 +95,7 @@ Mag is a **private records office** on your computer — not a chat app.
 | **v4 theory** | `docs/ref/MAG_v4_THEORY.md` |
 | **Layman UI** | `docs/HOW_TO_MAG_DASHBOARD.md` · **`docs/ref/LAYMAN_OFFICE_VISION.md`** (Grove + custom layout v3) |
 | **Container install** | `docs/CONTAINER.md` |
-| **Agentic steals** | `docs/ref/AGENTIC_LANDSCAPE_2026.md` |
+| **Agentic steals** | `docs/ref/AGENTIC_LANDSCAPE_2026.md` · **`docs/ref/MAG_STEAL_AUTOPILOT.md`** |
 | **Strike / chord** | `docs/ref/strike_origin.md` · `docs/ref/MAG_Activation.md` |
 | **Seat handoff** | `memory/handoff/ACTIVATION.md` |
 
