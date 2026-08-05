@@ -1582,7 +1582,7 @@ let tapestryReady = null;
 function ensureTapestryModule() {
   if (window.MagTapestry) return Promise.resolve();
   if (tapestryReady) return tapestryReady;
-  tapestryReady = import(`/static/tapestry.js?v=days-v2`).catch((e) => {
+  tapestryReady = import(`/static/tapestry.js?v=days-v3`).catch((e) => {
     console.error(e);
     if ($("#tapCaption")) {
       $("#tapCaption").textContent =
