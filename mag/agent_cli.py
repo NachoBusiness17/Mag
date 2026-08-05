@@ -33,7 +33,7 @@ from mag.compass import (
 from mag import remedy  # at-will error toolkit: lookup cards from memory/remedies/
 from mag import rails  # deterministic hard rails: configs/constitutional_rails.json (Maelstrom V2)
 from models.providers import _looks_degenerate, chat_messages
-from tools import TOOL_MAP, dispatch as tool_dispatch
+from tools import TOOL_MAP, _normalize_args, dispatch as tool_dispatch
 
 # --- HTTP backend (FastAPI) -------------------------------------------------
 # The agent dispatches tools over HTTP to the FastAPI backend instead of
@@ -434,7 +434,14 @@ def _safe_tool_args(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
 def _preflight_tool(name: str, args: dict[str, Any]) -> tuple[bool, str]:
     """Layer 1 (failure defense): reject obviously-failing tool calls before they hit the OS."""
     if name == "write_file":
-        path = str(args.get("path") or "")
+        path = str(args.get("path") or "").strip()
+        if not path:
+            msg = (
+                "write_file missing path= — emit flat JSON "
+                '{"path": "relative/file.py", "content": "..."} '
+                "(sibling keys, not nested arguments/parameters blob)"
+            )
+            return False, _with_remedy(msg, name)
         if path:
             ok, rmsg = rails.check_write_file(path, str(args.get("content") or ""))
             if not ok:
@@ -504,6 +511,9 @@ def _run_tool_http(name: str, args: dict[str, Any]) -> dict[str, Any]:
 def _run_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name not in TOOL_MAP:
         return {"ok": False, "error": f"unknown tool: {name}", "tools": list(TOOL_MAP)}
+    normalized = _normalize_args(name, args)
+    if normalized is not None:
+        args = normalized
     safe = _safe_tool_args(name, args)
     if safe is None:
         return {"ok": False, "error": f"blocked write/target for tool {name}: {args.get('path')}"}
