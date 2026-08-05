@@ -8,6 +8,39 @@
 **Parents:** `MAG_v2_PLAN.md` · `HANDOFF_MAG_AGENT_TODOS.md` · `RESEARCH_MAG_VIRTUAL_DESK.txt`  
 **Rule:** v2 ships the lattice (router, FKB, autorun, container, Office). v3 asks *what becomes possible after* that foundation is honest.
 
+**Alpha honesty:** We are not out of alpha. v2 plan = beta-shaped roadmap; v3 = research. The product today is a **constitution + loops that file work** — not a finished orchestrator brain. Say so on the label.
+
+---
+
+## 0.1 Operator north star (2026-08-05 — founding frame)
+
+> Mag is a **self-improving lattice** whose trained local expert does not replace frontier models — it **conducts** them. Like the founders could not predict every outcome of the Constitution, we do not predict every product end state. We write **law + loops** (residual, tiers, promote, trail) and let honest cycles compound.
+
+| Metaphor | Mag equivalent |
+|----------|----------------|
+| Constitution / Declaration | `CONSTITUTION.md`, G1–G4, DNA, tiers T0–T3 |
+| Amendments / case law | `decisions_log.jsonl`, FKB remedies, promote |
+| Federalism | Mag (private office) + mycelial-republic (public fork) |
+| Unpredictable outcome | Resonance, spider, frontier harness steals — **emergent**, not designed upfront |
+| **Conductor** (not in founding docs) | **L-conductor** — local trained model expert at *direction + orchestration* of frontier seats |
+
+**Trained model job (v3 research):** not mirror your voice; not do all coding. **Route, steer, notice, delegate, synthesize** — when to spend DeepSeek, when to hold Grok, when Ollama suffices, when to FILE and stop. Expert at **orchestration economics** on your soil.
+
+**All v3 threads are nested self-improvement loops inside the lattice** — not separate products:
+
+```text
+improve (scout→eval→promote)     — loop on practices
+autorun (fill→route→execute)     — loop on work queue
+FKB (fail→remedy→score)          — loop on mistakes
+verkle-audit                     — loop on history honesty
+resonance (v3)                   — loop on corpus echoes
+spider (v3)                      — loop on live agent health
+virtual-desk research (v3)       — loop on workstation patterns
+L-conductor train (v3)           — loop on steer/route outcomes
+```
+
+Each loop **files** to residual. None owns the throne. Conductor reads all trails; frontier models remain the **specialists** it calls.
+
 ---
 
 ## 0. Boundary (read first)
@@ -99,14 +132,17 @@ SOIL (residuals, chord, decisions, IJL, field-strike, archive whitelist)
 
 | Use | Tool | Seat |
 |-----|------|------|
-| Daily work | Gemma janitors | L0 |
-| Steer policy / resonance rank | Small classifier or LoRA | L-meta / L-exp |
-| Mirror / style | LoRA on Gemma first | L-exp |
-| From-scratch | republic / train-llm-from-scratch | Off daily path |
+| Daily scut | Gemma janitors | L0 |
+| **Direction + orchestration** | **L-conductor** (trained on route/steer/decision outcomes) | **L-meta** |
+| Resonance / spider rank | Small classifier or LoRA | L-meta helper |
+| Mirror / style | LoRA on Gemma if ever | L-exp |
+| From-scratch body | republic / train-llm-from-scratch | Off daily path; not conductor v0 |
 
-**Phases:** bead exporter → 10-prompt eval set → train in republic → import as L-exp after promote.
+**Conductor training signal:** `decisions_log` + `governor_trail` + `governor_autorun_trail` + promote outcomes + FKB — labels are *did this delegation work*, not *sound like me*.
 
-**Not v2:** replacing L0, autorun training loop, daily GPU burn.
+**Phases:** bead exporter → conductor eval set (route/steer cases) → train in republic → import as L-meta after promote.
+
+**Not v2:** replacing L0, autorun training loop, daily GPU burn, predicting product end state.
 
 ---
 
@@ -167,10 +203,13 @@ SOIL (residuals, chord, decisions, IJL, field-strike, archive whitelist)
 ## 6. Activation (for future seats)
 
 ```text
-Mag v3 research — load MAG_v3_RESEARCH_PLAN.md + MAG_v2_PLAN.md (phases 0–3 shipped).
+Mag v3 research — load MAG_v3_RESEARCH_PLAN.md + MAG_v3_BACKLOG.md + MAG_v2_PLAN.md (phases 0–3 shipped).
 Do not implement v3 modules until v2 foundation gate passes.
-Conversation threads: spider, resonance, virtual desk, L-exp training — all v3.
+New ideas → append MAG_v3_BACKLOG.md (v3-NNN); score vs P1–P6.
+Conversation threads: spider, resonance, virtual desk, riddle packs, L-conductor — all v3.
 ```
+
+**Feature ledger:** `docs/ref/MAG_v3_BACKLOG.md`
 
 ---
 
