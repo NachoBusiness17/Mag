@@ -17,6 +17,7 @@ def test_loops_registry():
     assert reg["summary"]["total"] >= 5
     ids = {r["id"] for r in reg["loops"]}
     assert "resonance" in ids and "spider" in ids
+    assert "switchboard" in ids
 
 
 def test_resonance_top_cards():

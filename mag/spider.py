@@ -134,6 +134,7 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
     signals.extend(_check_fkb_repeat())
 
     injected = []
+    reaped = None
     if inject and not dry:
         from mag import pigeonhole as ph
 
@@ -146,6 +147,23 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
             msg = f"[spider] {sig.get('message', 'course correct')}"
             ph.post_steer(str(tid), msg[:400])
             injected.append(tid)
+
+    if not dry:
+        try:
+            from mag.switchboard import find_orphans, reap
+
+            orphans = find_orphans(dry=True)
+            if orphans.get("n", 0) > 0:
+                reaped = reap()
+                signals.append({
+                    "kind": "orphan_reap",
+                    "severity": "info",
+                    "count": orphans.get("n"),
+                    "action": "reap",
+                    "message": f"Switchboard reaped {reaped.get('reaped', 0)} stale; {orphans.get('n')} orphan(s) noted",
+                })
+        except Exception:
+            pass
 
     _trail("tick", dry=dry, n_signals=len(signals), injected=injected)
     try:
@@ -168,5 +186,6 @@ def tick(*, dry: bool = False, inject: bool = False) -> dict[str, Any]:
         "dry": dry,
         "signals": signals,
         "injected": injected,
+        "reaped": reaped,
         "n_signals": len(signals),
     }

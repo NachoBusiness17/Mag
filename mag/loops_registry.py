@@ -102,6 +102,15 @@ LOOPS: list[dict[str, Any]] = [
         "status": "research",
         "cli": "main.py training-events",
     },
+    {
+        "id": "switchboard",
+        "layer": "meta",
+        "loop": "mesh → route → steer_drop → reap",
+        "trail": "memory/runs/switchboard_trail.jsonl",
+        "promote_gate": False,
+        "status": "research",
+        "cli": "main.py switchboard",
+    },
 ]
 
 

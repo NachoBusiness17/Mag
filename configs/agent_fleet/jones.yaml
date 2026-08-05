@@ -71,10 +71,12 @@ roles:
     gate: v2_merged
     docs:
       - docs/ref/MAG_v3_SWARM_VISION.md
+      - docs/ref/MAG_SWITCHBOARD_VISION.md
       - docs/ref/MAG_v3_RESEARCH_PLAN.md
       - docs/ref/MAG_TRAINING_DATA_SPEC.md
     cli:
       - python main.py v3-status
+      - python main.py switchboard status
       - python main.py training-events --stats
     error_codes: [E60, E61, E62]
 

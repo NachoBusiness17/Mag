@@ -143,6 +143,17 @@ def conduct(
         "overlay": overlay,
         "dry": dry,
     }
+    try:
+        from mag.switchboard import route_intent
+
+        mesh_route = route_intent(goal, dry=dry)
+        out["switchboard"] = {
+            "target": mesh_route.get("target"),
+            "best_live_peer": mesh_route.get("best_live_peer"),
+            "signals": mesh_route.get("signals"),
+        }
+    except Exception:
+        out["switchboard"] = None
     if not dry:
         _trail(goal, phase, base)
     return out

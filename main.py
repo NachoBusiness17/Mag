@@ -937,6 +937,26 @@ def main(argv: list[str] | None = None) -> int:
     p_skill.add_argument("--path", default="", help="Path for caveman gate")
     p_skill.add_argument("--json", action="store_true", help="JSON output")
 
+    p_sw = sub.add_parser(
+        "switchboard",
+        help="Unified seat mesh — peers, reap, tier-bounded steer drops",
+    )
+    p_sw.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["status", "mesh", "peers", "reap", "drop", "route", "self-test"],
+        help="status|mesh|peers|reap|drop|route|self-test",
+    )
+    p_sw.add_argument("rest", nargs="*", help="drop target + context, or route goal")
+    p_sw.add_argument("--from", dest="from_ref", default="operator", help="drop source peer")
+    p_sw.add_argument("--tier", default="T2", help="drop tier T0-T3")
+    p_sw.add_argument("--spooky", action="store_true", help="Lawful cross-seat share label")
+    p_sw.add_argument("--dry", action="store_true", help="Plan only")
+    p_sw.add_argument("--live", action="store_true", help="peers: running tasks only")
+    p_sw.add_argument("--group", default="", help="peers: filter by group")
+    p_sw.add_argument("--json", action="store_true", help="JSON output for status")
+
     p_blast = sub.add_parser(
         "blast",
         help="Full-blast self-improve plant with influence dials (dash + CLI)",
@@ -1506,6 +1526,72 @@ def main(argv: list[str] | None = None) -> int:
             res = run_gate(sid, path=(getattr(args, "path", "") or "").strip())
             print(json.dumps(res, indent=2, default=str)[:12000])
             return 0 if res.get("pass", res.get("ok")) else 1
+        return 2
+    if args.cmd == "switchboard":
+        from mag.switchboard import (
+            format_status_text,
+            mesh,
+            peers,
+            reap,
+            route_intent,
+            self_test,
+            status,
+            steer_drop,
+        )
+
+        action = getattr(args, "action", "status") or "status"
+        if action == "self-test":
+            res = self_test()
+            print(json.dumps(res, indent=2, default=str))
+            return 0 if res.get("ok") else 1
+        if action == "status":
+            s = status()
+            if getattr(args, "json", False):
+                print(json.dumps(s, indent=2, default=str)[:12000])
+            else:
+                print(format_status_text(s))
+            return 0
+        if action == "mesh":
+            print(json.dumps(mesh(), indent=2, default=str)[:16000])
+            return 0
+        if action == "peers":
+            print(json.dumps(
+                peers(
+                    group=(getattr(args, "group", "") or None) or None,
+                    live_only=bool(getattr(args, "live", False)),
+                ),
+                indent=2,
+                default=str,
+            )[:12000])
+            return 0
+        if action == "reap":
+            print(json.dumps(reap(), indent=2, default=str))
+            return 0
+        if action == "drop":
+            rest = list(getattr(args, "rest", []) or [])
+            if len(rest) < 2:
+                print("Usage: main.py switchboard drop <to_peer> <context...>")
+                return 2
+            to_ref = rest[0]
+            context = " ".join(rest[1:]).strip()
+            res = steer_drop(
+                getattr(args, "from_ref", "operator") or "operator",
+                to_ref,
+                context,
+                tier=getattr(args, "tier", "T2") or "T2",
+                spooky=bool(getattr(args, "spooky", False)),
+                dry=bool(getattr(args, "dry", False)),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
+        if action == "route":
+            goal = " ".join(getattr(args, "rest", []) or []).strip()
+            if not goal:
+                print('Usage: main.py switchboard route "goal text"')
+                return 2
+            res = route_intent(goal, dry=bool(getattr(args, "dry", False)))
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0
         return 2
     if args.cmd == "field-steal":
         from mag.field_steal import run_field_steal
