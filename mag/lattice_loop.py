@@ -22,6 +22,7 @@ from typing import Any
 
 from config import ROOT
 
+# ponytail: external preset only — not session DNA; optional spore on host with scaffold path
 _SM = (
     Path.home()
     / "Documents"

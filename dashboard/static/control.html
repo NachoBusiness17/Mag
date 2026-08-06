@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direct Mag</title><style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#06100d;color:#d8fff0}body{margin:auto;max-width:760px;padding:20px}h1{color:#39f59b;margin-bottom:4px}.muted{color:#75a993}label{display:block;margin:18px 0 6px}input,textarea,select,button{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #176c4a;background:#081913;color:#eafff7;border-radius:6px}textarea{min-height:170px;resize:vertical}button{margin-top:12px;background:#0f6f49;font-weight:700;cursor:pointer}button:disabled{opacity:.5}pre{white-space:pre-wrap;background:#030a08;border:1px solid #154533;padding:12px;min-height:80px}.row{display:grid;grid-template-columns:1fr 140px;gap:10px}@media(max-width:540px){.row{grid-template-columns:1fr}}
+</style></head><body><h1>Direct Mag</h1><div class="muted">File work from your tablet. Mag routes it to the cheapest capable worker, queues it, and preserves the handoff for audit.</div>
+<label for="token">Remote token</label><input id="token" type="password" autocomplete="off" placeholder="MAG_REMOTE_TOKEN from the PC">
+<label for="goal">What outcome do you want?</label><textarea id="goal" placeholder="Describe the finished result and any constraints. Mag will plan the route and queue implementation."></textarea>
+<div class="row"><button id="send">Route and queue</button><button id="refresh">Refresh status</button></div><pre id="out">Enter the token, then refresh status.</pre>
+<script>
+const $=id=>document.getElementById(id), out=$('out');
+function headers(){return {'Content-Type':'application/json','Authorization':'Bearer '+$('token').value}}
+async function call(path,options={}){out.textContent='Working…';try{const r=await fetch(path,{...options,headers:headers()});const j=await r.json();if(!r.ok)throw Error(j.error||('HTTP '+r.status));out.textContent=format(j)}catch(e){out.textContent='Could not complete: '+e.message}}
+function format(j){if(j.schema==='remote_control_status.v1'){const r=j.repo||{},q=j.queue||{},changed=(r.changed_tracked||0)+(r.untracked||0);return `Mag is reachable\nBranch: ${r.branch||'—'}\nHandoff ready: ${r.handoff_ready?'yes':'not yet'}\nChanged: ${changed}\nActive queue: ${q.active??0}\nMode: queue only (no remote shell or approvals)`}const ex=j.envelope?.execution||{};return `Status: ${j.status||'blocked'}\nWorker: ${ex.provider||ex.seat||'—'}\nIntent: ${j.envelope?.intent_id||'—'}\nQueue: ${j.receipt?.queue_id||'filed'}\nReceipt: ${(j.receipt?.sha256||'').slice(0,16)}…`}
+$('refresh').onclick=()=>call('/api/v1/remote/status');$('send').onclick=()=>call('/api/v1/remote/intent',{method:'POST',body:JSON.stringify({goal:$('goal').value,depth:'job'})});
+</script></body></html>

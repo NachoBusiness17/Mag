@@ -269,9 +269,21 @@ async function parseApiResponse(r, url) {
   return data;
 }
 
-async function getJSON(url) {
-  const r = await fetch(url, { cache: "no-store" });
-  return parseApiResponse(r, url);
+async function getJSON(url, opts = {}) {
+  const ms = opts.timeoutMs ?? 8000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    return await parseApiResponse(r, url);
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Timeout after ${Math.round(ms / 1000)}s — ${url}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function postJSON(url, body, opts = {}) {
@@ -326,6 +338,85 @@ function activePane() {
   return dock?.dataset?.win || "home";
 }
 
+/** URL hash (#desk / #chat) or ?tab=chat — agent launcher uses ?tab=chat */
+function parseInitialTab() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const q = (params.get("tab") || params.get("view") || "").trim().toLowerCase();
+    if (q) {
+      if (q === "desk" || q === "chat") return "chat";
+      if (q === "office" || q === "home" || q === "map") return "home";
+      if (q === "days" || q === "sessions") return "sessions";
+      return q;
+    }
+    const hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
+    if (hash === "desk" || hash === "chat") return "chat";
+    if (hash === "home" || hash === "office") return "home";
+    if (hash === "days" || hash === "sessions") return "sessions";
+    if (hash) return hash;
+  } catch {
+    /* ignore */
+  }
+  return "home";
+}
+
+let economyTimer = null;
+
+function stopEconomyPoll() {
+  if (economyTimer) {
+    clearInterval(economyTimer);
+    economyTimer = null;
+  }
+}
+
+function startEconomyPoll() {
+  if (economyTimer || activePane() !== "chat") return;
+  refreshEconomy();
+  economyTimer = setInterval(() => {
+    if (activePane() === "chat") refreshEconomy();
+  }, 20000);
+}
+
+function stopOperatorInboxPoll() {
+  if (_inboxPollTimer) {
+    clearInterval(_inboxPollTimer);
+    _inboxPollTimer = null;
+  }
+}
+
+function stopDeskOpsPoll() {
+  if (window.__deskOpsTimer) {
+    clearInterval(window.__deskOpsTimer);
+    window.__deskOpsTimer = null;
+  }
+}
+
+function stopDeskConductorPoll() {
+  if (deskConductorTimer) {
+    clearInterval(deskConductorTimer);
+    deskConductorTimer = null;
+  }
+  deskConductorKeepalive = false;
+}
+
+function stopChroniclePoll() {
+  if (chronicleTimer) {
+    clearInterval(chronicleTimer);
+    chronicleTimer = null;
+  }
+}
+
+function stopAllTabPolls() {
+  stopLocalPulsePoll();
+  stopOperatorInboxPoll();
+  stopDeskOpsPoll();
+  stopDeskConductorPoll();
+  stopStackPoll();
+  stopStatusPoll();
+  stopChroniclePoll();
+  stopEconomyPoll();
+}
+
 function kvRows(tbody, rows) {
   if (!tbody) return;
   tbody.innerHTML = rows
@@ -351,7 +442,63 @@ function shortHash(h) {
   return String(h).slice(0, 10) + "…";
 }
 
+const DASHBOARD_VIEW_SECTION = {
+  home: "home", chronicle: "home",
+  sessions: "history", diary: "history", story: "history", verkle: "history",
+  ideas: "projects",
+  chat: "run", status: "run", orchestrate: "run", viewports: "run",
+  ingest: "library",
+  stack: "system", blast: "system", flow: "system", board: "system",
+};
+const DASHBOARD_SECTION_DEFAULT = {
+  home: "home", projects: "ideas", history: "sessions", run: "chat", library: "ingest", system: "stack",
+};
+const DASHBOARD_SECTION_COPY = {
+  home: "What matters now",
+  projects: "Briefs, sprints, roadmap, and open needs",
+  history: "What happened and why",
+  run: "Direct work through the cheapest proven capable seat",
+  library: "Research, reusable skills, and lessons",
+  system: "Health, learning, and raw state",
+};
+
+function syncDashboardNav(view) {
+  const requested = String(view || "home").toLowerCase();
+  const section = DASHBOARD_VIEW_SECTION[requested] || "home";
+  document.querySelectorAll("[data-dashboard-section]").forEach((btn) => {
+    const on = btn.dataset.dashboardSection === section;
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll("[data-dashboard-group]").forEach((group) => {
+    group.classList.toggle("on", group.dataset.dashboardGroup === section);
+  });
+  document.querySelectorAll("[data-dashboard-view]").forEach((btn) => {
+    btn.classList.toggle("on", btn.dataset.dashboardView === requested);
+  });
+  if ($("#dashboardNavContext")) {
+    $("#dashboardNavContext").textContent = DASHBOARD_SECTION_COPY[section] || "";
+  }
+}
+
+function wireDashboardNav() {
+  document.querySelectorAll("[data-dashboard-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const section = btn.dataset.dashboardSection || "home";
+      const active = document.querySelector(`[data-dashboard-group="${section}"] [data-dashboard-view].on`);
+      setTab(active?.dataset.dashboardView || DASHBOARD_SECTION_DEFAULT[section] || "home");
+    });
+  });
+  document.querySelectorAll("[data-dashboard-view]").forEach((btn) => {
+    btn.addEventListener("click", () => setTab(btn.dataset.dashboardView || "home"));
+  });
+  document.querySelectorAll("[data-open-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => setTab(btn.dataset.openTab || "home"));
+  });
+}
+
 function setTab(name) {
+  const requestedName = name;
   if (name === "osdepth") {
     const strip = $("#magOsStrip");
     if (strip) {
@@ -360,8 +507,26 @@ function setTab(name) {
     }
     return;
   }
+  let daysView = null;
+  if (name === "diary") {
+    name = "sessions";
+    daysView = "diary";
+  } else if (name === "chronicle") {
+    name = "sessions";
+    daysView = "pulse";
+  } else if (name === "story") {
+    name = "sessions";
+    daysView = "story";
+  } else if (name === "viewports") {
+    name = "chat";
+    setTimeout(() => toggleRoutingNetwork(true), 80);
+  }
   if (name === "office") name = "home";
   if (name === "days" || name === "tapestry") name = "sessions";
+
+  syncDashboardNav(requestedName);
+
+  stopAllTabPolls();
 
   // Single-focus desk: dock opens one full pane
   if (window.magWin?.open) {
@@ -383,7 +548,12 @@ function setTab(name) {
   if (name === "home") loadHome();
   if (name === "chat") {
     renderChat();
-    refreshEconomy();
+    try {
+      initAgentDesk();
+    } catch (e) {
+      console.error("initAgentDesk", e);
+    }
+    startEconomyPoll();
     startOperatorInboxPoll();
     setTimeout(() => $("#chatInput")?.focus(), 50);
   }
@@ -392,12 +562,17 @@ function setTab(name) {
   if (name === "blast") loadBlast();
   if (name === "flow") loadFlow();
   if (name === "verkle") loadVerkle();
-  if (name === "viewports") loadViewports();
+  if (name === "viewports") {
+    loadViewports();
+    refreshArena();
+  }
   if (name === "ingest") loadIngest();
   if (name === "board") loadBoard();
   if (name === "visual") loadVisual();
   if (name === "ideas") loadIdeas();
-  if (name === "status") loadStatus();
+  if (name === "status") startStatusPoll();
+  if (name === "stack") startStackPoll();
+  if (name === "featurelab") loadFeatureLab();
   if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
@@ -406,8 +581,8 @@ function setTab(name) {
       fr.src = "/static/agents.html?embed=1&t=" + Date.now();
     }
   }
-  if (name === "diary") loadDiary();
-  if (name === "story") loadStory();
+  if (name === "diary" && !daysView) loadDiary();
+  if (name === "story" && !daysView) loadStory();
   if (name === "sessions") {
     document.body.classList.add("desk-tabs", "cli");
     const win = document.getElementById("win-sessions");
@@ -473,6 +648,7 @@ function setTab(name) {
         }
       });
     loadTapestry().catch((e) => console.warn("tapestry", e));
+    if (daysView) setTimeout(() => openDaysView(daysView), 120);
   }
   if (name === "detail" && selectedId) {
     if (typeof selectSession === "function") selectSession(selectedId);
@@ -486,6 +662,7 @@ function renderVerkleMap(h) {
   const ship = h.ship || {};
   const verify = h.verify || {};
   const prov = h.provenance || {};
+
   const phoenix = h.phoenix || {};
   const econ = h.economy_today || {};
   const compose = h.compose || {};
@@ -549,6 +726,52 @@ function renderVerkleMap(h) {
   `;
 }
 
+function attentionCard(item) {
+  const evidence = (item.evidence || []).filter(Boolean).slice(0, 3);
+  return `<article class="attention-card attention-${esc(String(item.band || "P4").toLowerCase())}" data-attention-id="${esc(item.id)}">
+    <div class="attention-card-head"><span class="attention-band">${esc(item.band)}</span><strong>${esc(item.headline)}</strong><span class="attention-score">${esc(item.score)}/100</span></div>
+    <p>${esc(item.meaning || "")}</p>
+    <p class="attention-action"><span>Suggested</span> ${esc(item.operator_action || "Inspect this signal.")}</p>
+    <details><summary>Why this rank</summary><p class="muted sm">${esc(item.rank_reason || "")}</p>${evidence.length ? `<ul class="signal-list sm">${evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>
+    <div class="attention-controls">
+      <button type="button" class="btn ghost btn-sm attention-route" data-kind="${esc(item.kind)}">${item.kind === "roadmap" ? "Open roadmap" : item.kind === "worker" ? "Open workers" : "Inspect"}</button>
+      <button type="button" class="btn ghost btn-sm attention-direct">Direct Mag</button>
+      ${item.hard_rule ? "" : `<button type="button" class="attention-feedback" data-signal="useful">Useful</button><button type="button" class="attention-feedback" data-signal="wallpaper">Wallpaper</button><button type="button" class="attention-feedback" data-signal="pin">Pin</button><button type="button" class="attention-feedback" data-signal="mute">Mute</button>`}
+    </div>
+  </article>`;
+}
+
+async function loadRankedAttention() {
+  const list = $("#rankedAttentionList");
+  if (!list) return;
+  try {
+    const data = await getJSON("/api/v1/attention-ranked");
+    const items = data.items || [];
+    const important = items.filter((x) => ["P0", "P1", "P2"].includes(x.band));
+    const low = items.filter((x) => !["P0", "P1", "P2"].includes(x.band));
+    list.innerHTML = important.length ? important.map(attentionCard).join("") : `<p class="muted">Nothing currently needs intervention.</p>`;
+    const lowWrap = $("#rankedAttentionLow");
+    if (lowWrap) lowWrap.classList.toggle("hidden", !low.length);
+    if ($("#rankedAttentionLowList")) $("#rankedAttentionLowList").innerHTML = low.map(attentionCard).join("");
+    const counts = data.counts || {};
+    if ($("#rankedAttentionMeta")) $("#rankedAttentionMeta").textContent = `${counts.P0 || 0} interrupt · ${counts.P1 || 0} act · ${counts.P2 || 0} monitor · ${data.ranker || "ranker"}`;
+    document.querySelectorAll(".attention-route").forEach((btn) => btn.addEventListener("click", () => {
+      setTab(btn.dataset.kind === "roadmap" ? "ideas" : "status");
+    }));
+    document.querySelectorAll(".attention-direct").forEach((btn) => btn.addEventListener("click", () => setTab("chat")));
+    document.querySelectorAll(".attention-feedback").forEach((btn) => btn.addEventListener("click", async () => {
+      const card = btn.closest("[data-attention-id]");
+      try {
+        await postJSON("/api/v1/attention-feedback", { item_id: card.dataset.attentionId, signal: btn.dataset.signal });
+        toast(`Attention marked ${btn.dataset.signal}`);
+        await loadRankedAttention();
+      } catch (e) { toast(String(e.message || e), "err"); }
+    }));
+  } catch (e) {
+    list.innerHTML = `<p class="muted">Ranked attention is offline: ${esc(String(e.message || e))}</p>`;
+  }
+}
+
 async function loadHome() {
   let h = {};
   try {
@@ -587,8 +810,54 @@ async function loadHome() {
   const verify = h.verify || {};
   const prov = h.provenance || {};
 
+  // Home is the current project brief, not a pile of machine counters.
+  // The long-form Story remains the source; Home selects decision-useful fields.
+  let storyBrief = {};
+  try {
+    storyBrief = await getJSON("/api/v1/story");
+  } catch {
+    storyBrief = {};
+  }
+  const whereBrief = storyBrief.where_we_are || {};
+  const thesisBrief = storyBrief.thesis || {};
+  const liveBrief = storyBrief.live || {};
+  if ($("#homeBriefTitle")) $("#homeBriefTitle").textContent = storyBrief.title || "What Mag understands about the work";
+  if ($("#homeBriefThesis")) $("#homeBriefThesis").textContent = thesisBrief.one_line || storyBrief.subtitle || h.headline || "No project thesis has been filed yet.";
+  if ($("#homeBriefPhase")) $("#homeBriefPhase").textContent = whereBrief.phase || "The current phase has not been interpreted yet.";
+  if ($("#homeBriefWhy")) $("#homeBriefWhy").textContent = (storyBrief.why || [])[0]?.body || "This position is reconstructed from filed story, workdays, and project evidence.";
+  const briefList = (selector, rows, empty) => {
+    const el = $(selector);
+    if (!el) return;
+    const clean = (rows || []).filter(Boolean).slice(0, 5);
+    el.innerHTML = clean.length ? clean.map((x) => `<li>${esc(String(x))}</li>`).join("") : `<li class="muted">${esc(empty)}</li>`;
+  };
+  briefList("#homeBriefProgress", whereBrief.held, "No verified progress has been summarized yet.");
+  briefList("#homeBriefAttention", [...(whereBrief.open || []), ...(liveBrief.open_loops || [])], "No consequential open need is currently filed.");
+  if ($("#homeBriefNext")) $("#homeBriefNext").textContent = (storyBrief.how_to_live_it || [])[0] || traj.primary_next || "Choose one project need and direct Mag.";
+  await loadRankedAttention();
+
   if ($("#homeHeadline")) {
     $("#homeHeadline").textContent = h.headline || "Your last filed day";
+  }
+
+  // Lightweight run status — no desk/orchestrator polls on Home
+  if ($("#homeRunStatus")) {
+    try {
+      const fm = await getJSON("/api/v1/factory-machine");
+      const lr = fm.latest_report || {};
+      const phases = lr.phases || {};
+      const bits = [
+        fm.branch ? `branch ${fm.branch}` : null,
+        lr.phase ? `last ${lr.phase}` : null,
+        phases.sprint?.ticks != null ? `${phases.sprint.ticks} ticks` : null,
+        fm.retrospective_path ? "retro filed" : null,
+      ].filter(Boolean);
+      $("#homeRunStatus").textContent = bits.length
+        ? `Run · ${bits.join(" · ")}`
+        : "Run · idle — Launch agent to start a machine sprint";
+    } catch {
+      $("#homeRunStatus").textContent = "Run · status offline";
+    }
   }
 
   const lp = h.launch_pad || {};
@@ -876,8 +1145,15 @@ async function loadHome() {
 
 /* --- Chat-first home --- */
 const CHAT_KEY = "mag_chat_v1";
-let chatMode = "agent"; // agent | ask | dispatch | tangent
+const CHAT_HISTORY_MAX = 24;
+const CHAT_MSG_MAX_CHARS = 6000;
+const CHAT_STREAM_IDLE_MS = 120000;
+const CHAT_STREAM_MAX_MS = 600000;
+const BIOGRAPHER_Q =
+  /^(what was i doing|what should i do next|is the office healthy|what next)/i;
+let chatMode = "ask"; // ask default — agent/tools → Shell
 let chatBusy = false;
+let chatPendingEl = null;
 const AGENT_SESSION = "dashboard";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
@@ -964,14 +1240,334 @@ function loadChatHistory() {
   try {
     const raw = localStorage.getItem(CHAT_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.slice(-80) : [];
+    if (!Array.isArray(arr)) return [];
+    // Drop stale pending rows (agent stream died mid-turn).
+    return arr.filter((m) => m.meta !== "pending").slice(-CHAT_HISTORY_MAX);
   } catch {
     return [];
   }
 }
 
 function saveChatHistory(msgs) {
-  localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-80)));
+  localStorage.setItem(
+    CHAT_KEY,
+    JSON.stringify(msgs.filter((m) => m.meta !== "pending").slice(-CHAT_HISTORY_MAX))
+  );
+}
+
+let deskConductorKeepalive = false;
+let deskConductorTimer = null;
+
+function applyConductorGlance(g) {
+  const badge = $("#deskOrchAction");
+  const adv = $("#deskOrchAdvisory");
+  const meta = $("#deskOrchMeta");
+  if (!badge || !adv) return;
+  const action = g?.next_action || "hold";
+  badge.textContent = g?.next_label || action;
+  badge.className = `desk-orch-badge ${action.startsWith("wake") ? "action-wake" : action.startsWith("wait") ? "action-wait" : ""}`;
+  const healthLine = g?.health_headline;
+  const showHealth = healthLine && g?.health_ok === false;
+  adv.textContent = showHealth ? healthLine : g?.keepalive_hint || "—";
+  if (meta) {
+    const cur = g?.cursor || {};
+    meta.textContent = [
+      g?.conductor_model ? `${g.conductor_backend || "local"} · ${g.conductor_model}` : null,
+      `cursor: ${cur.holder || "?"} · turn ${cur.turn ?? "?"}`,
+      cur.remote_asleep ? "deepseek asleep" : "deepseek awake",
+      cur.wake_pending ? "wake pending" : null,
+      cur.local_wake_pending ? "local wake pending" : null,
+      g?.trust_tier != null ? `trust tier ${g.trust_tier}` : null,
+      g?.scratch_tail ? `scratch: ${g.scratch_tail.slice(0, 60)}…` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  const modelEl = $("#deskOrchModel");
+  if (modelEl && g?.conductor_model) {
+    modelEl.textContent = ` · ${g.conductor_backend || "local"} · ${g.conductor_model}`;
+  }
+}
+
+async function refreshDeskConductor() {
+  try {
+    const g = await getJSON("/api/v1/desk-dialogue?conductor=1");
+    applyConductorGlance(g);
+    return g;
+  } catch (e) {
+    if ($("#deskOrchAdvisory")) $("#deskOrchAdvisory").textContent = String(e.message || e);
+    return null;
+  }
+}
+
+async function deskConductorTick({ autoAct = true, note = "", prompt = "" } = {}) {
+  const btn = $("#btnOrchTick");
+  if (btn) btn.disabled = true;
+  const conductorPrompt =
+    prompt ||
+    ($("#deskConductorPrompt")?.value || "").trim() ||
+    note ||
+    ($("#deskOperatorNote")?.value || "").trim();
+  if (conductorPrompt) {
+    await commitIntentToCanvas({ goal: conductorPrompt });
+  }
+  try {
+    const res = await postJSON(
+      "/api/v1/desk-dialogue",
+      {
+        conductor_tick: true,
+        auto_act: autoAct,
+        conductor_prompt: conductorPrompt,
+        operator_note: ($("#deskOperatorNote")?.value || "").trim(),
+      },
+      { timeoutMs: 300000 }
+    );
+    if (res.glance) applyConductorGlance(res.glance);
+    const plan = res.plan || res.advisory || {};
+    const adv = plan.advisory || plan.error || res.error;
+    if (adv && $("#deskOrchAdvisory")) $("#deskOrchAdvisory").textContent = adv;
+    if (plan.backend && $("#deskOrchModel")) {
+      $("#deskOrchModel").textContent = ` · ${plan.backend}${plan.model ? ` · ${plan.model}` : ""}`;
+    }
+    if (res.scratch_applied) toast("Conductor · scratch updated", true);
+    if (res.acted?.ok) {
+      const sp = res.acted.speaker || "?";
+      await applyDialogueResult(sp, res.acted, sp === "local" ? $("#localChatLog") : $("#remoteChatLog"), null);
+      if (res.action_taken === "frontier_commit" || res.frontier_commit?.server_committed) {
+        toast(`Overseer · frontier committed move (Local echo loop broken)`, true);
+      } else if (res.action_taken === "overseer_intervene") {
+        const sid = res.frontier_commit?.teaching?.artifact?.skill_id || res.teaching?.artifact?.skill_id;
+        toast(sid ? `Overseer · skill filed ${sid}` : `Overseer · teaching loop + episode recorded`, true);
+      } else if (res.acted.wake_blocked) {
+        toast(`Local · no move extracted — DeepSeek not woken`, false);
+      } else if (res.acted.local_adapter?.normalized) {
+        toast(`Local · move normalized from ${res.acted.local_adapter.extracted_from || "reply"}`, true);
+      } else if (res.memory_packet?.mode) {
+        toast(`Orchestrator · Local ${res.memory_packet.mode} memory`, true);
+      }
+      if (sp === "remote" && res.acted.local_wake_pending) {
+        await deskLocalHandoffFollowup(res.acted);
+      }
+      if (sp === "local" && localWakeOk(res.acted)) {
+        const remoteRes = await deskRemoteWakeAfterLocal(res.acted, conductorPrompt);
+        if (remoteRes?.local_wake_pending) await deskLocalHandoffFollowup(remoteRes);
+      }
+      toast(`Conductor · ${res.action_taken || "tick"}`, true);
+    } else if (res.acted && !res.acted.ok) {
+      toast(`Conductor: ${res.acted.error || "turn failed"}`, false);
+    } else if (plan.scratch_update && !res.scratch_applied) {
+      toast(`Conductor · ${res.recommended || "advised"}`, true);
+    } else {
+      toast(`Conductor · ${res.recommended || "hold"}`, true);
+    }
+    await loadAgentDeskCanvas();
+    await refreshDeskConductor();
+    return res;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deskRunSprint() {
+  const btn = $("#btnRunSprint");
+  if (btn) btn.disabled = true;
+  const note = ($("#deskConductorPrompt")?.value || "").trim();
+  setDeskMachineChip("machine · sprint…");
+  try {
+    let res;
+    try {
+      res = await postJSON(
+        "/api/v1/factory-machine",
+        { action: "run", note },
+        { timeoutMs: 900000 }
+      );
+    } catch (fmErr) {
+      res = await postJSON(
+        "/api/v1/coding-session",
+        { action: "run", note },
+        { timeoutMs: 600000 }
+      );
+      if (fmErr && !res) throw fmErr;
+    }
+    const phase = res.phase || res.sprint?.phase || "?";
+    const reason = res.reason || res.sprint?.reason || "";
+    const path = res.report_path || res.report?.report_path || res.retrospective_path;
+    if (phase === "closed") {
+      if (reason === "already_closed") {
+        toast(
+          "Session closed — seed a new sprint: mag.cmd coding-session seed or factory-machine --force-new-seed",
+          false
+        );
+      } else {
+        toast(path ? `Machine closed — ${path}` : "Machine closed — review inbox", true);
+      }
+    } else if (phase === "preflight_fail") {
+      toast(`Preflight failed — fix gates before rerun`, false);
+    } else {
+      toast(`Machine stopped: ${phase}${path ? ` · ${path}` : ""}`, res.ok !== false);
+    }
+    await refreshHandoffInbox();
+    await refreshIdeasScrum();
+    await loadAgentDeskCanvas();
+    await refreshDeskConductor();
+    refreshDeskMachineStatus();
+    return res;
+  } catch (e) {
+    toast(String(e.message || e), false);
+    refreshDeskMachineStatus();
+    return { ok: false, error: String(e.message || e) };
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function setDeskMachineChip(text) {
+  const el = $("#deskOpsMachine");
+  if (el) el.textContent = text;
+}
+
+async function refreshDeskMachineStatus() {
+  const el = $("#deskOpsMachine");
+  if (!el) return;
+  try {
+    const fm = await getJSON("/api/v1/factory-machine");
+    const lr = fm.latest_report || {};
+    const ph = lr.phases || {};
+    const order = ["branch", "sprint", "retro", "bead", "behavioral"];
+    const labels = order
+      .filter((k) => ph[k])
+      .map((k) => {
+        if (k === "sprint") return `sprint:${lr.phase || ph.sprint?.phase || "?"}`;
+        if (k === "branch") return ph.branch?.ok ? "branch" : "branch?";
+        return k.slice(0, 5);
+      });
+    el.textContent = labels.length
+      ? `machine · ${labels.join(" · ")}`
+      : `machine · ${fm.branch || "idle"}`;
+  } catch {
+    el.textContent = "machine —";
+  }
+}
+
+async function deskConductorPercolate({ rounds = 4, prompt = "" } = {}) {
+  if (chatBusy) return;
+  chatBusy = true;
+  const conductorPrompt =
+    prompt ||
+    ($("#deskConductorPrompt")?.value || "").trim() ||
+    ($("#deskOperatorNote")?.value || "").trim();
+  let last = null;
+  try {
+    for (let i = 0; i < rounds; i++) {
+      last = await deskConductorTick({ autoAct: true, prompt: conductorPrompt });
+      if (!last?.ok) break;
+      const g = last.glance || (await refreshDeskConductor());
+      const action = g?.next_action;
+      if (!action || action === "hold" || action === "remote_awake") break;
+      if (action === "frontier_commit") {
+        await deskConductorTick({ autoAct: true, prompt: conductorPrompt });
+        break;
+      }
+      if (action === "overseer_intervene") {
+        await deskConductorTick({ autoAct: true, prompt: conductorPrompt });
+        toast("Overseer · context heal + episode recorded", true);
+        break;
+      }
+      if (last.acted?.ok && last.acted.speaker === "local" && !localWakeOk(last.acted)) {
+        break;
+      }
+      if (last.acted?.ok && last.acted.speaker === "remote" && !meaningfulCanvasEdit(last.acted.canvas_edit)) {
+        break;
+      }
+    }
+    toast(`Conductor loop · ${rounds} max`, true);
+  } finally {
+    chatBusy = false;
+  }
+  return last;
+}
+
+function setDeskConductorKeepalive(on) {
+  deskConductorKeepalive = on;
+  const btn = $("#btnOrchKeepalive");
+  if (btn) {
+    btn.textContent = on ? "Keep alive ON" : "Keep alive";
+    btn.classList.toggle("primary", on);
+    btn.classList.toggle("ghost", !on);
+  }
+  if (deskConductorTimer) {
+    clearInterval(deskConductorTimer);
+    deskConductorTimer = null;
+  }
+  if (on) {
+    deskConductorTimer = setInterval(async () => {
+      if (chatBusy) return;
+      const g = await refreshDeskConductor();
+      const action = g?.next_action;
+      if (action === "wake_local" || action === "wake_remote" || action === "waiting_local_edit") {
+        chatBusy = true;
+        try {
+          await deskConductorTick({ autoAct: true });
+        } catch (e) {
+          toast(String(e.message || e), false);
+        } finally {
+          chatBusy = false;
+        }
+      }
+    }, 12000);
+  }
+}
+
+async function refreshChatPreflight() {
+  const orch = $("#deskOrchestrator");
+  if (orch) {
+    await refreshDeskConductor();
+    try {
+      const d = await getJSON("/api/v1/desk-dialogue");
+      applyDeskTimings(d);
+    } catch {
+      /* offline */
+    }
+    return;
+  }
+  const el = $("#chatPreflight");
+  if (!el) return;
+  const mode = chatMode;
+  const shellHint =
+    mode === "agent"
+      ? " · tools — prefer Shell for long loops"
+      : mode === "ask"
+        ? " · local biographer"
+        : "";
+  el.textContent = `Preflight · desk · loading…${shellHint}`;
+  let localModel = "desk_orchestrator";
+  try {
+    const d = await getJSON("/api/v1/desk-dialogue");
+    if (d.local_model) localModel = d.local_model;
+    applyDeskTimings(d);
+  } catch {
+    /* offline */
+  }
+  let quota = "quota offline";
+  try {
+    const q = await getJSON("/api/v1/quota");
+    const rows = q.providers || q.budgets || [];
+    const ds =
+      rows.find((r) => (r.provider || r.id) === "deepseek") ||
+      (q.budgets || []).find((r) => r.provider === "deepseek");
+    if (ds) {
+      const used = ds.used_tokens ?? ds.tokens ?? 0;
+      const max = ds.max_tokens;
+      const calls = ds.used_calls ?? ds.calls ?? 0;
+      quota =
+        max != null
+          ? `deepseek ${used}/${max} tok · ${calls} calls`
+          : `deepseek ${used} tok · ${calls} calls`;
+    }
+  } catch {
+    /* offline */
+  }
+  el.textContent = `Preflight · desk · local=${localModel} · remote=DeepSeek · ${quota}${shellHint}`;
 }
 
 async function refreshEconomy() {
@@ -1027,6 +1623,141 @@ function mdTable(block) {
   });
   html += "</tbody></table>";
   return html;
+}
+
+function sectionKind(title) {
+  const t = (title || "").trim().toLowerCase();
+  if (/^(tl;?dr|summary|headline|one line)/.test(t)) return "reply-tldr";
+  if (/^(what i did|actions|artifacts|files touched|done)/.test(t)) return "reply-did";
+  if (/^(what i think|assessment|reflection|read|interpretation)/.test(t)) return "reply-think";
+  if (/^(next|move|recommend|steer)/.test(t)) return "reply-next";
+  if (/^(open|unknown|limits|honest|don't know|unsure)/.test(t)) return "reply-open";
+  if (/^(sources|memory|citations)/.test(t)) return "reply-sources";
+  return "reply-section";
+}
+
+/** Human-readable agent reply — sections, tool steps, introspective headers. */
+function formatAgentReply(raw) {
+  let text = String(raw || "");
+  if (!text.trim()) return "<p class='reply-empty muted'>—</p>";
+
+  // Collapse inline tool traces from agent stream into details blocks.
+  const toolSteps = [];
+  text = text.replace(/\n\[([^\]\n]+)\]([^\n]*)/g, (_m, name, args) => {
+    toolSteps.push({ name: String(name).trim(), args: String(args || "").trim() });
+    return "";
+  });
+
+  const parts = [];
+  if (toolSteps.length) {
+    const rows = toolSteps
+      .map(
+        (s, i) =>
+          `<li><code>${esc(s.name)}</code>${s.args ? ` <span class="muted sm">${esc(s.args.slice(0, 120))}</span>` : ""}</li>`
+      )
+      .join("");
+    parts.push(
+      `<details class="reply-tools"><summary>Tool steps (${toolSteps.length})</summary><ol class="tool-step-list">${rows}</ol></details>`
+    );
+  }
+
+  // Split on fenced code first, then section headers within text.
+  const fence = /```[\w]*\n([\s\S]*?)```/g;
+  const segments = [];
+  let last = 0;
+  let m;
+  while ((m = fence.exec(text))) {
+    if (m.index > last) segments.push({ t: "text", v: text.slice(last, m.index) });
+    segments.push({ t: "code", v: m[1] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) segments.push({ t: "text", v: text.slice(last) });
+  if (!segments.length) segments.push({ t: "text", v: text });
+
+  function formatParagraphBlock(block) {
+    if (!block.trim()) return "";
+    if (block.includes("|") && block.split("\n").filter((l) => l.trim().startsWith("|")).length >= 2) {
+      const tbl = mdTable(block);
+      if (tbl) return tbl;
+    }
+    let t = esc(block);
+    t = t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+    t = t.replace(/^\* (.+)$/gm, "<li>$1</li>");
+    t = t.replace(/^- (.+)$/gm, "<li>$1</li>");
+    t = t.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+    if (t.includes("<li>")) t = `<ul class="reply-ul">${t}</ul>`;
+    t = t.replace(/\n\n+/g, "</p><p>");
+    t = t.replace(/\n/g, " ");
+    return `<p>${t}</p>`;
+  }
+
+  function formatTextChunk(chunk) {
+    const lines = chunk.split("\n");
+    let html = "";
+    let sectionOpen = false;
+    let paraBuf = [];
+
+    const closeSection = () => {
+      if (paraBuf.length) {
+        html += formatParagraphBlock(paraBuf.join("\n"));
+        paraBuf = [];
+      }
+      if (sectionOpen) {
+        html += "</section>";
+        sectionOpen = false;
+      }
+    };
+
+    const headerRe = /^#{1,3}\s+(.+)$/;
+    for (const line of lines) {
+      const hm = line.match(headerRe);
+      if (hm) {
+        closeSection();
+        const title = hm[1].trim();
+        const kind = sectionKind(title);
+        html += `<section class="${kind}"><h4 class="reply-h">${esc(title)}</h4>`;
+        sectionOpen = true;
+        continue;
+      }
+      if (!line.trim()) {
+        if (paraBuf.length) {
+          html += formatParagraphBlock(paraBuf.join("\n"));
+          paraBuf = [];
+        }
+        continue;
+      }
+      paraBuf.push(line);
+    }
+    closeSection();
+    return html;
+  }
+
+  for (const seg of segments) {
+    if (seg.t === "code") {
+      parts.push(`<pre class="md-pre"><code>${esc(seg.v)}</code></pre>`);
+    } else {
+      parts.push(formatTextChunk(seg.v));
+    }
+  }
+
+  const body = parts.join("");
+  if (body.includes('class="reply-')) return `<div class="reply-doc">${body}</div>`;
+
+  // Unsectioned: wrap first sentence as TL;DR if long.
+  const plain = esc(text).replace(/\n/g, " ").trim();
+  if (plain.length > 280) {
+    const dot = plain.indexOf(". ");
+    const tldr = dot > 40 && dot < 220 ? plain.slice(0, dot + 1) : plain.slice(0, 180) + "…";
+    return (
+      `<div class="reply-doc">` +
+      `<section class="reply-tldr"><h4 class="reply-h">TL;DR</h4><p>${tldr}</p></section>` +
+      `<section class="reply-section"><div class="chat-body-fallback">${lightMd(text)}</div></section>` +
+      `</div>`
+    );
+  }
+  return `<div class="reply-doc">${lightMd(text)}</div>`;
 }
 
 function lightMd(s) {
@@ -1103,7 +1834,10 @@ function renderChat() {
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Agent</b> = DeepSeek + Mag tools (Grok-like hands, no Grok tokens) · <b>Ask/Dispatch</b> = talk only · <b>Copy pack</b> for DeepSeek web · paste multi-line in the box.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Ask</b> = biographer over briefs/bonds (fast). <b>Shell</b> = file tree + streaming agent (tools). <b>Dispatch</b> = pack-first remote seat.</div>`;
+    if (chatPendingEl && chatPendingEl.parentNode === log) {
+      log.appendChild(chatPendingEl);
+    }
     return;
   }
   log.innerHTML = msgs
@@ -1117,14 +1851,1979 @@ function renderChat() {
           m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
           `</div>`;
       }
+      const raw = (m.text || "").slice(0, CHAT_MSG_MAX_CHARS);
       const body =
         role === "mag" || role === "sys"
-          ? lightMd(m.text || "")
-          : esc(m.text || "").replace(/\n/g, "<br/>");
-      return `<div class="chat-msg ${role}">${meta}<div class="chat-body">${body}</div>${toolsHtml}</div>`;
+          ? formatAgentReply(raw)
+          : esc(raw).replace(/\n/g, "<br/>");
+      return `<article class="chat-msg ${role} reply-card"><header class="reply-head">${meta}</header><div class="chat-body">${body}</div>${toolsHtml}</article>`;
     })
     .join("");
+  if (chatPendingEl && chatPendingEl.parentNode === log) {
+    log.appendChild(chatPendingEl);
+  }
   log.scrollTop = log.scrollHeight;
+}
+
+function beginPendingBubble() {
+  const log = $("#chatLog");
+  if (!log) return;
+  if (chatPendingEl) chatPendingEl.remove();
+  chatPendingEl = document.createElement("div");
+  chatPendingEl.className = "chat-msg mag pending";
+  chatPendingEl.innerHTML = `<span class="meta">thinking…</span><div class="chat-body">…</div>`;
+  log.appendChild(chatPendingEl);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updatePendingBubble(text) {
+  if (!chatPendingEl) beginPendingBubble();
+  const body = chatPendingEl?.querySelector(".chat-body");
+  if (body) {
+    body.textContent = (text || "…").slice(-CHAT_MSG_MAX_CHARS);
+    const log = $("#chatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+function endPendingBubble(finalText, meta, tools) {
+  if (chatPendingEl) {
+    chatPendingEl.remove();
+    chatPendingEl = null;
+  }
+  const msgs = loadChatHistory();
+  msgs.push({
+    role: "mag",
+    text: (finalText || "").slice(0, CHAT_MSG_MAX_CHARS),
+    meta: meta || "",
+    tools: tools || null,
+    ts: Date.now(),
+  });
+  saveChatHistory(msgs);
+  renderChat();
+}
+
+/* --- Agent desk (tri-lane: local | canvas | remote) --- */
+const LOCAL_CHAT_KEY = "mag_desk_local_v1";
+const REMOTE_CHAT_KEY = "mag_desk_remote_v1";
+const META_CHAT_KEY = "mag_desk_meta_v1";
+const DESK_REMOTE_SESSION = "desk-deepseek";
+let localPendingEl = null;
+let remotePendingEl = null;
+let metaPendingEl = null;
+let deskSaveTimer = null;
+let deskCanvasMode = "view";
+let deskCanvasFocused = false;
+const DESK_MIRROR_KEY = "mag_desk_mirror_v1";
+
+function deskMirrorOn() {
+  const el = $("#deskMirrorReplies");
+  if (el) return el.checked;
+  return localStorage.getItem(DESK_MIRROR_KEY) !== "0";
+}
+
+function renderDeskCanvasView() {
+  const view = $("#deskCanvasView");
+  const ta = $("#agentDeskCanvas");
+  if (!view || !ta) return;
+  const raw = ta.value || "";
+  if (!raw.trim()) {
+    view.innerHTML = `<p class="muted">Canvas empty — click <strong>Seed template</strong> or switch to Edit.</p>`;
+    return;
+  }
+  view.innerHTML = `<div class="desk-canvas-doc">${formatDeskCanvasMarkdown(raw)}</div>`;
+}
+
+function formatDeskCanvasMarkdown(raw) {
+  const lines = String(raw || "").split("\n");
+  let html = "";
+  let paraBuf = [];
+  const flushPara = () => {
+    if (!paraBuf.length) return;
+    html += formatParagraphBlock(paraBuf.join("\n"));
+    paraBuf = [];
+  };
+  for (const line of lines) {
+    const hm = line.match(/^#{1,3}\s+(.+)$/);
+    if (hm) {
+      flushPara();
+      const lvl = line.match(/^#+/)[0].length;
+      const tag = lvl === 1 ? "h3" : "h4";
+      html += `<${tag} class="reply-h">${esc(hm[1].trim())}</${tag}>`;
+      continue;
+    }
+    if (!line.trim()) {
+      flushPara();
+      continue;
+    }
+    paraBuf.push(line);
+  }
+  flushPara();
+  return html || `<p class="muted">—</p>`;
+}
+
+function formatParagraphBlock(block) {
+  if (!block.trim()) return "";
+  if (block.includes("|") && block.split("\n").filter((l) => l.trim().startsWith("|")).length >= 2) {
+    const tbl = mdTable(block);
+    if (tbl) return tbl;
+  }
+  let t = esc(block);
+  t = t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  t = t.replace(/^\* (.+)$/gm, "<li>$1</li>");
+  t = t.replace(/^- (.+)$/gm, "<li>$1</li>");
+  if (t.includes("<li>")) t = `<ul class="reply-ul">${t}</ul>`;
+  t = t.replace(/\n\n+/g, "</p><p>");
+  t = t.replace(/\n/g, " ");
+  return `<p>${t}</p>`;
+}
+
+function setDeskCanvasMode(mode) {
+  deskCanvasMode = mode === "edit" || mode === "split" ? mode : "view";
+  localStorage.setItem("mag_desk_canvas_mode", deskCanvasMode);
+  const body = $("#deskCanvasBody");
+  if (body) body.dataset.mode = deskCanvasMode;
+  ["view", "edit", "split"].forEach((m) => {
+    const btn = document.querySelector(`[data-mode="${m}"][id^="btnDesk"]`);
+    if (btn) btn.classList.toggle("on", m === deskCanvasMode);
+  });
+  const ta = $("#agentDeskCanvas");
+  if (ta) ta.hidden = deskCanvasMode === "view";
+  renderDeskCanvasView();
+}
+
+function toggleDeskCanvasFocus() {
+  deskCanvasFocused = !deskCanvasFocused;
+  $(".agent-desk-shell")?.classList.toggle("desk-canvas-focus", deskCanvasFocused);
+  const btn = $("#btnDeskExpand");
+  if (btn) btn.textContent = deskCanvasFocused ? "Unfocus" : "Focus";
+}
+
+async function appendToDeskCanvas(section, text, author) {
+  const body = String(text || "").trim();
+  if (!body) return;
+  try {
+    await postJSON("/api/v1/agent-desk", {
+      append: { section, text: body.slice(0, 4000), author },
+    });
+    await loadAgentDeskCanvas();
+    toast(`Appended to canvas · ${section}`, true);
+  } catch (e) {
+    toast(String(e.message || e), false);
+  }
+}
+
+async function mirrorLaneReply(which, text) {
+  if (!deskMirrorOn()) return;
+  const section =
+    which === "local" ? "Local (orchestrator)" : which === "remote" ? "Remote (DeepSeek)" : "Notes";
+  const author = which === "local" ? "orchestrator" : which === "remote" ? "deepseek" : "operator";
+  const excerpt = String(text || "").trim().slice(0, 3500);
+  if (!excerpt) return;
+  try {
+    await postJSON("/api/v1/agent-desk", {
+      append: { section, text: excerpt, author },
+    });
+    await loadAgentDeskCanvas();
+  } catch {
+    /* non-fatal */
+  }
+}
+let thinkingTimer = null;
+let thinkingStarted = 0;
+
+function loadLaneHistory(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter((m) => m.meta !== "pending").slice(-CHAT_HISTORY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLaneHistory(key, msgs) {
+  localStorage.setItem(
+    key,
+    JSON.stringify(msgs.filter((m) => m.meta !== "pending").slice(-CHAT_HISTORY_MAX))
+  );
+}
+
+function renderLaneMessage(m, laneKey) {
+  const role = m.role === "user" ? "user" : "mag";
+  const meta = m.meta ? `<span class="reply-meta">${esc(m.meta)}</span>` : "";
+  const timingBadge = m.timing
+    ? `<span class="reply-timing muted sm">${esc(formatTimingInline(m.timing))}</span>`
+    : "";
+  const ts = m.ts ? `<time class="reply-time muted sm">${new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>` : "";
+  const body =
+    role === "mag"
+      ? formatAgentReply((m.text || "").slice(0, CHAT_MSG_MAX_CHARS))
+      : esc(m.text || "").replace(/\n/g, "<br/>");
+  const lane = laneKey === LOCAL_CHAT_KEY ? "local" : laneKey === REMOTE_CHAT_KEY ? "remote" : "";
+  const pinBtn =
+    role === "mag"
+      ? `<button type="button" class="btn ghost btn-sm reply-pin" data-pin="${esc((m.text || "").slice(0, 500))}" title="Append excerpt to shared canvas">Pin</button>`
+      : "";
+  const pushBtn =
+    role === "mag"
+      ? `<button type="button" class="btn ghost btn-sm reply-push" data-push="${esc((m.text || "").slice(0, 2000))}" data-lane="${m.lane || ""}" title="Push full reply to shared canvas section">Canvas</button>`
+      : "";
+  let thinkingHtml = "";
+  if (role === "mag" && m.thinking && m.thinking.length) {
+    const rows = m.thinking.map((t) => `<li>${esc(t)}</li>`).join("");
+    thinkingHtml = `<details class="reply-thinking"><summary>Thinking trace (${m.thinking.length})</summary><ol>${rows}</ol></details>`;
+  }
+  return (
+    `<article class="chat-msg ${role} reply-card">` +
+    `<header class="reply-head">${meta}${timingBadge}${ts}${pinBtn}${pushBtn}</header>` +
+    thinkingHtml +
+    `<div class="chat-body">${body}</div>` +
+    `</article>`
+  );
+}
+
+function renderLocalLaneEmptyState() {
+  const cursorLine = ($("#deskCursorIndicator")?.textContent || "Cursor: operator").replace(/^Cursor:\s*/i, "");
+  const pulse = ($("#localPulse")?.textContent || "").replace(/\s+/g, " ").trim() || "Local seat idle";
+  const remoteAsleep = $("#cursorBadgeRemote")?.classList.contains("asleep");
+  const wakeHint = remoteAsleep
+    ? "DeepSeek is asleep — edit the shared canvas to wake it."
+    : "Canvas edit wakes remote — slow lane orchestrates, fast lane replies.";
+  return (
+    `<div class="desk-log-empty" aria-label="Local lane idle">` +
+    `<p class="desk-empty-cursor">◎ ${esc(cursorLine)}</p>` +
+    `<p class="desk-empty-status muted sm">${esc(pulse)}</p>` +
+    `<p class="desk-empty-hint muted sm">${esc(wakeHint)}</p>` +
+    `</div>`
+  );
+}
+
+function renderLaneLog(logEl, key, pendingEl) {
+  if (!logEl) return;
+  const msgs = loadLaneHistory(key);
+  const isLocal = logEl.id === "localChatLog";
+  if (msgs.length === 0 && !pendingEl) {
+    logEl.innerHTML = isLocal ? renderLocalLaneEmptyState() : "";
+  } else {
+    logEl.innerHTML = msgs.map((m) => renderLaneMessage(m, key)).join("");
+  }
+  if (pendingEl && pendingEl.parentNode === logEl) logEl.appendChild(pendingEl);
+  logEl.querySelectorAll(".reply-pin").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const excerpt = btn.getAttribute("data-pin") || "";
+      const ta = $("#agentDeskCanvas");
+      if (!ta || !excerpt) return;
+      const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+      ta.value = (ta.value ? ta.value.trim() + "\n\n" : "") + `### Operator · pinned ${stamp}\n${excerpt}\n`;
+      scheduleDeskCanvasSave();
+      renderDeskCanvasView();
+      toast("Pinned to canvas", true);
+    });
+  });
+  logEl.querySelectorAll(".reply-push").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-push") || "";
+      const lane = btn.closest(".desk-lane")?.dataset?.lane || btn.getAttribute("data-lane") || "remote";
+      const section = lane === "local" ? "Local (orchestrator)" : "Remote (DeepSeek)";
+      appendToDeskCanvas(section, text, lane === "local" ? "orchestrator" : "deepseek");
+    });
+  });
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function thinkingElapsed() {
+  if (!thinkingStarted) return "0s";
+  return `${Math.floor((Date.now() - thinkingStarted) / 1000)}s`;
+}
+
+function startThinkingClock() {
+  thinkingStarted = Date.now();
+  if (thinkingTimer) clearInterval(thinkingTimer);
+  thinkingTimer = setInterval(() => {
+    document.querySelectorAll(".thinking-elapsed").forEach((el) => {
+      el.textContent = thinkingElapsed();
+    });
+  }, 1000);
+}
+
+function stopThinkingClock() {
+  thinkingStarted = 0;
+  if (thinkingTimer) {
+    clearInterval(thinkingTimer);
+    thinkingTimer = null;
+  }
+}
+
+function beginLanePending(logEl, which, label) {
+  if (!logEl) return null;
+  let el =
+    which === "local" ? localPendingEl : which === "remote" ? remotePendingEl : metaPendingEl;
+  if (el) el.remove();
+  startThinkingClock();
+  el = document.createElement("article");
+  el.className = "chat-msg mag pending thinking-card";
+  el.innerHTML =
+    `<header class="thinking-head">` +
+    `<span class="thinking-pulse" aria-hidden="true">●</span> ` +
+    `<strong>${esc(label || (which === "local" ? "Orchestrating" : which === "meta" ? "Meta strategy" : "Agent working"))}</strong> ` +
+    `<span class="thinking-elapsed muted sm">${thinkingElapsed()}</span>` +
+    `</header>` +
+    `<ol class="thinking-steps"></ol>` +
+    `<div class="thinking-live muted sm"></div>`;
+  logEl.appendChild(el);
+  if (which === "local") localPendingEl = el;
+  else if (which === "remote") remotePendingEl = el;
+  else metaPendingEl = el;
+  logEl.scrollTop = logEl.scrollHeight;
+  return el;
+}
+
+function thinkingStep(which, label, detail) {
+  const el = which === "local" ? localPendingEl : remotePendingEl;
+  const ol = el?.querySelector(".thinking-steps");
+  if (!ol) return;
+  const li = document.createElement("li");
+  li.innerHTML = `<strong>${esc(label)}</strong>${detail ? `<span class="muted sm"> — ${esc(detail)}</span>` : ""}`;
+  ol.appendChild(li);
+  const log = which === "local" ? $("#localChatLog") : $("#remoteChatLog");
+  if (log) log.scrollTop = log.scrollHeight;
+}
+
+function updateThinkingLive(which, text) {
+  const el = which === "local" ? localPendingEl : remotePendingEl;
+  const live = el?.querySelector(".thinking-live");
+  if (live) {
+    live.textContent = (text || "").trim().slice(-500) || "…";
+    const log = which === "local" ? $("#localChatLog") : $("#remoteChatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+function collectThinkingTrace(which) {
+  const el = which === "local" ? localPendingEl : remotePendingEl;
+  if (!el) return [];
+  return Array.from(el.querySelectorAll(".thinking-steps li")).map((li) => li.textContent || "");
+}
+
+function endLanePending(which, key, logEl, finalText, meta, thinkingTrace) {
+  const el = which === "local" ? localPendingEl : remotePendingEl;
+  if (el) {
+    el.remove();
+    if (which === "local") localPendingEl = null;
+    else remotePendingEl = null;
+  }
+  stopThinkingClock();
+  const msgs = loadLaneHistory(key);
+  msgs.push({
+    role: "mag",
+    text: (finalText || "").slice(0, CHAT_MSG_MAX_CHARS),
+    meta: meta || "",
+    thinking: thinkingTrace || collectThinkingTrace(which),
+    ts: Date.now(),
+  });
+  saveLaneHistory(key, msgs);
+  renderLaneLog(logEl, key, which === "local" ? localPendingEl : remotePendingEl);
+}
+
+function clearLanePending(which) {
+  const el =
+    which === "local" ? localPendingEl : which === "remote" ? remotePendingEl : metaPendingEl;
+  if (!el) return;
+  el.remove();
+  if (which === "local") localPendingEl = null;
+  else if (which === "remote") remotePendingEl = null;
+  else metaPendingEl = null;
+  stopThinkingClock();
+}
+
+function pushLane(key, logEl, role, text, meta, timing) {
+  const msgs = loadLaneHistory(key);
+  msgs.push({ role, text, meta: meta || "", timing: timing || null, ts: Date.now() });
+  saveLaneHistory(key, msgs);
+  const pendingEl =
+    key === LOCAL_CHAT_KEY ? localPendingEl : key === META_CHAT_KEY ? metaPendingEl : remotePendingEl;
+  renderLaneLog(logEl, key, pendingEl);
+}
+
+const DESK_TURN_TIMEOUT_MS = 300000;
+const DESK_REMOTE_TIMEOUT_MS = 180000;
+
+const HANDOFF_ESCALATION = [
+  "HANDOFF 1/5 — Goal: if ## Goal is empty, Local proposes one sentence on canvas. Otherwise refine it.",
+  "HANDOFF 2/5 — Local: one concrete next step the operator could run in Shell (propose only). Board edit required.",
+  "HANDOFF 3/5 — DeepSeek: turn Local's step into a 3-bullet plan under ## Dialogue. End Reply with instruction for Local.",
+  "HANDOFF 4/5 — Local: confirm one bullet or push back in ≤3 sentences. Board edit wakes DeepSeek again.",
+  "HANDOFF 5/5 — DeepSeek: close with ### Contract · — single operator action + done criteria.",
+];
+
+function meaningfulCanvasEdit(edit) {
+  const e = (edit || "").trim();
+  if (!e) return false;
+  if (/\d+\.\.\.\s*\S+|\d+\.\s*(?:O-O-O|O-O|[NBRQK]?[a-h]?x?[a-h][1-8])/i.test(e)) return true;
+  if (/^### Local · title/i.test(e)) return false;
+  return true;
+}
+
+function localWakeOk(res) {
+  if (!res || res.wake_blocked) return false;
+  if (res.local_adapter?.quality_after === "move") return true;
+  return meaningfulCanvasEdit(res.canvas_edit);
+}
+
+async function deskDialoguePost(payload, timeoutMs = DESK_TURN_TIMEOUT_MS) {
+  return postJSON("/api/v1/desk-dialogue", payload, { timeoutMs });
+}
+
+async function routeDeskGoal() {
+  const prompt = ($("#deskConductorPrompt")?.value || "").trim();
+  if (!prompt) {
+    toast("Describe the outcome first", false);
+    $("#deskConductorPrompt")?.focus();
+    return;
+  }
+  if (chatBusy) return;
+  chatBusy = true;
+  const btn = $("#btnOrchLoop");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Routing…";
+  }
+  try {
+    await commitIntentToCanvas({ goal: prompt });
+    const decision = await postJSON("/api/v1/decide", { goal: prompt }, { timeoutMs: 30000 });
+    const route = decision?.route || {};
+    const seat = route.seat || route.provider || "worker";
+    const depth = route.depth || route.job || "task";
+    if ($("#deskOrchAdvisory")) {
+      $("#deskOrchAdvisory").textContent = `Route · ${seat} · ${depth} · launching in background`;
+    }
+    if ($("#deskOrchMeta")) {
+      const tips = (decision.tips || []).slice(0, 3).map((x) => x.tip).filter(Boolean);
+      $("#deskOrchMeta").textContent = tips.length
+        ? `Behavioral guidance · ${tips.join(" · ")}`
+        : "Behavioral framework checked · no extra intervention";
+    }
+    const launched = await postJSON(
+      "/api/v1/route",
+      { goal: prompt, launch: true, background: true, source: "dashboard", actor: "desk", caller_seat: "operator" },
+      { timeoutMs: 60000 }
+    );
+    const execution = launched.execution || {};
+    if (execution.ok === false) throw new Error(execution.error || execution.hint || "route launch failed");
+    const taskId = execution.task_id || execution.id || execution.run_id;
+    toast(`Routed to ${seat}${taskId ? ` · ${taskId}` : ""} · you can leave the page`, true);
+    refreshDeskOpsStrip();
+    refreshHandoffInbox().catch(() => {});
+    return launched;
+  } catch (e) {
+    if ($("#deskOrchAdvisory")) $("#deskOrchAdvisory").textContent = `Exception · ${String(e.message || e)}`;
+    toast(String(e.message || e), false);
+    return { ok: false, error: String(e.message || e) };
+  } finally {
+    chatBusy = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Route goal";
+    }
+  }
+}
+
+const DESK_LOCAL_MODE_KEY = "mag.desk.local_mode";
+
+function deskLocalMode() {
+  return $("#deskLocalMode")?.value === "simulated" ? "simulated" : "real";
+}
+
+function renderDeskLocalMode() {
+  const simulated = deskLocalMode() === "simulated";
+  const select = $("#deskLocalMode");
+  if (select) select.title = simulated
+    ? "Workflow test: deterministic process evidence only; Ollama is not being tested"
+    : "Real Local: Ollama and local hardware are in the loop";
+}
+
+async function deskRemoteWakeAfterLocal(localRes, operatorNote) {
+  const canvas = localRes.canvas || ($("#agentDeskCanvas")?.value || "").trim();
+  const edit = (localRes.canvas_edit || "").slice(0, 900);
+  const wakeNote =
+    (operatorNote ? `${operatorNote.trim()}\n\n` : "") +
+    "Local (L0/slow) edited the board — you wake on board edits only.\n" +
+    "Respond to the canvas edit. Note Local's limitation if output truncated or vague.\n\n" +
+    `### Local's board edit\n${edit}`;
+  beginLanePending($("#remoteChatLog"), "remote", "DeepSeek · board edit wake");
+  const remoteRes = await deskDialoguePost(
+    {
+      speaker: "remote",
+      force_wake: true,
+      operator_note: wakeNote,
+      desk_canvas: canvas || undefined,
+    },
+    DESK_REMOTE_TIMEOUT_MS
+  );
+  if (!remoteRes.ok) throw new Error(remoteRes.error || "DeepSeek wake failed");
+  await applyDialogueResult("remote", remoteRes, $("#remoteChatLog"), null);
+  return remoteRes;
+}
+
+async function deskLocalHandoffFollowup(remoteRes) {
+  if (!remoteRes?.local_wake_pending) return null;
+  beginLanePending($("#localChatLog"), "local", "Local · handoff follow-up");
+  try {
+    const follow = await deskDialoguePost({
+      speaker: "local",
+      local_mode: deskLocalMode(),
+      force_wake: true,
+      operator_note:
+        "DeepSeek edited the board — complete this handoff. Read their Reply instruction; respond with ### Reply and ### Canvas edit.",
+      desk_canvas: remoteRes.canvas || ($("#agentDeskCanvas")?.value || "").trim() || undefined,
+    });
+    if (follow.ok) {
+      await applyDialogueResult("local", follow, $("#localChatLog"), null);
+      toast("Loop closed — Local woke on DeepSeek board edit", true);
+    } else {
+      clearLanePending("local");
+      toast(`Local follow-up: ${follow.error || "failed"}`, false);
+    }
+    return follow;
+  } catch (e) {
+    clearLanePending("local");
+    toast(`Local follow-up: ${e.message || e}`, false);
+    return null;
+  }
+}
+
+/** Client-side Local ↔ Remote loop until a seat skips canvas edit (avoids 120s timeout). */
+async function deskHandoffChain(operatorNote) {
+  const note = (operatorNote || "").trim();
+  let canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  const MAX_ROUNDS = 6;
+  let lastLocal = null;
+  let lastRemote = null;
+
+  beginLanePending($("#localChatLog"), "local", "Local · slow wake");
+  lastLocal = await deskDialoguePost({
+    speaker: "local",
+    local_mode: deskLocalMode(),
+    force_wake: true,
+    operator_note: note,
+    desk_canvas: canvas || undefined,
+  });
+  if (!lastLocal.ok) throw new Error(lastLocal.error || "local turn failed");
+  await applyDialogueResult("local", lastLocal, $("#localChatLog"), note || null);
+  canvas = lastLocal.canvas || canvas;
+
+  if (!localWakeOk(lastLocal)) {
+    toast("Local spoke — no board edit · DeepSeek stays asleep", true);
+    await refreshDeskCursor();
+    await refreshDeskConductor();
+    return { ok: true, mode: "handoff_chain", local: lastLocal, remote: null, loop_closed: false };
+  }
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    lastRemote = await deskRemoteWakeAfterLocal(lastLocal, note);
+    canvas = lastRemote.canvas || canvas;
+    if (!lastRemote.local_wake_pending) {
+      toast(round === 0 ? "DeepSeek woke — no board edit to continue" : `Handoff paused · round ${round + 1}`, true);
+      await loadAgentDeskCanvas();
+      await refreshDeskCursor();
+      await refreshDeskConductor();
+      return {
+        ok: true,
+        mode: "handoff_chain",
+        local: lastLocal,
+        remote: lastRemote,
+        loop_closed: false,
+        rounds: round + 1,
+      };
+    }
+
+    beginLanePending($("#localChatLog"), "local", "Local · handoff follow-up");
+    const follow = await deskDialoguePost({
+      speaker: "local",
+      local_mode: deskLocalMode(),
+      force_wake: true,
+      operator_note:
+        "DeepSeek edited the board — complete this handoff. Read their Reply instruction; respond with ### Reply and ### Canvas edit.",
+      desk_canvas: canvas || undefined,
+    });
+    if (!follow.ok) {
+      clearLanePending("local");
+      throw new Error(follow.error || "Local follow-up failed");
+    }
+    await applyDialogueResult("local", follow, $("#localChatLog"), null);
+    lastLocal = follow;
+    canvas = follow.canvas || canvas;
+
+    if (!meaningfulCanvasEdit(follow.canvas_edit)) {
+      toast(`Loop closed — Local spoke without board edit (round ${round + 1})`, true);
+      await loadAgentDeskCanvas();
+      await refreshDeskCursor();
+      await refreshDeskConductor();
+      return {
+        ok: true,
+        mode: "handoff_chain",
+        local: lastLocal,
+        remote: lastRemote,
+        loop_closed: true,
+        rounds: round + 1,
+      };
+    }
+  }
+
+  toast(`Handoff chain · ${MAX_ROUNDS} rounds`, true);
+  await loadAgentDeskCanvas();
+  await refreshDeskCursor();
+  await refreshDeskConductor();
+  return {
+    ok: true,
+    mode: "handoff_chain",
+    local: lastLocal,
+    remote: lastRemote,
+    loop_closed: true,
+    rounds: MAX_ROUNDS,
+  };
+}
+
+async function commitIntentToCanvas({ goal = "", note = "" } = {}) {
+  const g = (goal || "").trim();
+  const n = (note || "").trim();
+  if (!g && !n) return null;
+  const res = await postJSON("/api/v1/agent-desk", {
+    commit_intent: { goal: g, note: n, author: "operator" },
+  });
+  await loadAgentDeskCanvas();
+  return res;
+}
+
+async function loadAgentDeskCanvas() {
+  const ta = $("#agentDeskCanvas");
+  const st = $("#deskCanvasStatus");
+  if (!ta) return;
+  try {
+    const d = await getJSON("/api/v1/agent-desk");
+    ta.value = d.text || "";
+    if ($("#deskCanvasPath") && d.path) $("#deskCanvasPath").textContent = d.path;
+    if (st) st.textContent = d.peer_chars ? `peer ${d.peer_chars} chars · ${(d.text || "").length} total` : `loaded · ${(d.text || "").length} chars`;
+    renderDeskCanvasView();
+  } catch (e) {
+    if (st) st.textContent = String(e.message || e);
+  }
+}
+
+async function saveAgentDeskCanvas() {
+  const ta = $("#agentDeskCanvas");
+  const st = $("#deskCanvasStatus");
+  if (!ta) return;
+  try {
+    const d = await postJSON("/api/v1/agent-desk", { text: ta.value || "" });
+    if (st) st.textContent = `saved · ${(d.text || "").length} chars`;
+    renderDeskCanvasView();
+  } catch (e) {
+    if (st) st.textContent = String(e.message || e);
+  }
+}
+
+function scheduleDeskCanvasSave() {
+  if (deskSaveTimer) clearTimeout(deskSaveTimer);
+  deskSaveTimer = setTimeout(() => saveAgentDeskCanvas(), 800);
+}
+
+function setDeskCursorUI(holder, turn, remoteAsleep, localWakePending) {
+  const h = (holder || "operator").toLowerCase();
+  const ind = $("#deskCursorIndicator");
+  const turnN = turn != null ? turn : "";
+  const asleep = remoteAsleep !== false;
+  const localWake = localWakePending === true;
+  let wakeTag = "";
+  if (h === "remote") wakeTag = "";
+  else if (localWake) wakeTag = " · local wake pending";
+  else if (asleep) wakeTag = " · deepseek asleep";
+  else wakeTag = " · wake pending";
+  if (ind) {
+    ind.textContent =
+      turnN !== "" ? `Cursor: ${h} · turn ${turnN}${wakeTag}` : `Cursor: ${h}${wakeTag}`;
+  }
+  document.querySelectorAll(".desk-cursor-badge").forEach((el) => el.classList.remove("active", "asleep"));
+  if (h === "local") $("#cursorBadgeLocal")?.classList.add("active");
+  if (h === "remote") $("#cursorBadgeRemote")?.classList.add("active");
+  const rb = $("#cursorBadgeRemote");
+  if (rb && asleep && h !== "remote") rb.classList.add("asleep");
+  if (!loadLaneHistory(LOCAL_CHAT_KEY).length && !localPendingEl) {
+    renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, null);
+  }
+}
+
+async function refreshDeskCursor() {
+  try {
+    const c = await getJSON("/api/v1/desk-dialogue");
+    if (c.cursor) {
+      setDeskCursorUI(
+        c.cursor.holder,
+        c.cursor.turn,
+        c.cursor.remote_asleep,
+        c.cursor.local_wake_pending
+      );
+    }
+    if (c.desk_api !== "handoff_loop.v1" && $("#deskCanvasStatus")) {
+      $("#deskCanvasStatus").textContent = "restart lab for bidirectional handoff desk";
+    }
+  } catch {
+    /* offline */
+  }
+}
+
+function metaSpeakerLabel(speaker) {
+  if (speaker === "remote_meta_b") return "Meta-B";
+  if (speaker === "remote_meta_a") return "Meta-A";
+  return "Meta";
+}
+
+async function applyMetaDialogueResult(turn, userMsg) {
+  const log = $("#metaChatLog");
+  clearLanePending("meta");
+  if (userMsg) pushLane(META_CHAT_KEY, log, "user", userMsg, "operator");
+  const text = turn.reply || turn.error || "(empty)";
+  pushLane(META_CHAT_KEY, log, "mag", text, `${metaSpeakerLabel(turn.speaker)} · strategy`);
+  if (turn.canvas && $("#agentDeskCanvas")) {
+    $("#agentDeskCanvas").value = turn.canvas;
+    renderDeskCanvasView();
+  }
+  applyDeskTimings(turn);
+}
+
+async function applyDialogueResult(speaker, res, log, userMsg) {
+  clearLanePending(speaker);
+  if (userMsg) pushLane(speaker === "local" ? LOCAL_CHAT_KEY : REMOTE_CHAT_KEY, log, "user", userMsg, "operator");
+  const text = res.reply || res.error || "(empty)";
+  const timing = res.timing || null;
+  const timingNote = formatTimingInline(timing);
+  const meta = `${speaker} · dialogue${timingNote ? ` · ${timingNote}` : ""}`;
+  pushLane(
+    speaker === "local" ? LOCAL_CHAT_KEY : REMOTE_CHAT_KEY,
+    log,
+    "mag",
+    text,
+    meta,
+    timing
+  );
+  if (res.canvas && $("#agentDeskCanvas")) {
+    $("#agentDeskCanvas").value = res.canvas;
+    renderDeskCanvasView();
+  }
+  if (res.arena_sync?.applied && $("#arenaPopup") && !$("#arenaPopup").classList.contains("hidden")) {
+    refreshArena();
+  }
+  if (res.cursor) {
+    setDeskCursorUI(
+      res.cursor.holder,
+      res.cursor.turn,
+      res.cursor.remote_asleep,
+      res.cursor.local_wake_pending
+    );
+  }
+  if ($("#deskCanvasStatus")) $("#deskCanvasStatus").textContent = `turn · ${res.cursor?.turn ?? "?"}`;
+  if (res.wake_blocked) {
+    toast(res.hint || "Local edit did not wake Remote — no extractable move", false);
+  } else if (res.local_adapter?.normalized && speaker === "local") {
+    toast(`Move normalized: ${res.local_adapter.move_line || ""}`, true);
+  }
+  applyDeskTimings(res);
+}
+
+async function deskDialogueTurn(speaker, operatorNote, forceWake) {
+  const log = speaker === "local" ? $("#localChatLog") : $("#remoteChatLog");
+  setDeskCursorUI(speaker);
+  const canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  const payload = {
+    speaker,
+    operator_note: operatorNote || "",
+    desk_canvas: canvas || undefined,
+  };
+  if (forceWake) payload.force_wake = true;
+  const res = await deskDialoguePost(payload, speaker === "remote" ? DESK_REMOTE_TIMEOUT_MS : DESK_TURN_TIMEOUT_MS);
+  if (!res.ok) throw new Error(res.error || "dialogue failed");
+  await applyDialogueResult(speaker, res, log, operatorNote || null);
+  if (speaker === "remote" && res.local_wake_pending) {
+    await deskLocalHandoffFollowup(res);
+  }
+  return res;
+}
+
+async function deskMetaTurn(speaker, operatorNote) {
+  const canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  beginLanePending($("#metaChatLog"), "meta", metaSpeakerLabel(speaker));
+  const res = await postJSON("/api/v1/desk-dialogue", {
+    speaker,
+    operator_note: operatorNote || "",
+    desk_canvas: canvas || undefined,
+  });
+  if (!res.ok) throw new Error(res.error || "meta turn failed");
+  await applyMetaDialogueResult(res, operatorNote || null);
+  return res;
+}
+
+async function deskMetaDiscuss(operatorNote, rounds) {
+  const canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  beginLanePending($("#metaChatLog"), "meta", "Meta · A ↔ B strategy");
+  const res = await postJSON("/api/v1/desk-dialogue", {
+    meta_discuss: true,
+    rounds: rounds || 1,
+    operator_note: operatorNote || "",
+    desk_canvas: canvas || undefined,
+  });
+  if (!res.ok && !res.turns?.length) throw new Error(res.error || "meta discuss failed");
+  clearLanePending("meta");
+  if (operatorNote) pushLane(META_CHAT_KEY, $("#metaChatLog"), "user", operatorNote, "operator");
+  for (const turn of res.turns || []) {
+    await applyMetaDialogueResult(turn, null);
+  }
+  toast(`Meta · ${(res.turns || []).length} turns · ## Meta section`, true);
+  return res;
+}
+
+async function deskSlowWake(operatorNote) {
+  return deskHandoffChain(operatorNote);
+}
+
+async function runDeskHandoffs(count) {
+  if (chatBusy) return;
+  chatBusy = true;
+  const kickoff =
+    ($("#deskOperatorNote")?.value || "").trim() ||
+    "Run the 5-handoff escalation test. Follow each HANDOFF prompt.";
+  const n = Math.max(1, Math.min(count || 5, HANDOFF_ESCALATION.length));
+  let canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  let completed = 0;
+  let reason = "complete";
+
+  beginLanePending($("#localChatLog"), "local", "Handoff loop · local + remote");
+  try {
+    for (let i = 0; i < n; i++) {
+      const esc = HANDOFF_ESCALATION[i] || `HANDOFF ${i + 1}/${n}`;
+      const localNote = i === 0 ? `${kickoff}\n\n${esc}` : esc;
+
+      beginLanePending($("#localChatLog"), "local", `Local · handoff ${i + 1}`);
+      const local = await deskDialoguePost({
+        speaker: "local",
+        local_mode: deskLocalMode(),
+        force_wake: true,
+        operator_note: localNote,
+        desk_canvas: canvas || undefined,
+      });
+      if (!local.ok) throw new Error(local.error || "local turn failed");
+      await applyDialogueResult("local", local, $("#localChatLog"), i === 0 ? kickoff : null);
+      canvas = local.canvas || canvas;
+
+      if (!localWakeOk(local)) {
+        reason = "local_no_board_edit";
+        completed = i;
+        break;
+      }
+
+      const edit = (local.canvas_edit || "").slice(0, 900);
+      const remoteNote =
+        `${esc}\n\nLocal edited the board — respond and edit canvas. ` +
+        "End Reply with one explicit instruction for Local's next turn.\n\n" +
+        `### Local's board edit\n${edit}`;
+      beginLanePending($("#remoteChatLog"), "remote", `DeepSeek · handoff ${i + 1}`);
+      const remote = await deskDialoguePost(
+        {
+          speaker: "remote",
+          force_wake: true,
+          operator_note: remoteNote,
+          desk_canvas: canvas || undefined,
+        },
+        DESK_REMOTE_TIMEOUT_MS
+      );
+      if (!remote.ok) throw new Error(remote.error || "remote turn failed");
+      await applyDialogueResult("remote", remote, $("#remoteChatLog"), null);
+      canvas = remote.canvas || canvas;
+      completed = i + 1;
+
+      if (!meaningfulCanvasEdit(remote.canvas_edit)) {
+        reason = "remote_no_board_edit";
+        break;
+      }
+      if (remote.local_wake_pending) {
+        const follow = await deskLocalHandoffFollowup(remote);
+        if (follow?.canvas) canvas = follow.canvas;
+      }
+    }
+
+    if ($("#deskOperatorNote")) $("#deskOperatorNote").value = "";
+    toast(`Handoffs · ${completed}/${n} · ${reason}`, reason === "complete");
+  } catch (e) {
+    clearLanePending("local");
+    clearLanePending("remote");
+    toast(String(e.message || e), false);
+  } finally {
+    chatBusy = false;
+    await loadAgentDeskCanvas();
+    await refreshDeskCursor();
+    await refreshDeskConductor();
+  }
+}
+
+let localPulseTimer = null;
+
+const DESK_TIMING_LABELS = {
+  local: "Local",
+  remote: "DeepSeek",
+  conductor: "Orchestrator",
+  remote_meta_a: "Meta-A",
+  remote_meta_b: "Meta-B",
+  scheduler_triage: "Triage",
+  janitor: "Janitor",
+};
+
+function formatTimingInline(t) {
+  if (!t) return "";
+  const ms = t.elapsed_ms;
+  const elapsed = ms == null ? "" : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+  const tin = t.tokens_in;
+  const tout = t.tokens_out;
+  let tok = "";
+  if (tin != null || tout != null) {
+    const total = tin != null && tout != null ? tin + tout : tout ?? tin;
+    const est = t.tokens_in_estimated || t.tokens_out_estimated ? "~" : "";
+    tok = `${est}${total} tok`;
+  }
+  const parts = [elapsed, tok].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "";
+}
+
+function formatDeskTimingBadge(t) {
+  if (!t) return "";
+  const label = DESK_TIMING_LABELS[t.speaker] || t.speaker || "?";
+  const ms = t.elapsed_ms;
+  const elapsed = ms == null ? "—" : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+  const tin = t.tokens_in;
+  const tout = t.tokens_out;
+  let tok = "";
+  if (tin != null || tout != null) {
+    if (tin != null && tout != null) tok = ` · ${t.tokens_in_estimated || t.tokens_out_estimated ? "~" : ""}${tin + tout} tok`;
+    else tok = ` · ${tout ?? tin} tok`;
+  }
+  return `${label} ${elapsed}${tok}`;
+}
+
+function applyDeskTimings(payload) {
+  const el = $("#deskTimingBadges");
+  if (!el || !payload) return;
+  let row = payload.timing_row || "";
+  if (!row && payload.timings && typeof payload.timings === "object") {
+    const order = ["local", "remote", "conductor", "remote_meta_a", "remote_meta_b", "scheduler_triage", "janitor"];
+    const bits = [];
+    const seen = new Set();
+    for (const sp of order) {
+      if (payload.timings[sp]) {
+        bits.push(formatDeskTimingBadge(payload.timings[sp]));
+        seen.add(sp);
+      }
+    }
+    for (const [sp, rowObj] of Object.entries(payload.timings)) {
+      if (!seen.has(sp)) bits.push(formatDeskTimingBadge(rowObj));
+    }
+    row = bits.join(" | ");
+  }
+  if (!row && payload.timing) row = formatDeskTimingBadge(payload.timing);
+  if (row) {
+    el.textContent = row;
+    el.title = "Last agent response timing per lane";
+  }
+}
+
+async function refreshDeskTimings() {
+  try {
+    const j = await getJSON("/api/v1/desk-dialogue");
+    applyDeskTimings(j);
+  } catch (_) {
+    /* offline */
+  }
+}
+
+/* --- Agent arena (chess POC — extensible game surface) --- */
+let arenaLastMove = null;
+let arenaStrategiesCache = null;
+
+function renderArenaBoardTo(boardEl, state) {
+  if (!boardEl) return;
+  boardEl.innerHTML = "";
+  const grid = state?.board;
+  if (!grid || !grid.length) {
+    boardEl.textContent = state?.chess_lib === false ? "pip install chess" : "—";
+    return;
+  }
+  const last = state?.last_move?.san || "";
+  let fromSq = null;
+  let toSq = null;
+  if (last && arenaLastMove && arenaLastMove.san === last) {
+    fromSq = arenaLastMove.from;
+    toSq = arenaLastMove.to;
+  }
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const cell = document.createElement("div");
+      cell.className = `arena-sq ${(r + c) % 2 === 0 ? "light" : "dark"}`;
+      const file = String.fromCharCode(97 + c);
+      const rank = 8 - r;
+      const sq = `${file}${rank}`;
+      if (sq === fromSq) cell.classList.add("last-from");
+      if (sq === toSq) cell.classList.add("last-to");
+      cell.textContent = grid[r][c] || "";
+      cell.setAttribute("data-sq", sq);
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function renderArenaBoard(state) {
+  renderArenaBoardTo($("#arenaBoard"), state);
+  renderArenaBoardTo($("#arenaCanvasBoard"), state);
+}
+
+function formatArenaStrategyBadge(meta) {
+  if (!meta) return "";
+  const ocean = meta.ocean || "?";
+  const steer = meta.spider_steer || meta.spiderSteer || "?";
+  const route = meta.routing_task || meta.routingTask || "";
+  return `${meta.label || meta.id || "?"} · ${ocean} → ${steer}${route ? ` · ${route}` : ""}`;
+}
+
+function renderArenaCommLog(state) {
+  const logEl = $("#arenaCommLog");
+  if (!logEl) return;
+  const rows = state?.message_log || [];
+  if (!rows.length) {
+    logEl.textContent = state?.active ? "No comm yet — try Current or Kelp strategy" : "—";
+    return;
+  }
+  logEl.innerHTML = rows
+    .slice(-24)
+    .map((row) => {
+      const ocean = row.ocean || row.strategy || "?";
+      const seat = row.seat || "?";
+      const msg = esc(row.message || row.text || row.san || "");
+      const steer = row.spider_steer ? ` · ${esc(row.spider_steer)}` : "";
+      return `<div class="arena-comm-row"><span class="ocean-tag">${esc(ocean)}</span> ${esc(seat)}${steer}: ${msg}</div>`;
+    })
+    .join("");
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function renderArenaOceanHints(state) {
+  const el = $("#arenaOceanHints");
+  if (!el) return;
+  const w = state?.white_strategy;
+  const b = state?.black_strategy;
+  if (!w && !b) {
+    el.textContent = "Pick strategies — ocean maps to spider steer + switchboard routing";
+    return;
+  }
+  const bits = [];
+  if (w) bits.push(`White: ${formatArenaStrategyBadge(w)}`);
+  if (b) bits.push(`Black: ${formatArenaStrategyBadge(b)}`);
+  el.textContent = bits.join(" | ");
+}
+
+function fillArenaStrategySelect(selectEl, strategies, selectedId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "(default)";
+  selectEl.appendChild(blank);
+  for (const s of strategies || []) {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.label || s.id;
+    if (selectedId && s.id === selectedId) opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+async function loadArenaStrategies() {
+  if (arenaStrategiesCache) return arenaStrategiesCache;
+  try {
+    const j = await getJSON("/api/v1/arena?strategies=1");
+    arenaStrategiesCache = j.strategies || [];
+    return arenaStrategiesCache;
+  } catch (_) {
+    return [];
+  }
+}
+
+async function syncArenaStrategySelects(state) {
+  const strategies = await loadArenaStrategies();
+  const whiteId = state?.strategies?.white || state?.white_strategy?.id || "";
+  const blackId = state?.strategies?.black || state?.black_strategy?.id || "";
+  fillArenaStrategySelect($("#arenaWhiteStrategy"), strategies, whiteId);
+  fillArenaStrategySelect($("#arenaBlackStrategy"), strategies, blackId);
+  fillArenaStrategySelect($("#arenaCanvasWhiteStrategy"), strategies, whiteId);
+  fillArenaStrategySelect($("#arenaCanvasBlackStrategy"), strategies, blackId);
+}
+
+function arenaStrategyPayload(prefix) {
+  const sel = $(prefix === "canvas" ? "#arenaCanvasWhiteStrategy" : "#arenaWhiteStrategy");
+  const selB = $(prefix === "canvas" ? "#arenaCanvasBlackStrategy" : "#arenaBlackStrategy");
+  const body = {};
+  if (sel?.value) body.white_strategy = sel.value;
+  if (selB?.value) body.black_strategy = selB.value;
+  return body;
+}
+
+function applyArenaState(state) {
+  const meta = $("#arenaMeta");
+  const moves = $("#arenaMoves");
+  const title = $("#arenaTitle");
+  const canvasTitle = $("#arenaCanvasTitle");
+  const canvasMeta = $("#arenaCanvasMeta");
+  const canvasMoves = $("#arenaCanvasMoves");
+  if (!state?.active) {
+    if (meta) meta.textContent = state?.note || "No game — click New";
+    if (moves) moves.textContent = "";
+    if (canvasMeta) canvasMeta.textContent = state?.note || "No game — click New";
+    if (canvasMoves) canvasMoves.textContent = "";
+    renderArenaBoard(state);
+    renderArenaCommLog(state);
+    renderArenaOceanHints(state);
+    return;
+  }
+  const titleTxt = `Chess · ${state.white} vs ${state.black}`;
+  if (title) title.textContent = titleTxt;
+  if (canvasTitle) canvasTitle.textContent = titleTxt;
+  const turn = state.turn_seat || state.turn || "?";
+  const st = state.status === "ongoing" ? `turn: ${turn}` : state.status;
+  const metaTxt = `${st}${state.last_move?.san ? ` · last ${state.last_move.san} (${state.last_move.seat || "?"})` : ""}`;
+  if (meta) meta.textContent = metaTxt;
+  if (canvasMeta) canvasMeta.textContent = metaTxt;
+  const hist = (state.move_history || []).map((m, i) => `${i + 1}. ${m.san} (${m.seat})`).join(" ");
+  if (moves) moves.textContent = hist || "—";
+  if (canvasMoves) canvasMoves.textContent = hist || "—";
+  if (state.last_move?.uci) {
+    const u = state.last_move.uci;
+    if (u.length >= 4) arenaLastMove = { san: state.last_move.san, from: u.slice(0, 2), to: u.slice(2, 4) };
+  }
+  renderArenaBoard(state);
+  renderArenaCommLog(state);
+  renderArenaOceanHints(state);
+  syncArenaStrategySelects(state);
+}
+
+async function refreshArena() {
+  try {
+    const j = await getJSON("/api/v1/arena");
+    applyArenaState(j);
+    return j;
+  } catch (e) {
+    if ($("#arenaMeta")) $("#arenaMeta").textContent = String(e.message || e);
+    if ($("#arenaCanvasMeta")) $("#arenaCanvasMeta").textContent = String(e.message || e);
+    return null;
+  }
+}
+
+async function arenaAction(body) {
+  const j = await postJSON("/api/v1/arena", body);
+  const state = j.state || j;
+  applyArenaState(state);
+  if (!j.ok) toast(j.error || "Arena error", false);
+  else if (j.applied) toast(`Move: ${j.applied}`, true);
+  else if (Array.isArray(j.moves)) {
+    const applied = j.moves.map((m) => m.applied).filter(Boolean);
+    if (applied.length) toast(`Moves: ${applied.join(", ")}`, true);
+  }
+  return j;
+}
+
+let routingConcertPlan = null;
+
+function renderRoutingPlan(plan) {
+  const stepsEl = $("#routingNetSteps");
+  if (!stepsEl || !plan) return;
+  routingConcertPlan = plan;
+  const steps = plan.steps || [];
+  if (!steps.length) {
+    stepsEl.textContent = "No steps planned";
+    return;
+  }
+  stepsEl.innerHTML = steps
+    .map((s) => {
+      const seat = esc(s.seat || "?");
+      const phase = esc(s.phase || "?");
+      const why = esc(s.why || "");
+      const st = s.status === "done" ? " ✓" : s.status === "failed" ? " ✗" : "";
+      return `<div class="routing-step-row"><span class="seat-tag">${seat}</span> · ${phase}${st}<br><span class="muted">${why}</span></div>`;
+    })
+    .join("");
+  const meta = $("#routingNetMeta");
+  if (meta) meta.textContent = `${plan.shape || "general"} · ${plan.concert_id || "—"}`;
+}
+
+async function refreshRoutingMesh() {
+  const el = $("#routingNetMesh");
+  if (!el) return;
+  try {
+    const j = await getJSON("/api/v1/routing-network?mesh=1");
+    const sum = j.summary || {};
+    const groups = (j.groups || [])
+      .slice(0, 6)
+      .map((g) => `${g.label || g.id}: ${g.count || 0}`)
+      .join(" · ");
+    el.textContent = groups || JSON.stringify(sum).slice(0, 200) || "mesh ok";
+  } catch (e) {
+    el.textContent = String(e.message || e);
+  }
+}
+
+async function routingNetworkAction(body) {
+  const j = await postJSON("/api/v1/routing-network", body);
+  if (j.plan) renderRoutingPlan(j.plan);
+  else if (j.steps) renderRoutingPlan(j);
+  if (!j.ok && j.error) toast(j.error, false);
+  return j;
+}
+
+function positionRoutingNetworkPopup() {
+  const pop = $("#routingNetworkPopup");
+  const lane = document.querySelector('.desk-lane[data-lane="local"]');
+  if (!pop || !lane) return;
+  const lr = lane.getBoundingClientRect();
+  const width = Math.min(352, Math.max(240, lr.left - 16));
+  const top = Math.max(8, lr.top);
+  const left = lr.left - width - 8;
+  pop.style.width = `${width}px`;
+  pop.style.top = `${top}px`;
+  pop.style.left = `${left}px`;
+  pop.style.maxHeight = `${Math.max(240, window.innerHeight - top - 12)}px`;
+}
+
+function toggleRoutingNetwork(show) {
+  const pop = $("#routingNetworkPopup");
+  if (!pop) return;
+  const open = show ?? pop.classList.contains("hidden");
+  pop.classList.toggle("hidden", !open);
+  pop.setAttribute("aria-hidden", open ? "false" : "true");
+  if (open) {
+    positionRoutingNetworkPopup();
+    refreshRoutingMesh();
+    refreshArena();
+  }
+}
+
+function wireRoutingNetwork() {
+  $("#btnNetworkToggle")?.addEventListener("click", () => toggleRoutingNetwork(true));
+  $("#btnNetworkClose")?.addEventListener("click", () => toggleRoutingNetwork(false));
+  window.addEventListener("resize", () => {
+    const pop = $("#routingNetworkPopup");
+    if (pop && !pop.classList.contains("hidden")) positionRoutingNetworkPopup();
+  });
+  $("#btnRoutingPlan")?.addEventListener("click", async () => {
+    const goal = ($("#routingNetGoal")?.value || "").trim();
+    if (!goal) {
+      toast("Enter a goal", false);
+      return;
+    }
+    toast("Planning concert…", true);
+    const j = await routingNetworkAction({ action: "plan", goal });
+    if (j.ok !== false) toast("Concert planned", true);
+  });
+  $("#btnRoutingDeepSeek")?.addEventListener("click", async () => {
+    const goal = ($("#routingNetGoal")?.value || "").trim();
+    if (!goal && !routingConcertPlan) {
+      toast("Plan first or enter goal", false);
+      return;
+    }
+    toast("DeepSeek conducting…", true);
+    const body = routingConcertPlan
+      ? { action: "conductor_review", plan: routingConcertPlan }
+      : { action: "conductor_review", goal };
+    const j = await routingNetworkAction(body);
+    if (j.review?.steps) {
+      routingConcertPlan = { ...(j.plan || routingConcertPlan), steps: j.review.steps };
+      renderRoutingPlan(routingConcertPlan);
+    }
+    toast(j.ok ? "Conductor reviewed" : j.error || "Review failed", !!j.ok);
+  });
+  $("#btnRoutingRun")?.addEventListener("click", async () => {
+    if (!routingConcertPlan) {
+      toast("Plan first", false);
+      return;
+    }
+    toast("Running concert…", true);
+    const j = await routingNetworkAction({ action: "run", plan: routingConcertPlan });
+    if (j.results?.length) {
+      toast(`Ran ${j.results.length} step(s)`, true);
+      await fileConcertToCanvas(routingConcertPlan, j.results);
+    }
+  });
+  $("#btnRoutingTeach")?.addEventListener("click", async () => {
+    const goal = ($("#routingNetGoal")?.value || "").trim();
+    if (!goal) {
+      toast("Enter a goal/domain to teach", false);
+      return;
+    }
+    toast("DeepSeek authoring playbook…", true);
+    const domain = goal.toLowerCase().includes("code")
+      ? "code"
+      : goal.toLowerCase().includes("archiv") || goal.toLowerCase().includes("verkle")
+        ? "archivist"
+        : goal.toLowerCase().includes("chess") || goal.toLowerCase().includes("arena")
+          ? "adversarial_probe"
+          : "desk";
+    const j = await routingNetworkAction({ action: "author_playbook", goal, domain });
+    toast(j.ok ? `Playbook filed: ${j.playbook?.id || "ok"}` : j.error || "Teach failed", !!j.ok);
+  });
+  $("#btnViewportsToDesk")?.addEventListener("click", () => {
+    setTab("chat");
+    toggleRoutingNetwork(true);
+  });
+}
+
+async function fileConcertToCanvas(plan, results) {
+  if (!plan) return;
+  const lines = (plan.steps || [])
+    .map((s) => `- ${s.seat} · ${s.phase}: ${s.status || "pending"}`)
+    .join("\n");
+  const body = {
+    append: {
+      section: "Routing · concert",
+      author: "routing_network",
+      text: `Goal: ${plan.goal || "?"}\nConcert: ${plan.concert_id || "?"}\n\n${lines}\n`,
+    },
+  };
+  try {
+    await postJSON("/api/v1/agent-desk", body);
+    await loadAgentDeskCanvas();
+    toast("Concert filed to canvas", true);
+  } catch (_) {
+    /* optional */
+  }
+}
+
+async function refreshHandoffInbox() {
+  const list = $("#handoffInboxList");
+  const status = $("#handoffInboxStatus");
+  if (!list) return;
+  try {
+    const d = await getJSON("/api/v1/handoff-inbox?limit=12");
+    const items = d.items || [];
+    if (status) status.textContent = `${items.length} item${items.length === 1 ? "" : "s"}`;
+    if (!items.length) {
+      list.innerHTML = `<li class="muted">No filed handoffs — peer/cloud/BUILD land in queue/handoff/</li>`;
+      return;
+    }
+    list.innerHTML = items
+      .map((it) => {
+        const kind = esc(it.kind || it.source || "?");
+        const goal = esc((it.goal || it.id || "").slice(0, 100));
+        const st = it.status ? ` · ${esc(it.status)}` : "";
+        return `<li><span class="handoff-kind">${kind}</span> ${goal}${st}</li>`;
+      })
+      .join("");
+  } catch (_) {
+    if (status) status.textContent = "offline";
+    list.innerHTML = `<li class="muted">Handoff inbox offline</li>`;
+  }
+}
+
+async function refreshIdeasScrum() {
+  const strip = $("#ideasScrumStrip");
+  const active = $("#ideasScrumActive");
+  const next = $("#ideasScrumNext");
+  if (!strip) return;
+  try {
+    const d = await getJSON("/api/v1/handoff-inbox?limit=1");
+    const sc = d.scrum || {};
+    if (!sc.ok) {
+      strip.hidden = true;
+      return;
+    }
+    strip.hidden = false;
+    if (active) {
+      active.textContent = sc.active_sprint
+        ? `${sc.active_sprint} · ${sc.artifact || "no artifact"}`
+        : "—";
+    }
+    if (next) next.textContent = sc.next_action ? `→ ${sc.next_action.slice(0, 120)}` : "";
+  } catch (_) {
+    strip.hidden = true;
+  }
+}
+
+async function refreshDeskOpsStrip() {
+  try {
+    const [pulse, net, quota, autorun] = await Promise.all([
+      getJSON("/api/v1/local-pulse").catch(() => ({})),
+      getJSON("/api/v1/routing-network").catch(() => ({})),
+      getJSON("/api/v1/quota").catch(() => ({})),
+      getJSON("/api/v1/autorun").catch(() => ({})),
+    ]);
+    const loc = $("#deskOpsLocal");
+    if (loc) {
+      const st = pulse.state || "—";
+      const gpu = pulse.gpu?.vram_pct;
+      loc.textContent = gpu != null ? `local · GPU ${gpu}%` : `local · ${st}`;
+    }
+    const peers = $("#deskOpsPeers");
+    if (peers) peers.textContent = `peers · ${net.live_peers ?? "—"}`;
+    const grok = $("#deskOpsGrok");
+    if (grok && quota) {
+      const u = quota.grok_escalations_today ?? quota.used;
+      const m = quota.grok_escalation_budget ?? quota.max;
+      grok.textContent = m != null ? `grok · ${u}/${m}` : "grok · —";
+    }
+    const stack = $("#deskOpsStack");
+    if (stack) {
+      getJSON("/api/v1/stack?limit=3")
+        .then((s) => {
+          const ok = (s.services || []).filter((x) => x.running || x.ok).length;
+          stack.textContent = `stack · ${ok}/${(s.services || []).length || "?"}`;
+        })
+        .catch(() => {});
+    }
+    const ar = $("#deskOpsAutorun");
+    if (ar && autorun?.governor) {
+      const on = autorun.governor.drainer_enabled;
+      const alive = autorun.governor.autorun_alive;
+      ar.textContent = on
+        ? alive
+          ? "autorun · on"
+          : "autorun · idle"
+        : "autorun · off";
+    }
+    if (typeof refreshChatPreflight === "function") {
+      refreshChatPreflight().catch(() => {});
+    }
+    refreshHandoffInbox().catch(() => {});
+  } catch (_) {
+    /* offline */
+  }
+}
+
+async function openDaysView(view) {
+  document.querySelectorAll(".days-sub").forEach((b) => {
+    b.classList.toggle("on", b.getAttribute("data-days-view") === view);
+  });
+  $("#daysViewTimeline")?.classList.toggle("hidden", view !== "timeline");
+  $("#daysViewDiary")?.classList.toggle("hidden", view !== "diary");
+  $("#daysViewPulse")?.classList.toggle("hidden", view !== "pulse");
+  $("#daysViewStory")?.classList.toggle("hidden", view !== "story");
+  if (view === "diary") {
+    try {
+      const j = await fetchDiaryPayload();
+      diaryCache = j;
+      renderDaysDiary(j);
+    } catch (e) {
+      if ($("#daysDiaryEmbed")) $("#daysDiaryEmbed").textContent = String(e.message || e);
+    }
+  }
+  if (view === "pulse") {
+    try {
+      const j = await getJSON("/api/v1/chronicle");
+      const el = $("#daysPulseEmbed");
+      if (el) el.textContent = j.content || j.body || JSON.stringify(j, null, 2).slice(0, 8000);
+    } catch (e) {
+      if ($("#daysPulseEmbed")) $("#daysPulseEmbed").textContent = String(e.message || e);
+    }
+  }
+  if (view === "story") {
+    try {
+      await loadStory();
+      const src = $("#storyRoot");
+      const dst = $("#daysStoryEmbed");
+      if (src && dst) {
+        dst.innerHTML = src.innerHTML;
+        wireStoryFileButtons(dst);
+      }
+    } catch (e) {
+      if ($("#daysStoryEmbed")) $("#daysStoryEmbed").textContent = String(e.message || e);
+    }
+  }
+}
+
+function wireDaysSubnav() {
+  document.querySelectorAll(".days-sub[data-days-view]")?.forEach((btn) => {
+    if (btn.dataset.daysWired === "1") return;
+    btn.dataset.daysWired = "1";
+    btn.addEventListener("click", () => openDaysView(btn.getAttribute("data-days-view")));
+  });
+  document.querySelectorAll("[data-days-route]").forEach((btn) => {
+    if (btn.dataset.daysWired === "1") return;
+    btn.dataset.daysWired = "1";
+    btn.addEventListener("click", () => setTab(btn.getAttribute("data-days-route") || "sessions"));
+  });
+}
+
+function renderDaysDiary(d) {
+  const root = $("#daysDiaryEmbed");
+  if (!root) return;
+  const chapters = (d.chapters || []).slice().reverse();
+  const entries = chapters.map((ch) => `
+    <section class="diary-chapter">
+      <header class="diary-day-head"><span class="diary-day">${esc(ch.day || "")}</span><span class="muted">${esc(String(ch.n || (ch.entries || []).length))} filed</span></header>
+      ${(ch.entries || []).map((e) => `
+        <article class="diary-entry">
+          <h3 class="diary-title">${esc(e.title || "Untitled")}</h3>
+          <p class="diary-meta muted">${esc([e.when, e.theme && `theme ${e.theme}`].filter(Boolean).join(" · "))}</p>
+          <p class="diary-blurb">${esc(e.blurb || "")}</p>
+          ${(e.beats || []).length ? `<ul class="diary-beats">${(e.beats || []).slice(0, 4).map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
+          ${e.session_id ? `<button type="button" class="btn ghost btn-sm" data-days-diary-open="${esc(e.session_id)}">Open day</button>` : ""}
+        </article>`).join("")}
+    </section>`).join("");
+  root.innerHTML = `<section class="story-section"><h3>The filed arc</h3><p class="story-prose lead">${esc(d.arc || "No arc has been filed yet.")}</p><p class="muted sm">${esc(String(d.n_days ?? chapters.length))} days · ${esc(String(d.n_entries ?? "—"))} sessions · newest first</p></section>${entries || `<p class="muted empty-hint">No filed days yet. The diary grows from residual DNA.</p>`}`;
+  root.querySelectorAll("[data-days-diary-open]").forEach((btn) => btn.addEventListener("click", () => {
+    const id = btn.getAttribute("data-days-diary-open");
+    if (id) openSession(id);
+  }));
+}
+
+function toggleArenaPopup(show) {
+  toggleRoutingNetwork(show);
+}
+
+function wireArena() {
+  $("#btnArenaNew")?.addEventListener("click", () =>
+    arenaAction({ action: "new", ...arenaStrategyPayload("popup") })
+  );
+  $("#btnArenaLocal")?.addEventListener("click", async () => {
+    toast("Local thinking…", true);
+    await arenaAction({ action: "agent_turn", seat: "local" });
+  });
+  $("#btnArenaRemote")?.addEventListener("click", async () => {
+    toast("DeepSeek thinking…", true);
+    await arenaAction({ action: "agent_turn", seat: "remote" });
+  });
+  $("#btnArenaPlay")?.addEventListener("click", async () => {
+    toast("Both seats…", true);
+    await arenaAction({ action: "play" });
+  });
+  $("#btnArenaCanvasNew")?.addEventListener("click", () =>
+    arenaAction({ action: "new", ...arenaStrategyPayload("canvas") })
+  );
+  $("#btnArenaCanvasPlay")?.addEventListener("click", async () => {
+    toast("Both seats…", true);
+    await arenaAction({ action: "play" });
+  });
+  $("#btnArenaCanvasTournament")?.addEventListener("click", async () => {
+    toast("Probe 3 rounds…", true);
+    try {
+      await arenaAction({
+        action: "tournament",
+        rounds: 3,
+        white_strategy: $("#arenaCanvasWhiteStrategy")?.value || undefined,
+        black_strategy: $("#arenaCanvasBlackStrategy")?.value || undefined,
+      });
+    } catch (e) {
+      toast(String(e.message || e), false);
+    }
+  });
+  loadArenaStrategies();
+}
+
+function applyLocalPulse(j) {
+  const el = $("#localPulse");
+  if (!el) return;
+  const state = j?.state || "offline";
+  const sys = j?.cpu?.system_pct;
+  const proc = j?.cpu?.ollama_proc_pct;
+  const gpuPct = j?.gpu?.vram_pct;
+  const cpuTxt = gpuPct != null && gpuPct >= 50 ? `GPU ${gpuPct}%` : sys != null ? `CPU ${sys}%` : "—";
+  el.className = `local-pulse ${state}${j?.thinking ? " thinking" : ""}`;
+  el.title = [
+    j?.headline || "",
+    gpuPct != null ? `VRAM on GPU ${gpuPct}%` : null,
+    proc != null ? `ollama proc ${proc}%` : null,
+    (j?.sources || []).length ? `via ${(j.sources || []).join(" + ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const suffix = j?.thinking ? " · thinking" : state === "loaded" ? " · loaded" : "";
+  el.innerHTML = `<span class="local-pulse-dot" aria-hidden="true">●</span> ${esc(cpuTxt)}${esc(suffix)}`;
+  if (j?.thinking && localPendingEl) {
+    const bits = [];
+    if (sys != null) bits.push(`sys ${sys}%`);
+    if (proc != null) bits.push(`proc ${proc}%`);
+    updateThinkingLive("local", bits.join(" · ") || j.headline || "thinking");
+  }
+  if (!loadLaneHistory(LOCAL_CHAT_KEY).length && !localPendingEl) {
+    renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, null);
+  }
+}
+
+async function pollLocalPulse() {
+  try {
+    const j = await getJSON("/api/v1/local-pulse");
+    applyLocalPulse(j);
+  } catch (_) {
+    applyLocalPulse({ state: "offline", thinking: false });
+  }
+}
+
+function startLocalPulsePoll() {
+  if (localPulseTimer || activePane() !== "chat") return;
+  pollLocalPulse();
+  refreshDeskTimings();
+  localPulseTimer = setInterval(() => {
+    if (activePane() !== "chat") {
+      stopLocalPulsePoll();
+      return;
+    }
+    pollLocalPulse();
+    refreshDeskTimings();
+    refreshDeskCursor();
+  }, 1000);
+}
+
+function stopLocalPulsePoll() {
+  if (localPulseTimer) {
+    clearInterval(localPulseTimer);
+    localPulseTimer = null;
+  }
+}
+
+async function sendLocalLane() {
+  const input = $("#localChatInput");
+  const q = (input?.value || "").trim();
+  if (!q || chatBusy) return;
+  chatBusy = true;
+  if (input) input.value = "";
+  beginLanePending($("#localChatLog"), "local", "Local · slow wake");
+  try {
+    await deskSlowWake(q);
+    await refreshDeskCursor();
+    await refreshDeskConductor();
+    refreshChatPreflight();
+  } catch (e) {
+    clearLanePending("local");
+    pushLane(LOCAL_CHAT_KEY, $("#localChatLog"), "mag", String(e.message || e), "error");
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function sendRemoteLane() {
+  const input = $("#remoteChatInput");
+  const q = (input?.value || "").trim();
+  if (!q || chatBusy) return;
+  chatBusy = true;
+  if (input) input.value = "";
+  beginLanePending($("#remoteChatLog"), "remote", "DeepSeek · manual wake");
+  try {
+    await deskDialogueTurn("remote", q, true);
+    refreshChatPreflight();
+  } catch (e) {
+    clearLanePending("remote");
+    pushLane(REMOTE_CHAT_KEY, $("#remoteChatLog"), "mag", String(e.message || e), "error");
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function sendMetaLane() {
+  const input = $("#metaChatInput");
+  const q = (input?.value || "").trim();
+  if (chatBusy) return;
+  chatBusy = true;
+  if (input) input.value = "";
+  try {
+    await deskMetaTurn("remote_meta_a", q);
+  } catch (e) {
+    clearLanePending("meta");
+    pushLane(META_CHAT_KEY, $("#metaChatLog"), "mag", String(e.message || e), "error");
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function runMetaPing() {
+  if (chatBusy) return;
+  chatBusy = true;
+  const q = ($("#metaChatInput")?.value || "").trim();
+  if ($("#metaChatInput")) $("#metaChatInput").value = "";
+  try {
+    await deskMetaDiscuss(q, 1);
+  } catch (e) {
+    clearLanePending("meta");
+    toast(String(e.message || e), false);
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function runDeskSlowWake() {
+  if (chatBusy) return;
+  chatBusy = true;
+  const note = ($("#deskOperatorNote")?.value || "").trim();
+  beginLanePending($("#localChatLog"), "local", "Local · slow → wake");
+  try {
+    await deskSlowWake(note);
+    if ($("#deskOperatorNote")) $("#deskOperatorNote").value = "";
+    await refreshDeskCursor();
+    await refreshDeskConductor();
+  } catch (e) {
+    clearLanePending("local");
+    toast(String(e.message || e), false);
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function runDeskPingPong(rounds) {
+  if (chatBusy) return;
+  chatBusy = true;
+  const note = ($("#deskOperatorNote")?.value || "").trim();
+  const canvas = ($("#agentDeskCanvas")?.value || "").trim();
+  try {
+    const res = await postJSON("/api/v1/desk-dialogue", {
+      ping_pong: true,
+      rounds: rounds || 1,
+      operator_note: note,
+      desk_canvas: canvas || undefined,
+    });
+    if (!res.ok) throw new Error(res.error || "slow cycle failed");
+    for (const turn of res.turns || []) {
+      const log = turn.speaker === "local" ? $("#localChatLog") : $("#remoteChatLog");
+      await applyDialogueResult(turn.speaker, turn, log, null);
+    }
+    if ($("#deskOperatorNote")) $("#deskOperatorNote").value = "";
+    toast(`Slow cycles · ${(res.turns || []).length} turns · wake-on-edit`, true);
+  } catch (e) {
+    toast(String(e.message || e), false);
+  } finally {
+    chatBusy = false;
+  }
+}
+
+async function sendDeskOperatorKickoff() {
+  const note = ($("#deskOperatorNote")?.value || "").trim();
+  if (!note) {
+    toast("Add an operator note first", false);
+    return;
+  }
+  await commitIntentToCanvas({ goal: note, note });
+  toast("Committed to canvas · Goal + operator note", true);
+  await runDeskSlowWake();
+}
+
+async function loadDeskDoc(kind) {
+  const drawer = $("#deskManualDrawer");
+  const body = $("#deskManualBody");
+  const summary = $("#deskManualSummary");
+  if (!drawer || !body) return;
+  const titles = {
+    manual: "Operator manual · etiquette & limitations",
+    user_model: "First user model · baseline & trust ladder",
+    trust: "Trust ladder · slow→fast before fast→fast",
+  };
+  if (summary) summary.textContent = titles[kind] || titles.manual;
+  drawer.open = true;
+  body.innerHTML = `<p class="muted">Loading…</p>`;
+  try {
+    const q =
+      kind === "user_model" ? "?user_model=1" : kind === "trust" ? "?manual=1" : "?manual=1";
+    const res = await getJSON(`/api/v1/desk-dialogue${q}`, { timeoutMs: 15000 });
+    let text = res.text || res.error || "(unavailable)";
+    if (kind === "trust" && text.includes("Trust Ladder")) {
+      const m = text.match(/## Wake-on-edit[\s\S]*/);
+      text = m ? `# Trust ladder\n\n${m[0]}` : text;
+    }
+    body.innerHTML = `<div class="desk-manual-doc">${formatDeskCanvasMarkdown(text)}</div>`;
+  } catch (e) {
+    body.innerHTML = `<p class="muted">${esc(String(e.message || e))}</p>`;
+  }
+}
+
+async function loadDeskManual() {
+  return loadDeskDoc("manual");
+}
+
+async function loadDeskUserModel() {
+  return loadDeskDoc("user_model");
+}
+
+async function resetDeskDialogue(clearCanvas) {
+  await postJSON("/api/v1/desk-dialogue", { reset_dialogue: true, clear_dialogue: !!clearCanvas });
+  localStorage.removeItem(LOCAL_CHAT_KEY);
+  localStorage.removeItem(REMOTE_CHAT_KEY);
+  localStorage.removeItem(META_CHAT_KEY);
+  renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
+  renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
+  renderLaneLog($("#metaChatLog"), META_CHAT_KEY, metaPendingEl);
+  await loadAgentDeskCanvas();
+  refreshDeskCursor();
+  toast("Dialogue reset — echo loop cleared", true);
+}
+
+async function loadDeskTemplate() {
+  try {
+    await resetDeskDialogue(false);
+    await postJSON("/api/v1/agent-desk", { ensure_template: true });
+    await loadAgentDeskCanvas();
+    toast("Template loaded · dialogue fresh", true);
+  } catch (e) {
+    toast(String(e.message || e), false);
+  }
+}
+
+let _deskInit = false;
+
+function initAgentDesk() {
+  const savedLocalMode = localStorage.getItem(DESK_LOCAL_MODE_KEY);
+  if ($("#deskLocalMode") && ["real", "simulated"].includes(savedLocalMode)) {
+    $("#deskLocalMode").value = savedLocalMode;
+  }
+  renderDeskLocalMode();
+  renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
+  renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
+  renderLaneLog($("#metaChatLog"), META_CHAT_KEY, metaPendingEl);
+  loadAgentDeskCanvas();
+  refreshDeskCursor();
+  refreshChatPreflight();
+  startLocalPulsePoll();
+  if (_deskInit) return;
+  _deskInit = true;
+
+  $("#btnLocalSend")?.addEventListener("click", () => sendLocalLane());
+  $("#localChatInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendLocalLane();
+    }
+  });
+  $("#btnRemoteSend")?.addEventListener("click", () => sendRemoteLane());
+  $("#remoteChatInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendRemoteLane();
+    }
+  });
+  $("#btnMetaSend")?.addEventListener("click", () => sendMetaLane());
+  $("#btnMetaPing")?.addEventListener("click", () => runMetaPing());
+  $("#metaChatInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      runMetaPing();
+    }
+  });
+  $("#btnDeskSave")?.addEventListener("click", () => saveAgentDeskCanvas());
+  $("#btnDeskReload")?.addEventListener("click", () => loadAgentDeskCanvas());
+  $("#deskManualDrawer")?.addEventListener("toggle", () => {
+    const drawer = $("#deskManualDrawer");
+    const body = $("#deskManualBody");
+    const placeholder = body?.textContent?.includes("expand this drawer");
+    if (drawer?.open && placeholder) {
+      loadDeskManual();
+    }
+  });
+  $("#btnDeskManual")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    loadDeskManual();
+  });
+  $("#btnDeskUserModel")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    loadDeskUserModel();
+  });
+  $("#btnDeskTemplate")?.addEventListener("click", () => loadDeskTemplate());
+  $("#btnDeskLabMode")?.addEventListener("click", (e) => {
+    const shell = $(".agent-desk-shell");
+    const on = !shell?.classList.contains("lab-mode");
+    shell?.classList.toggle("lab-mode", on);
+    e.currentTarget.textContent = on ? "Hide prototype controls" : "Show prototype controls";
+    setDeskCanvasMode(on ? "split" : "edit");
+  });
+  $("#btnDeskResetDialogue")?.addEventListener("click", () => {
+    if (!confirm("Reset dialogue log? Clears echo loop (Sure-here's-the). Lanes cleared too.")) return;
+    resetDeskDialogue(false);
+  });
+  $("#btnDeskRefreshLocal")?.addEventListener("click", async () => {
+    try {
+      await postJSON("/api/v1/desk-dialogue", { refresh_local: true });
+      localStorage.removeItem(LOCAL_CHAT_KEY);
+      localStorage.removeItem(REMOTE_CHAT_KEY);
+      renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
+      renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
+      await loadAgentDeskCanvas();
+      refreshDeskCursor();
+      refreshChatPreflight();
+      toast("Local refreshed — dialogue cleared, Ollama pinged", true);
+    } catch (e) {
+      toast(String(e.message || e), false);
+    }
+  });
+  $("#deskLocalMode")?.addEventListener("change", (e) => {
+    const mode = e.target?.value === "simulated" ? "simulated" : "real";
+    localStorage.setItem(DESK_LOCAL_MODE_KEY, mode);
+    renderDeskLocalMode();
+    toast(
+      mode === "simulated"
+        ? "Workflow test on: process only; Ollama is not being tested"
+        : "Real Local on: Ollama and local hardware are in the loop",
+      true
+    );
+  });
+  $("#btnDeskPingPong")?.addEventListener("click", () => runDeskSlowWake());
+  $("#btnDeskHandoffs")?.addEventListener("click", () => runDeskHandoffs(5));
+  wireArena();
+  wireRoutingNetwork();
+  wireDaysSubnav();
+  refreshDeskOpsStrip();
+  refreshDeskMachineStatus();
+  if (!window.__deskOpsTimer) {
+    window.__deskOpsTimer = setInterval(() => {
+      if (activePane() === "chat") {
+        refreshDeskOpsStrip();
+        refreshDeskMachineStatus();
+      }
+    }, 15000);
+  }
+  $("#btnOrchPlan")?.addEventListener("click", () => deskConductorTick({ autoAct: false }));
+  $("#btnOrchTick")?.addEventListener("click", () => deskConductorTick({ autoAct: true }));
+  $("#btnRunSprint")?.addEventListener("click", () => deskRunSprint());
+  $("#btnOrchLoop")?.addEventListener("click", () => routeDeskGoal());
+  $("#btnOrchKeepalive")?.addEventListener("click", () => setDeskConductorKeepalive(!deskConductorKeepalive));
+  $("#deskOrchDoc")?.addEventListener("change", (e) => {
+    const v = e.target?.value;
+    if (v) loadDeskDoc(v);
+  });
+  $("#btnDeskOperatorSend")?.addEventListener("click", () => sendDeskOperatorKickoff());
+  $("#deskConductorPrompt")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      routeDeskGoal();
+    }
+  });
+  $("#btnDeskCopy")?.addEventListener("click", async () => {
+    const ta = $("#agentDeskCanvas");
+    const text = ta?.value || "";
+    if (!text.trim()) {
+      toast("Canvas empty", false);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Canvas copied", true);
+    } catch {
+      prompt("Copy canvas:", text.slice(0, 8000));
+    }
+  });
+  $("#agentDeskCanvas")?.addEventListener("input", () => {
+    scheduleDeskCanvasSave();
+    renderDeskCanvasView();
+    setDeskCursorUI("operator");
+  });
+  setDeskCanvasMode("edit");
+  $("#btnChatClear")?.addEventListener("click", () => {
+    if (!confirm("Clear desk lanes in this browser?")) return;
+    localStorage.removeItem(LOCAL_CHAT_KEY);
+    localStorage.removeItem(REMOTE_CHAT_KEY);
+    localStorage.removeItem(META_CHAT_KEY);
+    renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
+    renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
+    renderLaneLog($("#metaChatLog"), META_CHAT_KEY, metaPendingEl);
+  });
 }
 
 function pushChat(role, text, meta, tools) {
@@ -1184,7 +3883,7 @@ function setChatMode(mode) {
     const seat = chatSeat();
     let line;
     if (chatMode === "agent")
-      line = `Ready · Agent · ${isRemoteSeat(seat) ? seat : "deepseek"} · tools on disk · no Grok`;
+      line = `Ready · Agent · ${isRemoteSeat(seat) ? seat : "deepseek"} · prefer Shell for long tool loops`;
     else if (chatMode === "tangent") line = "Ready · Tangent (background)";
     else if (isRemoteSeat(seat))
       line = `Ready · ${seat} · pack-first (real API)`;
@@ -1193,11 +3892,12 @@ function setChatMode(mode) {
     else line = `Ready · ${chatMode} · ${seat}`;
     $("#chatStatus").textContent = line;
   }
+  refreshChatPreflight();
   const ph = $("#chatInput");
   if (ph) {
     ph.placeholder =
       chatMode === "agent"
-        ? "Agent goal — multi-line paste OK. Tools: read/write/search Mag files…"
+        ? "Agent goal — multi-line OK. Long tool loops? Open Shell tab instead."
         : "Ask Mag about your filed work…";
   }
 }
@@ -1269,54 +3969,129 @@ async function copyContextPack() {
 /**
  * Stream one Mag agent turn via SSE. Calls onDelta(text) live, then resolves
  * with the final {answer, tools, provider, ...} from the done event.
+ * Aborts on idle (no SSE) or max wall time — prevents infinite pending UI.
  */
-async function streamAgentTurn(body, onDelta) {
-  const res = await fetch("/api/v1/agent/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok || !res.body) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`agent stream HTTP ${res.status} ${errText.slice(0, 200)}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  let done = null;
-  let error = null;
-  for (;;) {
-    const { value, done: finished } = await reader.read();
-    if (finished) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf("\n\n")) !== -1) {
-      const chunk = buf.slice(0, idx);
-      buf = buf.slice(idx + 2);
-      const line = chunk
-        .split("\n")
-        .find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      let ev;
-      try {
-        ev = JSON.parse(line.slice(5).trim());
-      } catch {
-        continue;
+async function streamAgentTurn(body, onDelta, opts = {}) {
+  const idleMs = opts.idleMs ?? CHAT_STREAM_IDLE_MS;
+  const maxMs = opts.maxMs ?? CHAT_STREAM_MAX_MS;
+  const onTool = opts.onTool;
+  const onStatus = opts.onStatus;
+  const thinkingLane = opts.thinkingLane;
+  const ac = new AbortController();
+  const streamStarted = Date.now();
+  let lastActivity = Date.now();
+  let lastStatus = null;
+  let lastLiveKey = "";
+  const sessionId = body.session_id || "dashboard";
+  const idleCheck = setInterval(() => {
+    if (Date.now() - lastActivity > idleMs) ac.abort();
+  }, 5000);
+  const maxTimer = setTimeout(() => ac.abort(), maxMs);
+  const livePoll = setInterval(async () => {
+    try {
+      const live = await getJSON(
+        `/api/v1/agent/live?session_id=${encodeURIComponent(sessionId)}`,
+        { timeoutMs: 4000 }
+      );
+      if (!live.active) return;
+      const liveKey = `${live.phase || ""}|${live.tool || ""}|${live.detail || ""}|${live.updated || ""}`;
+      if (liveKey === lastLiveKey) return;
+      lastLiveKey = liveKey;
+      lastStatus = live;
+      lastActivity = Date.now();
+      if (onStatus) onStatus(live);
+      else if (thinkingLane) {
+        thinkingStep(thinkingLane, live.phase || "status", live.detail || live.tool || "");
+        if (live.detail || live.idle_s != null) {
+          updateThinkingLive(
+            thinkingLane,
+            live.idle_s != null ? `${live.detail || live.phase || ""} · idle ${live.idle_s}s` : live.detail
+          );
+        }
       }
-      if (ev.type === "delta" && typeof ev.text === "string") {
-        if (onDelta) onDelta(ev.text);
-      } else if (ev.type === "tool") {
-        if (onDelta) onDelta(`\n[${ev.name}] ${ev.args || ""}\n`);
-      } else if (ev.type === "done") {
-        done = ev;
-      } else if (ev.type === "error") {
-        error = ev.error || "agent stream error";
+    } catch {
+      /* poll fallback — ignore */
+    }
+  }, 3000);
+
+  try {
+    const res = await fetch("/api/v1/agent/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    });
+    if (!res.ok || !res.body) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`agent stream HTTP ${res.status} ${errText.slice(0, 200)}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let done = null;
+    let error = null;
+    for (;;) {
+      const { value, done: finished } = await reader.read();
+      if (finished) break;
+      lastActivity = Date.now();
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) !== -1) {
+        const chunk = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+        if (!line) continue;
+        let ev;
+        try {
+          ev = JSON.parse(line.slice(5).trim());
+        } catch {
+          continue;
+        }
+        lastActivity = Date.now();
+        if (ev.type === "delta" && typeof ev.text === "string") {
+          if (onDelta) onDelta(ev.text);
+        } else if (ev.type === "tool") {
+          if (onTool) onTool(ev);
+          if (onDelta) onDelta(`\n[${ev.name}] ${ev.args || ""}\n`);
+        } else if (ev.type === "status" || ev.type === "heartbeat") {
+          lastStatus = ev;
+          if (onStatus) onStatus(ev);
+          else if (thinkingLane) {
+            thinkingStep(thinkingLane, ev.phase || ev.type, ev.detail || ev.tool || "");
+            if (ev.detail || ev.idle_s != null) {
+              updateThinkingLive(
+                thinkingLane,
+                ev.idle_s != null ? `${ev.detail || ev.phase || ""} · idle ${ev.idle_s}s` : ev.detail
+              );
+            }
+          }
+        } else if (ev.type === "done") {
+          done = ev;
+        } else if (ev.type === "error") {
+          error = ev.error || "agent stream error";
+        }
       }
     }
+    if (error) throw new Error(error);
+    if (!done) throw new Error("agent stream ended without done event");
+    return done;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      const waitedSec = Math.round((Date.now() - streamStarted) / 1000);
+      const st = lastStatus;
+      const hint = st
+        ? ` Last known: ${st.phase || "?"}${st.tool ? ` · ${st.tool}` : ""}${st.detail ? ` · ${String(st.detail).slice(0, 80)}` : ""}.`
+        : "";
+      throw new Error(
+        `Agent stream timed out after ${waitedSec}s (no new events).${hint} Use !pause, Reset agent, or Shell tab for long tool runs.`
+      );
+    }
+    throw e;
+  } finally {
+    clearInterval(idleCheck);
+    clearInterval(livePoll);
+    clearTimeout(maxTimer);
   }
-  if (error) throw new Error(error);
-  if (!done) throw new Error("agent stream ended without done event");
-  return done;
 }
 
 async function sendSteer() {
@@ -1361,9 +4136,16 @@ async function loadOperatorInboxStatus() {
 }
 
 function startOperatorInboxPoll() {
+  if (activePane() !== "chat") return;
   loadOperatorInboxStatus();
   if (_inboxPollTimer) clearInterval(_inboxPollTimer);
-  _inboxPollTimer = setInterval(loadOperatorInboxStatus, 4000);
+  _inboxPollTimer = setInterval(() => {
+    if (activePane() !== "chat") {
+      stopOperatorInboxPoll();
+      return;
+    }
+    loadOperatorInboxStatus();
+  }, 4000);
 }
 
 async function commitOperatorGuidance() {
@@ -1452,6 +4234,13 @@ async function sendChat() {
     q = q ? `${blocks}\n\n${q}` : blocks + "\n\n(Describe what to do with the attachment.)";
   }
   if (!q) return;
+
+  // Biographer chips / short status questions → Ask, not Agent tool loop.
+  if (chatMode === "agent" && BIOGRAPHER_Q.test(q)) {
+    setChatMode("ask");
+    toast("Biographer question → Ask mode (Shell for tools)", true);
+  }
+
   chatBusy = true;
   const seat = chatSeat();
   const userShow =
@@ -1461,16 +4250,8 @@ async function sendChat() {
   composePending = [];
   renderComposeAttach();
   pushChat("user", userShow, `${chatMode} · ${seat}`);
-  if ($("#chatStatus")) $("#chatStatus").textContent = `Thinking (${seat})…`;
-  const pending = { role: "mag", text: "…", meta: "pending", ts: Date.now() };
-  const hist = loadChatHistory();
-  hist.push(pending);
-  saveChatHistory(hist);
-  renderChat();
-  // mark last as pending visually
-  const log = $("#chatLog");
-  const last = log?.lastElementChild;
-  if (last) last.classList.add("pending");
+  if ($("#chatStatus")) $("#chatStatus").textContent = `Thinking (${chatMode} · ${seat})…`;
+  beginPendingBubble();
 
   try {
     let text = "";
@@ -1478,25 +4259,27 @@ async function sendChat() {
     let tools = null;
     if (chatMode === "agent") {
       const provider = isRemoteSeat(seat) ? seat : seat === "local" ? "ollama" : "deepseek";
-      // Live streaming window: update the pending bubble as deltas arrive.
       let acc = "";
-      const updatePending = (delta) => {
-        acc += delta;
-        const msgs = loadChatHistory();
-        const p = msgs.find((m) => m.meta === "pending");
-        if (p) {
-          p.text = acc || "…";
-          saveChatHistory(msgs);
-          renderChat();
-        }
-      };
+      let toolN = 0;
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
-        updatePending
+        (delta) => {
+          acc += delta;
+          updatePendingBubble(acc);
+        },
+        {
+          onTool: () => {
+            toolN += 1;
+            if ($("#chatStatus")) {
+              $("#chatStatus").textContent = `Agent · ${provider} · tool ${toolN}…`;
+            }
+          },
+        }
       );
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
-      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length} · live`;
+      meta = `agent · ${done.provider || provider} · tools=${(tools || []).length}`;
+      endPendingBubble(text, meta, tools);
     } else if (chatMode === "tangent") {
       const res = await postJSON("/api/v1/tangent", {
         prompt: q,
@@ -1512,8 +4295,8 @@ async function sendChat() {
         (r.summary || res.error || JSON.stringify(res).slice(0, 600)) +
         `\n\n_File:_ \`${r.path || "memory/tangents/latest.md"}\`\n` +
         `_Elevate to Grok only if useful — pack path, not full chat._`;
+      endPendingBubble(text, meta, null);
     } else if (chatMode === "dispatch" || isRemoteSeat(seat) || (chatMode === "ask" && seat !== "local")) {
-      // Remote seats always dispatch pack-first with seat=remote (must hit real API).
       const body = { goal: q };
       if (seat === "local") {
         body.seat = "local";
@@ -1536,6 +4319,7 @@ async function sendChat() {
       if (res.economy_last) {
         meta += ` · saved ~${res.economy_last.tokens_saved ?? "?"} tok`;
       }
+      endPendingBubble(text, meta, null);
     } else {
       const res = await postJSON("/api/v1/ask", { question: q, use_llm: true });
       text = res.answer || res.error || JSON.stringify(res, null, 2);
@@ -1544,24 +4328,14 @@ async function sendChat() {
       meta =
         res.ok === false
           ? "ask · fail"
-          : `ask · L0 · 0 Grok · ~${last.local_tokens ?? "?"} local · ~${last.tokens_saved ?? "?"} saved · ${nsrc} sources`;
+          : `ask · L0 · ${nsrc} sources · memory/briefs`;
+      endPendingBubble(text, meta, null);
     }
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({ role: "mag", text, meta, tools: tools || null, ts: Date.now() });
-    saveChatHistory(msgs);
-    renderChat();
     refreshEconomy();
     refreshChatQuota();
+    refreshChatPreflight();
   } catch (e) {
-    const msgs = loadChatHistory().filter((m) => m.meta !== "pending");
-    msgs.push({
-      role: "mag",
-      text: String(e.message || e),
-      meta: "error",
-      ts: Date.now(),
-    });
-    saveChatHistory(msgs);
-    renderChat();
+    endPendingBubble(String(e.message || e), "error", null);
   } finally {
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
@@ -1582,7 +4356,7 @@ let tapestryReady = null;
 function ensureTapestryModule() {
   if (window.MagTapestry) return Promise.resolve();
   if (tapestryReady) return tapestryReady;
-  tapestryReady = import(`/static/tapestry.js?v=days-v2`).catch((e) => {
+  tapestryReady = import(`/static/tapestry.js?v=days-v5`).catch((e) => {
     console.error(e);
     if ($("#tapCaption")) {
       $("#tapCaption").textContent =
@@ -2661,6 +5435,40 @@ async function wireDaysDesk() {
     if (selectedId) openSessionVisual(selectedId);
     else setTab("visual");
   });
+  $("#btnDaysCopyKnot")?.addEventListener("click", async () => {
+    if (!selectedId) {
+      toast("Pin a workday or cyan Verkle knot first");
+      return;
+    }
+    try {
+      const artifact = await getJSON(`/api/v1/verkle-knots/${encodeURIComponent(selectedId)}`);
+      const text = JSON.stringify(artifact, null, 2);
+      await navigator.clipboard.writeText(text);
+      toast("Verkle knot copied — ready to hand to an agent");
+    } catch (e) {
+      toast(`Could not build knot: ${e.message || e}`);
+    }
+  });
+  $("#btnDaysRouteKnot")?.addEventListener("click", async () => {
+    if (!selectedId) {
+      toast("Pin a workday or cyan Verkle knot first");
+      return;
+    }
+    const btn = $("#btnDaysRouteKnot");
+    if (btn) btn.disabled = true;
+    try {
+      const result = await postJSON(`/api/v1/verkle-knots/${encodeURIComponent(selectedId)}`, {
+        action: "route",
+        background: true,
+      });
+      toast(result?.execution?.ok ? "Knot handed to a background agent" : "Agent handoff was not accepted");
+      refreshHandoffInbox().catch(() => {});
+    } catch (e) {
+      toast(`Knot handoff failed: ${e.message || e}`);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
   $("#btnHomeChat")?.addEventListener("click", () => {
     setTab("chat");
     const input = $("#chatInput");
@@ -2894,6 +5702,7 @@ async function loadIdeas() {
     }
     syncIdeasFilterChips();
     renderIdeasList();
+    await refreshIdeasScrum();
     if (!ideasSelectedId || !ideasCache.find((n) => n.id === ideasSelectedId)) {
       const first =
         ideasCache.find((n) => n.status === "open") || ideasCache[0];
@@ -3155,7 +5964,13 @@ async function renderStory(s) {
     ${mdExtra}
   `;
 
-  root.querySelectorAll(".story-open-file").forEach((btn) => {
+  wireStoryFileButtons(root);
+}
+
+function wireStoryFileButtons(root) {
+  root?.querySelectorAll(".story-open-file").forEach((btn) => {
+    if (btn.dataset.storyWired === "1") return;
+    btn.dataset.storyWired = "1";
     btn.addEventListener("click", async () => {
       const path = btn.getAttribute("data-path");
       if (!path) return;
@@ -3672,12 +6487,287 @@ async function loadSeatsPanel() {
 }
 
 let chronicleTimer = null;
+
+function applySchedulerStrip(s) {
+  const st = $("#schedulerStatus");
+  if (!st || !s) return;
+  const depth = s.depth || 0;
+  const bits = [`depth ${depth}`];
+  if (s.paused) bits.push("paused");
+  if (s.busy && s.current) bits.push(String(s.current.label || s.current.kind || "running"));
+  st.textContent = bits.join(" · ");
+  st.className = `scheduler-status muted sm ${s.paused ? "warn" : depth > 2 ? "busy" : s.busy ? "running" : "idle"}`;
+}
+
+async function schedulerAction(action, extra) {
+  try {
+    const res = await postJSON("/api/v1/local-scheduler", { action, ...(extra || {}) });
+    toast(res.ok !== false ? `Scheduler · ${action}` : String(res.error || "failed"), res.ok !== false);
+    await loadStack();
+    return res;
+  } catch (e) {
+    toast(String(e.message || e), false);
+    return null;
+  }
+}
+
+function applyUnslothStrip(u) {
+  const st = $("#unslothStatus");
+  const gpu = $("#unslothGpuHint");
+  const startBtn = $("#btnUnslothStart");
+  const agentBtn = $("#btnUnslothAgent");
+  const stopBtn = $("#btnUnslothStop");
+  if (!st) return;
+
+  if (!u || u.ok === false) {
+    st.textContent = u?.error ? `error · ${u.error}` : "unavailable";
+    if (gpu) gpu.textContent = "";
+    return;
+  }
+
+  const installed = u.installed;
+  const running = u.running;
+  const bits = [];
+  if (!installed) bits.push("not installed");
+  else bits.push(u.version || "installed");
+  bits.push(running ? `running pid ${u.pid}` : "stopped");
+  if (u.mode && running) bits.push(u.mode);
+  st.textContent = bits.join(" · ");
+  st.className = `unsloth-status muted sm ${running ? "running" : installed ? "idle" : "warn"}`;
+
+  const gh = u.gpu_hint || {};
+  const cache = (gh.cache_models || []).slice(0, 2).join(", ");
+  if (gpu) {
+    gpu.textContent = [gh.desk_model || "gemma4-desk", cache ? `cache ${cache}` : ""]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  if (startBtn) startBtn.disabled = !installed || running;
+  if (agentBtn) agentBtn.disabled = !installed || running;
+  if (stopBtn) stopBtn.disabled = !running;
+}
+
+async function loadUnslothPanel(showLog) {
+  try {
+    const q = showLog ? "?log=30" : "";
+    const u = await getJSON(`/api/v1/unsloth${q}`);
+    applyUnslothStrip(u);
+    const logEl = $("#unslothLog");
+    if (logEl && showLog && u.log_tail) {
+      logEl.hidden = false;
+      logEl.classList.remove("hidden");
+      logEl.textContent = (u.log_tail || []).join("\n") || "(empty log)";
+    }
+    return u;
+  } catch (e) {
+    applyUnslothStrip({ ok: false, error: String(e.message || e) });
+    return null;
+  }
+}
+
+async function unslothAction(action, extra) {
+  const body = { action, ...(extra || {}) };
+  try {
+    const res = await postJSON("/api/v1/unsloth", body);
+    applyUnslothStrip(res);
+    await loadStack();
+    return res;
+  } catch (e) {
+    applyUnslothStrip({ ok: false, error: String(e.message || e) });
+    throw e;
+  }
+}
+
+function featureGate(label, ok) {
+  return `<span class="feature-gate ${ok ? "pass" : "wait"}">${ok ? "✓" : "·"} ${esc(label)}</span>`;
+}
+
+async function featureLabAction(branch, action) {
+  try {
+    const result = await postJSON("/api/v1/feature-lab", { branch, action });
+    toast(action === "verify" ? "Verification handoff filed" : "Graduation review filed");
+    await loadFeatureLab();
+    return result;
+  } catch (e) {
+    toast(String(e.message || e), "err");
+    return null;
+  }
+}
+
+async function loadFeatureLab() {
+  const host = $("#featureLabCandidates");
+  if (!host) return;
+  try {
+    const data = await getJSON("/api/v1/feature-lab");
+    const metrics = data.metrics || {};
+    if ($("#featureLabPolicy")) $("#featureLabPolicy").textContent = data.policy || "";
+    if ($("#featureLabMetrics")) $("#featureLabMetrics").innerHTML = [
+      ["Experiments", metrics.experiments || 0], ["Building", metrics.building || 0],
+      ["Needs tests", metrics.testing || 0], ["Ready", metrics.ready || 0],
+      ["Review queued", metrics.queued || 0],
+    ].map(([label, value]) => `<article><strong>${esc(value)}</strong><span>${esc(label)}</span></article>`).join("");
+    const candidates = (data.candidates || []).filter((x) => !x.operational);
+    host.innerHTML = candidates.length ? candidates.map((item) => {
+      const gates = item.gates || {};
+      const evidence = item.evidence || {};
+      return `<article class="feature-candidate ${item.graduation_ready ? "ready" : ""}">
+        <div class="feature-candidate-head"><div><span class="ideas-kicker">${esc(item.stage)}</span><h3>${esc(item.branch || "detached worktree")}</h3></div><code>${esc(item.head || "?")}</code></div>
+        <p class="muted sm">${esc(item.root)}</p>
+        <div class="feature-gates">${featureGate("isolated", gates.isolated)}${featureGate("clean", gates.clean)}${featureGate("tracked", gates.tracked)}${featureGate("synced", gates.synced)}${featureGate("tests bound", gates.verified)}</div>
+        <p class="feature-evidence">${evidence.path ? `${evidence.bound_to_head ? "HEAD-bound evidence" : "Older evidence (does not prove this HEAD)"}: <code>${esc(evidence.path)}</code>` : "No branch-bound test evidence yet."}</p>
+        <div class="row"><button type="button" class="btn ghost btn-sm feature-lab-action" data-action="verify" data-branch="${esc(item.branch)}">Request verification</button><button type="button" class="btn primary btn-sm feature-lab-action" data-action="graduate" data-branch="${esc(item.branch)}" ${item.graduation_ready ? "" : "disabled"}>Request graduation review</button></div>
+      </article>`;
+    }).join("") : `<p class="muted">No isolated feature worktrees are registered.</p>`;
+    host.querySelectorAll(".feature-lab-action").forEach((btn) => btn.addEventListener("click", () => featureLabAction(btn.dataset.branch, btn.dataset.action)));
+    if ($("#featureLabSources")) $("#featureLabSources").textContent = `Sources: ${(data.sources || []).join(" · ")}`;
+  } catch (e) {
+    host.innerHTML = `<p class="muted">Feature Lab offline: ${esc(String(e.message || e))}</p>`;
+  }
+}
+
+async function loadStack() {
+  const head = $("#stackHeadline");
+  const meta = $("#stackMeta");
+  const svc = $("#stackServices");
+  const ag = $("#stackAgents");
+  const out = $("#stackOutputs");
+  try {
+    const [j, repo] = await Promise.all([
+      getJSON("/api/v1/stack?limit=30"),
+      getJSON("/api/v1/repo-readiness").catch(() => null),
+    ]);
+    if (repo && $("#repoReadinessVerdict")) {
+      $("#repoReadinessVerdict").textContent = repo.handoff_ready ? "READY" : "NOT READY";
+      $("#repoReadinessVerdict").className = repo.handoff_ready ? "ok" : "warn";
+      $("#repoReadinessSummary").textContent = `${repo.branch || "detached"} · ${repo.head || "?"} · ${repo.upstream || "no upstream"} · ${repo.changed_tracked || 0} tracked changes · ${repo.untracked || 0} untracked`;
+      $("#repoReadinessBlockers").innerHTML = (repo.blockers || []).length
+        ? repo.blockers.map((x) => `<li>${esc(x)}</li>`).join("")
+        : `<li class="ok">Clean, tracked, and synchronized against the last fetched remote state.</li>`;
+      $("#repoReadinessNote").textContent = `${(repo.worktrees || []).length} worktree(s) · ${repo.note || ""}`;
+    }
+    if (head) {
+      head.textContent = `Stack ${j.headline || "?"} · integral ${j.integral_ok ? "ok" : "degraded"}`;
+    }
+    if (meta) {
+      const f = j.fleet || {};
+      const tri = j.triad_alive != null ? ` · triad ${j.triad_alive}/${(j.triad || []).length}` : "";
+      meta.textContent = `workers ${f.running || 0}/${f.total || 0}${tri} · poll ${j.poll_seconds || 10}s · ${(j.ts || "").slice(0, 19)}`;
+    }
+    if (svc) {
+      const triadHtml = (j.triad || [])
+        .map((t) => {
+          const up = t.alive ? "up" : "down";
+          return `<div class="stack-card triad ${up}">
+            <div class="stack-card-top">
+              <span class="stack-dot ${up}"></span>
+              <strong>${esc(t.label || t.key)}</strong>
+              <span class="muted sm">${t.pid ? "pid " + t.pid : "—"}</span>
+            </div>
+            <div class="stack-card-probe muted sm">${esc(t.desc || "")}</div>
+            <div class="stack-card-api muted sm">${esc(t.api || "GET /api/v1/fleet/triad")}</div>
+          </div>`;
+        })
+        .join("");
+      const svcHtml = (j.services || [])
+        .map((s) => {
+          const up = s.up ? "up" : "down";
+          return `<div class="stack-card ${up}">
+            <div class="stack-card-top">
+              <span class="stack-dot ${up}"></span>
+              <strong>${esc(s.label || s.id)}</strong>
+              <span class="muted sm">${s.port ? ":" + s.port : ""}</span>
+            </div>
+            <div class="stack-card-probe muted sm">${esc(s.method || "GET")} ${esc(s.probe || "")}</div>
+            <div class="stack-card-api muted sm">${esc(s.api || "")}</div>
+          </div>`;
+        })
+        .join("");
+      svc.innerHTML = triadHtml + svcHtml;
+      const researchHtml = (j.research || [])
+        .map((r) => {
+          const st = r.status || "idle";
+          return `<div class="stack-card research ${esc(st)}">
+            <div class="stack-card-top">
+              <span class="stack-kind">${esc(r.id || "?")}</span>
+              <strong>${esc(r.label || "?")}</strong>
+            </div>
+            <div class="stack-card-probe muted sm">${esc(r.text || "")}</div>
+            <div class="stack-card-api muted sm">${esc(r.api || "")}</div>
+          </div>`;
+        })
+        .join("");
+      if (researchHtml && svc) svc.innerHTML += researchHtml;
+    }
+    if (ag) {
+      ag.innerHTML = (j.agents || [])
+        .map((a) => {
+          return `<div class="stack-card agent">
+            <div class="stack-card-top">
+              <span class="stack-kind">${esc(a.kind || "?")}</span>
+              <strong>${esc(a.name || a.id || "?")}</strong>
+            </div>
+            <div class="muted sm">${esc(a.status || "")}${a.phase ? " · " + esc(a.phase) : ""}${a.turn != null ? " · turn " + esc(String(a.turn)) : ""}</div>
+            <div class="stack-card-goal">${esc(a.goal || "")}</div>
+            <div class="stack-card-api muted sm">${esc(a.api || "")}</div>
+          </div>`;
+        })
+        .join("");
+    }
+    if (out) {
+      out.innerHTML = (j.outputs || [])
+        .map((o) => {
+          return `<li class="stack-out">
+            <div class="stack-out-top">
+              <span class="stack-out-ch">${esc(o.channel || "?")}</span>
+              <span class="muted sm">${esc((o.ts || "").slice(0, 19))}</span>
+            </div>
+            <div class="stack-out-text">${esc(o.text || "")}</div>
+            <div class="stack-out-meta muted sm">${esc(o.api || "")}${o.proof ? " · " + esc(o.proof) : ""}</div>
+          </li>`;
+        })
+        .join("");
+    }
+    if (j.unsloth) applyUnslothStrip(j.unsloth);
+    if (j.local_scheduler) applySchedulerStrip(j.local_scheduler);
+    else loadUnslothPanel(false);
+  } catch (e) {
+    if (head) head.textContent = "Stack offline — restart lab";
+    if (svc) svc.innerHTML = `<p class="muted">${esc(String(e.message || e))}</p>`;
+  }
+}
+
+let stackTimer = null;
+function startStackPoll() {
+  if (stackTimer) return;
+  loadStack();
+  stackTimer = setInterval(loadStack, 10000);
+}
+function stopStackPoll() {
+  if (stackTimer) clearInterval(stackTimer);
+  stackTimer = null;
+}
+
+let statusTimer = null;
+function startStatusPoll() {
+  if (statusTimer) return;
+  loadStatus();
+  statusTimer = setInterval(loadStatus, 60000);
+}
+function stopStatusPoll() {
+  if (statusTimer) clearInterval(statusTimer);
+  statusTimer = null;
+}
+
 async function loadChronicle() {
   const meta = $("#chronicle-meta");
   const content = $("#chronicle-content");
   const events = $("#chronicleEvents");
   const sources = $("#chronicleSources");
   const honesty = $("#chronicleHonesty");
+  const needs = $("#chronicleNeeds");
+  const changed = $("#chronicleChanged");
+  const meaning = $("#chronicleMeaning");
   try {
     const d = await getJSON("/api/v1/chronicle");
     if (meta) {
@@ -3686,6 +6776,13 @@ async function loadChronicle() {
         : d.workers_layman || "Pulse";
     }
     if (content) content.textContent = d.content || "(empty)";
+    const interpreted = (d.events || []).map((ev) => ev.layman || ev.preview || ev.technical).filter(Boolean);
+    const attention = interpreted.find((line) => /need|block|fail|stale|wait|attention|error/i.test(line));
+    if (needs) needs.textContent = attention || "Nothing currently requires a decision from you.";
+    if (changed) changed.textContent = interpreted[0] || d.workers_layman || "No meaningful change has been filed yet.";
+    if (meaning) meaning.textContent = interpreted[1]
+      ? `This affects what Mag should do next: ${interpreted[1]}`
+      : "Pulse only promotes filed changes that alter priority, safety, cost, or the next action.";
     if (honesty && d.honesty) {
       honesty.textContent = d.honesty.layman || honesty.textContent;
     }
@@ -3805,6 +6902,129 @@ async function onAutopilotOnce() {
   }
 }
 
+async function loadPowerPanel() {
+  const head = $("#powerHeadline");
+  const pills = $("#powerPills");
+  const svc = $("#powerServices");
+  const hint = $("#powerHint");
+  try {
+    const p = await getJSON("/api/v1/power");
+    const hl = p.headline || (p.stack_up ? "UP" : "DOWN");
+    const tone =
+      hl === "UP" ? "ok" : hl === "STOPPED" ? "muted" : hl === "ZOMBIES" ? "warn" : "warn";
+    if (head) {
+      head.textContent = `Stack ${hl}${p.power_off ? " (kill switch engaged)" : ""}`;
+      head.className = `muted sm power-head-${tone}`;
+    }
+    if (pills) {
+      pills.innerHTML = [
+        `<span class="pill ${tone}">${esc(hl)}</span>`,
+        p.power_off ? `<span class="pill warn">OFF flag</span>` : "",
+        p.supervisor?.running ? `<span class="pill ok">supervisor</span>` : `<span class="pill">supervisor off</span>`,
+        (p.fleet?.running || 0) > 0
+          ? `<span class="pill warn">${p.fleet.running} worker(s)</span>`
+          : "",
+        (p.seat_guards_running || 0) > 0
+          ? `<span class="pill warn">${p.seat_guards_running} seat-guard</span>`
+          : "",
+        (p.registered_seats || 0) > 0
+          ? `<span class="pill ok">${p.registered_seats} registered seat(s)</span>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
+    }
+    if (svc) {
+      const sv = p.services || {};
+      kvRows(svc, [
+        ["Backend :8000", sv.backend ? "UP" : "down", sv.backend ? "ok" : "warn"],
+        ["Dashboard :8765", sv.dashboard ? "UP" : "down", sv.dashboard ? "ok" : "warn"],
+        ["Mirror :8743", sv.mirror ? "UP" : "down", sv.mirror ? "ok" : ""],
+        ["Mag processes", String(p.mag_processes ?? "—"), (p.mag_processes || 0) > 3 ? "warn" : ""],
+        ["Fleet running", String(p.fleet?.running ?? 0), (p.fleet?.running || 0) > 0 ? "warn" : ""],
+      ]);
+    }
+    if (hint) {
+      hint.textContent =
+        p.actions?.stop && p.actions?.start
+          ? `CLI: ${p.actions.stop} · ${p.actions.start}`
+          : "mag_kill.cmd to exit · mag_on.cmd to boot";
+    }
+  } catch (e) {
+    if (head) head.textContent = "Power status unavailable (stack may be down)";
+    if (hint) hint.textContent = String(e.message || e);
+  }
+}
+
+async function onImproveCycle() {
+  const btn = $("#btnImproveCycle");
+  if (btn) btn.disabled = true;
+  toast("Improve cycle running…");
+  try {
+    const res = await postJSON("/api/v1/improve/cycle", { source: "dashboard", drain: true, max_improve: 2 });
+    toast(res.ok ? "Improve cycle OK — check Body + Workers" : "Improve cycle incomplete");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Improve cycle failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function onTokenChain() {
+  const btn = $("#btnTokenChain");
+  if (btn) btn.disabled = true;
+  toast("Token-chain: DeepSeek plans → local exec…");
+  try {
+    const res = await postJSON("/api/v1/token-chain", {
+      goal: "Inspect improve field_brief and candidates; note top tickets",
+      dry: false,
+    });
+    const ft = (res.token_thesis && res.token_thesis.frontier_tokens) || 0;
+    const ok = res.ok || (res.execution && res.execution.ok);
+    toast(
+      ok
+        ? `Token-chain OK — frontier ${ft} tok · see memory/runs/token_chain/latest.json`
+        : `Token-chain incomplete: ${(res.error || res.planner_error || "check latest.json")}`,
+    );
+    await loadStatus();
+  } catch (e) {
+    toast("Token-chain failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function onPowerStop() {
+  if (!confirm("Stop entire Mag stack? Dashboard will go down.")) return;
+  const btn = $("#btnPowerStop");
+  if (btn) btn.disabled = true;
+  toast("Kill switch — shutting down…");
+  try {
+    await postJSON("/api/v1/power/stop", {});
+    toast("Stack stopping — window may lose connection");
+  } catch (e) {
+    toast("Stop sent (connection may drop): " + (e.message || e));
+  }
+}
+
+async function onPowerStart() {
+  const btn = $("#btnPowerStart");
+  if (btn) btn.disabled = true;
+  toast("Turning Mag on…");
+  try {
+    const res = await postJSON("/api/v1/power/start", { browser: false });
+    toast(res.ok ? "Stack up — reloading status" : "Start incomplete — check mag_on.cmd");
+    await loadPowerPanel();
+    await loadStatus();
+  } catch (e) {
+    toast("Start failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function loadStatus() {
   const body = $("#statusBody");
   const spend = $("#statusSpend");
@@ -3821,6 +7041,7 @@ async function loadStatus() {
   const officeHead = $("#statusOfficeHeadline");
 
   try {
+    await loadPowerPanel();
     const [router, h, seatsReg] = await Promise.all([
       getJSON("/api/v1/router-status").catch((e) => ({
         ok: false,
@@ -4006,7 +7227,7 @@ const recent = ingest.recent_urls || [];
     const opsList = $("#opsFleetList");
     const opsSum = $("#opsFleetSummary");
     if (opsSup) {
-      const sup = h.supervisor || {};
+      const sup = router.supervisor || {};
       const supRunning = sup.running ? "RUNNING" : "stopped";
       const pids = sup.pids || {};
       const wanted = sup.wanted || {};
@@ -4020,8 +7241,8 @@ const recent = ingest.recent_urls || [];
       ]);
     }
     if (opsFleet) {
-      const f = h.fleet || {};
-      const q = h.queue || {};
+      const f = router.fleet || {};
+      const q = router.queue || {};
       const qc = q.counts || {};
       const qRows = [
         ["Fleet total", f.total ?? "—"],
@@ -4899,6 +8120,8 @@ async function refresh() {
       await loadTapestry();
     } else if (active === "ideas") await loadIdeas();
     else if (active === "status") await loadStatus();
+    else if (active === "stack") await loadStack();
+    else if (active === "featurelab") await loadFeatureLab();
     else if (active === "chronicle") await loadChronicle();
     else if (active === "diary") await loadDiary();
     else if (active === "board") await loadBoard();
@@ -4920,8 +8143,10 @@ async function refresh() {
 }
 
 async function bind() {
+  try { wireDashboardNav(); } catch (e) { console.error(e); }
   try { wireMirrorGuide(); } catch (e) { console.error(e); }
   try { wireDaysDesk(); } catch (e) { console.error(e); }
+  try { wireDaysSubnav(); } catch (e) { console.error(e); }
 
   document.querySelectorAll(".tab[data-tab]").forEach((t) => {
     t.addEventListener("click", () => {
@@ -4992,10 +8217,23 @@ async function bind() {
   $("#tapLatticeToggle")?.addEventListener("change", (e) => {
     tapestryView?.setLatticeVisible?.(e.target.checked);
   });
+  $("#btnTapLatticeFocus")?.addEventListener("click", (e) => {
+    if (!tapestryView) return;
+    const next = !tapestryView.latticeFocus;
+    if (next && $("#tapLatticeToggle") && !$("#tapLatticeToggle").checked) {
+      $("#tapLatticeToggle").checked = true;
+      tapestryView.setLatticeVisible(true);
+    }
+    tapestryView.setLatticeFocus(next);
+    e.currentTarget.classList.toggle("primary", next);
+    e.currentTarget.classList.toggle("ghost", !next);
+    e.currentTarget.textContent = next ? "Show all" : "Chain focus";
+  });
   window.addEventListener("mag:win-open", (e) => {
     const id = e.detail?.id;
     if (id === "chronicle") startChroniclePoll();
-    if (id === "status") loadStatus();
+    if (id === "status") startStatusPoll();
+    if (id === "stack") startStackPoll();
     if (id === "viewports") loadViewports();
     if (id === "tapestry" || id === "sessions") {
       setTimeout(() => tapestryView?.resize?.({ forceFit: true }), 80);
@@ -5014,6 +8252,7 @@ async function bind() {
   });
   // Office + Days CTAs
   $("#btnHomeRefresh")?.addEventListener("click", () => loadHome());
+  $("#btnHomeLaunchAgent")?.addEventListener("click", () => setTab("chat"));
   $("#btnHomeChat")?.addEventListener("click", () => {
     setTab("chat");
     if ($("#chatInput") && !$("#chatInput").value.trim()) {
@@ -5059,6 +8298,19 @@ async function bind() {
   $("#btnIdeaShelf")?.addEventListener("click", () => patchIdeaStatus("held"));
   $("#btnIdeaReopen")?.addEventListener("click", () => patchIdeaStatus("open"));
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
+  $("#btnStackReload")?.addEventListener("click", () => loadStack());
+  $("#btnFeatureLabReload")?.addEventListener("click", () => loadFeatureLab());
+  $("#btnSchedPause")?.addEventListener("click", () => schedulerAction("steer", { cmd: "!pause" }));
+  $("#btnSchedContinue")?.addEventListener("click", () => schedulerAction("steer", { cmd: "!continue" }));
+  $("#btnSchedTriage")?.addEventListener("click", () => schedulerAction("triage"));
+  $("#btnUnslothStart")?.addEventListener("click", () => unslothAction("start", { mode: "chat" }));
+  $("#btnUnslothAgent")?.addEventListener("click", () => unslothAction("start", { mode: "agent", agent: "hermes" }));
+  $("#btnUnslothStop")?.addEventListener("click", () => unslothAction("stop"));
+  $("#btnUnslothLog")?.addEventListener("click", () => loadUnslothPanel(true));
+  $("#btnPowerStop")?.addEventListener("click", () => onPowerStop());
+  $("#btnPowerStart")?.addEventListener("click", () => onPowerStart());
+  $("#btnImproveCycle")?.addEventListener("click", () => onImproveCycle());
+  $("#btnTokenChain")?.addEventListener("click", () => onTokenChain());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
@@ -5109,16 +8361,14 @@ async function bind() {
   $("#btnIdeasToChat")?.addEventListener("click", () => {
     if (!ideasSelectedPack) return;
     setTab("chat");
-    const input = $("#chatInput");
+    const input = $("#localChatInput") || $("#chatInput");
     if (input) {
       input.value =
         "Using this idea pack, what should I do next?\n\n" + ideasSelectedPack.slice(0, 3500);
     }
-    toast("Pack loaded into Chat compose");
+    toast("Pack loaded into local lane");
   });
-  setChatMode("agent");
-  renderChat();
-  $("#btnChatSend")?.addEventListener("click", () => sendChat());
+  setChatMode("ask");
   $("#btnSteer")?.addEventListener("click", () => sendSteer());
   $("#steerInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); sendSteer(); }
@@ -5142,12 +8392,6 @@ async function bind() {
     });
   });
   $("#btnCopyPack")?.addEventListener("click", () => copyContextPack());
-  $("#btnChatClear")?.addEventListener("click", () => {
-    if (confirm("Clear chat history on this browser?")) {
-      localStorage.removeItem(CHAT_KEY);
-      renderChat();
-    }
-  });
   $("#btnAgentReset")?.addEventListener("click", async () => {
     try {
       await postJSON("/api/v1/agent", {
@@ -5167,6 +8411,7 @@ async function bind() {
   $("#chatModeTangent")?.addEventListener("click", () => setChatMode("tangent"));
   document.querySelectorAll("#chatChips .chip").forEach((b) => {
     b.addEventListener("click", () => {
+      setChatMode("ask");
       if ($("#chatInput")) $("#chatInput").value = b.dataset.q || "";
       sendChat();
     });
@@ -5324,22 +8569,20 @@ bind();
 rotateMagQuote(false);
 $("#cliQuote")?.addEventListener("click", () => rotateMagQuote(true));
 setInterval(() => rotateMagQuote(true), 90_000);
-// Default = Home summary (not chat museum)
-setTab("home");
+// Default tab: Home unless URL ?tab= / #desk directs to Agent desk
+setTab(parseInitialTab());
 refresh().catch((e) => console.error(e));
-refreshEconomy();
 maybeStartMirrorGuide();
 // Health still polled quietly for Status; not painted as useless top badges
 pollHealth();
 setInterval(pollHealth, 30000);
-setInterval(refreshEconomy, 20000);
 
 // Lattice history panel
 document.getElementById("btnLatticeRefresh")?.addEventListener("click", () => loadVerkle());
 document.getElementById("btnViewportsRefresh")?.addEventListener("click", () => loadViewports());
 document.getElementById("btnViewportsSync")?.addEventListener("click", () => syncViewportsFromDesk());
 document.getElementById("btnLatticePack")?.addEventListener("click", () => {
-  const t = "memory/biography/verkle_tip.json � topic_evolution.json � knot_timeline.jsonl � working.md";
+  const t = "memory/biography/verkle_tip.json -> topic_evolution.json -> knot_timeline.jsonl -> working.md";
   if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t);
 });
 

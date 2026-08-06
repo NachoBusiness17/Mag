@@ -83,13 +83,25 @@ def broadcast_steer(cmd: str) -> dict[str, Any]:
     cmd = (cmd or "").strip()
     if not cmd.startswith("!"):
         cmd = "!" + cmd
-    out: dict[str, Any] = {"cmd": cmd, "chat_queued": False, "workers": []}
+    out: dict[str, Any] = {"cmd": cmd, "chat_queued": False, "workers": [], "desk_queued": False}
     try:
         from mag.agent_cli import push_steer
 
         out["chat_queued"] = bool(push_steer(cmd))
     except Exception as e:
         out["chat_error"] = str(e)[:200]
+    if cmd.startswith("!steer "):
+        try:
+            from mag.desk_dialogue import desk_steering_enabled, post_desk_steer
+
+            if desk_steering_enabled():
+                desk = post_desk_steer(cmd[7:].strip())
+                out["desk_queued"] = bool(desk.get("ok"))
+            else:
+                out["desk_queued"] = False
+                out["desk_skipped"] = "desk steering disabled"
+        except Exception as e:
+            out["desk_error"] = str(e)[:200]
     try:
         from mag import pigeonhole as ph
         from mag.orchestrator import TASK_DIR, TERMINAL
@@ -116,16 +128,23 @@ def broadcast_steer(cmd: str) -> dict[str, Any]:
                     out["workers"].append({"task_id": tid, "error": str(we)[:80]})
     except Exception as e:
         out["workers_error"] = str(e)[:200]
-    out["ok"] = out["chat_queued"] or bool(out["workers"])
+    out["ok"] = out["chat_queued"] or bool(out["workers"]) or out.get("desk_queued")
     return out
 
 
 def build_governance() -> dict[str, Any]:
-    from mag.preferences import autonomy_status, drainer_status
+    from mag.preferences import autonomy_status, drainer_status, operator_status
     from mag.remedy import cards as remedy_cards
     from mag.operator_inbox import status as inbox_status
 
     behavioral = _latest_behavioral_leaf()
+    tesuji_shell = {}
+    try:
+        from mag.tesuji_shell import latest_leaf_excerpt, status as shell_status
+
+        tesuji_shell = {**latest_leaf_excerpt(max_wins=5), **shell_status()}
+    except Exception:
+        pass
     remedies = remedy_cards()
     case_law = _steer_case_law(3)
     inbox = inbox_status()
@@ -161,6 +180,13 @@ def build_governance() -> dict[str, Any]:
         "behavioral_loop": {
             "pipeline": "scout → eval → promote (memory/improve/)",
             "leaf": behavioral,
+            "tesuji_shell": {
+                "wins": tesuji_shell.get("wins") or [],
+                "shells_n": tesuji_shell.get("shells_n", 0),
+                "log_path": tesuji_shell.get("log_path", "logs/tesuji_shells.jsonl"),
+                "latest_leaf": tesuji_shell.get("latest_leaf") or tesuji_shell.get("path"),
+                "cli": "python main.py tesuji-shell log \"…\" --surprise \"…\"",
+            },
             "remedy_cards": len(remedies),
             "remedy_sample": [c.get("id") or c.get("title") for c in remedies[:5] if c.get("id") or c.get("title")],
             "injected_into_pack": autonomy_status().get("inject_behavioral_pack", True),
@@ -168,6 +194,7 @@ def build_governance() -> dict[str, Any]:
         },
         "autonomy": autonomy_status(),
         "drainer": drainer_status(),
+        "operator": operator_status(),
         "cursor_note": (
             "Cursor IDE shell/tool approvals are separate from Mag. "
             "Use watch/cursor_bridge.py (REST) or Agent mode in Chat to avoid per-command clicks. "
@@ -175,6 +202,8 @@ def build_governance() -> dict[str, Any]:
         ),
         "sources": [
             "memory/improve/daily/*-behavioral.md",
+            "memory/improve/daily/*-tesuji-shells.md",
+            "logs/tesuji_shells.jsonl",
             "memory/decisions_log.jsonl",
             "memory/remedies/*.md",
             "mag/agent_cli.py (steer queue + inbox drain)",

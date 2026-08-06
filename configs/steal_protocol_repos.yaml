@@ -1,0 +1,87 @@
+# Steal protocol research forest — multi-agent orchestrator / blackboard / cascade
+# Schema: steal_protocol_repos.v1
+# Clones: mine/raw/steal_protocol/ (gitignored) — refresh: scripts/pull_steal_protocol_repos.cmd
+
+schema: steal_protocol_repos.v1
+as_of: "2026-08-05"
+dest_default: mine/raw/steal_protocol
+
+tags:
+  - blackboard
+  - orchestrator
+  - model_cascade
+  - observer_critic
+  - local_cloud_swarm
+  - agent_as_judge
+
+law:
+  never_default_seat: true
+  steal_contracts_only: true
+  tier_max_research: T2
+
+repos:
+  - id: agentswarm
+    path: robzilla1738/agentswarm
+    url: https://github.com/robzilla1738/agentswarm.git
+    mag_slot: conductor_verifier_blackboard
+    steal_focus: adversarial_verifier, parallel_workers, blackboard_findings
+
+  - id: bmas
+    path: arvarik/bmas
+    url: https://github.com/arvarik/bmas.git
+    mag_slot: lbmas_control_unit
+    steal_focus: llm_control_unit, round_scheduler, blackboard_rounds
+
+  - id: flock
+    path: whiteducksoftware/flock
+    url: https://github.com/whiteducksoftware/flock.git
+    mag_slot: typed_blackboard_orchestrator
+    steal_focus: declarative_artifacts, parallel_deps, dapr_blackboard
+
+  - id: blackboard-core
+    path: hemantsingh443/blackboard-core
+    url: https://github.com/hemantsingh443/blackboard-core.git
+    mag_slot: supervisor_worker_loop
+    steal_focus: supervisor_llm_picks_worker, pydantic_state
+
+  - id: ollama-agent-harness
+    path: Bradliebs/ollama-agent-harness
+    url: https://github.com/Bradliebs/ollama-agent-harness.git
+    mag_slot: local_lead_agent_subagents
+    steal_focus: lead_agent_graph, pattern_promotion, local_first
+
+  - id: subagent-router
+    path: marikarx/subagent-router
+    url: https://github.com/marikarx/subagent-router.git
+    mag_slot: deepseek_ollama_routing
+    steal_focus: cost_routing, budget_caps, delegation_profiles
+
+  - id: leeroo-orchestrator
+    path: Leeroo-AI/leeroo_orchestrator
+    url: https://github.com/Leeroo-AI/leeroo_orchestrator.git
+    mag_slot: expert_model_orchestrator
+    steal_focus: model_picker, self_play_training_data
+
+  - id: c3
+    path: EIT-EAST-Lab/C3
+    url: https://github.com/EIT-EAST-Lab/C3.git
+    mag_slot: credit_assignment_training
+    steal_focus: transcript_checkpoint, leave_one_out_credit
+
+  - id: moa
+    path: togethercomputer/moa
+    url: https://github.com/togethercomputer/moa.git
+    mag_slot: layered_proposer_aggregator
+    steal_focus: proposer_layers, aggregator_synthesis
+
+  - id: ms-conductor
+    path: microsoft/conductor
+    url: https://github.com/microsoft/conductor.git
+    mag_slot: yaml_workflow_routing
+    steal_focus: deterministic_jinja_routing, ollama_provider
+
+  - id: agent-blackboard
+    path: claudioed/agent-blackboard
+    url: https://github.com/claudioed/agent-blackboard.git
+    mag_slot: mcp_blackboard_coordinator
+    steal_focus: specialist_agents, embedding_knowledge_search

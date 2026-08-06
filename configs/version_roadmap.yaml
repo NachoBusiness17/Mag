@@ -1,0 +1,312 @@
+# Mag version roadmap — machine truth for compass + registry
+# Schema: mag_version_roadmap.v1
+# Operator semantics (Nacho 2026-08-05):
+#   v1-v2 = hand-built by operator
+#   v3-v10 = loop-trained curriculum (one pass + gate + training event + distill each)
+# Honesty: v6-v10 are curriculum slots — gates TBD, no calendar dates
+
+schema: mag_version_roadmap.v1
+as_of: "2026-08-06"
+compass_path: docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md
+science_map_path: docs/ref/MYCELIAL_SCIENCE_MAP.md
+vision_automation_path: docs/ref/MAG_VISION_AUTOMATION.md
+future_walkthrough_path: docs/ref/MAG_FUTURE_WALKTHROUGH.md
+releases_path: configs/releases.yaml
+registry_path: docs/ref/releases/VERSION_REGISTRY.md
+
+vision:
+  name: Mycelial Republic
+  tagline: Coordination without bureaucracy — frontier agent on your disk
+  pillars:
+    - coordination_without_extraction
+    - data_sovereignty
+    - service_economics_pennies_not_dollars
+    - device_fuels_peer_network
+    - artifact_ownership_not_subscription_scroll
+
+build_eras:
+  hand_built:
+    versions: [v1, v2]
+    builder: operator
+    description: Grok origin and this repo substrate — built by hand
+  loop_trained:
+    versions: [v3, v4, v5, v6, v7, v8, v9, v10]
+    builder: mag_loop
+    description: Each version = one loop pass + release gate + training events + distill to local model
+
+agent_loop:
+  name: forever_loop
+  description: Separate APIs communicate via files/REST — not shared chat memory
+  flow_down: intent narrows — plans, frozen BUILD, scoped tasks
+  flow_up: blockers, questions, deltas only — never re-reason full stack upward
+  stages:
+    - id: grok_plan
+      seat: grok
+      role: strategy_and_architecture
+      direction: down
+      token_law: scarce_priority_only
+    - id: cursor_materialize
+      seat: cursor
+      role: code_docs_file_blocks
+      direction: down
+      surfaces: [handoff.v1, desk_canvas, coding_docs]
+    - id: ollama_local_plan
+      seat: ollama
+      model_hint: qwen-desk
+      role: local_task_plan_brief_route
+      direction: down
+      token_law: always_on_cheap
+    - id: deepseek_judge
+      seat: deepseek
+      role: long_context_problem_elevation
+      direction: up
+      token_law: cheap_tokens_raise_problems_not_plans
+  handoff_surfaces:
+    - handoff.v1
+    - cloud_handoff
+    - desk_canvas
+    - training_events
+    - meta_lanes
+  scheduler:
+    rule: serialize_local_gpu
+    timing_badges: true
+    config: configs/lanes.yaml
+  hooks:
+    - grok_hook
+    - escalate_grok
+    - handoff_loop
+    - improve_loop
+  discipline_docs:
+    - docs/ref/MAG_LOOP_DISCIPLINE.md
+    - docs/ref/MAG_BEHAVIORAL_COMPOUNDING.md
+
+version_arc:
+  - id: v1
+    era: grok_x_origin
+    builder: hand
+    status: shipped
+    meaning: Grok/X strike origin that spawned the project
+  - id: v2
+    era: projects_folder_repo
+    builder: hand
+    status: shipped
+    meaning: This repo — database + harness + Office :8765 (RUN A gate open)
+    current_built:
+      - mag_agent_desk_8765
+      - qwen_desk_69tps_target
+      - local_scheduler
+      - desk_timing_badges
+      - unsloth_seat
+      - gstd_probe_6_of_6
+      - improve_loop
+      - grok_hook_escalate_grok
+      - handoff_loop
+      - meta_lanes
+      - days_bead_tree
+      - stack_strip
+  - id: v3
+    era: planned_substrate
+    builder: loop
+    status: shipped
+    graduation_note: All six defined release gates are green; frozen T2 DeepSeek factory proof filed at memory/runs/v3_deepseek_proof.md.
+    meaning: Orchestrator, Chat, factory — substrate for loop-trained versions
+    gate_ref: configs/releases.yaml#v3
+  - id: v4
+    era: mold
+    builder: loop
+    status: shipped
+    graduation_note: All four gates are green; typed conductor policy, unattended local steward leaf, joined cost ledger, and T2-safe green training export are proven.
+    meaning: Process before volume — conductor, steward, eval
+    gate_ref: configs/releases.yaml#v4
+  - id: v5
+    era: forest_pipe
+    builder: loop
+    status: planned
+    meaning: Optional seats — GSTD DePIN, Vast train, XRPL read
+    gate_ref: configs/releases.yaml#v5
+  - id: v6
+    era: loop_self_build
+    builder: loop
+    status: curriculum_tbd
+    meaning: First Mag-built Mag — loop produces next version without hand-merge
+    gates: TBD
+  - id: v7
+    era: steward_autonomy
+    builder: loop
+    status: curriculum_tbd
+    meaning: Daily soil cleanup, catalog, digest — steward runs without operator ask
+    gates: TBD
+  - id: v8
+    era: mesh_peer_handoff
+    builder: loop
+    status: curriculum_tbd
+    meaning: Peer handoff at scale — mesh comm seats, Briar/Bitchat spores
+    gates: TBD
+  - id: v9
+    era: service_packaging
+    builder: loop
+    status: curriculum_tbd
+    meaning: Install → offline desk → honest operator onboarding
+    gates: TBD
+  - id: v10
+    era: mycelial_republic
+    builder: loop
+    status: curriculum_tbd
+    meaning: Pennies/day service, GSTD join, device fuels peer network
+    gates: TBD
+
+service_milestones:
+  - id: install
+    order: 1
+    user_experience: Clone, venv, mag.cmd doctor green
+    verify:
+      - mag.cmd doctor
+      - scripts/routing_smoke.py
+  - id: offline_desk
+    order: 2
+    user_experience: Office :8765 works without remote API keys
+    verify:
+      - main.py lab
+      - ollama L0 brief/ask sufficient
+  - id: handoff_loop
+    order: 3
+    user_experience: Queue goal → agent → result → ingest one round trip
+    verify:
+      - queue/handoff/*.json
+      - queue/results/*.json
+      - main.py ingest
+  - id: factory_pilot
+    order: 4
+    user_experience: Plan → build → audit JSON on disk
+    verify:
+      - RUN B first build_audit.v1 JSON
+  - id: gstd_join
+    order: 5
+    user_experience: Device probes DePIN forest (optional seat)
+    verify:
+      - gstd_t0_probe
+      - seat_playbook seat_score
+  - id: pennies_not_dollars
+    order: 6
+    user_experience: Local janitor + rare frontier; cost visible on desk
+    verify:
+      - cost_ledger
+      - seat_economics
+      - daily_budget_enforced
+
+sovereignty_guarantees:
+  tier_config: configs/data_tiers.yaml
+  constitution: CONSTITUTION.md
+  rules:
+    - id: frontier_on_your_disk
+      description: Agent runs on operator disk — not vendor memory throne
+    - id: t0_t1_never_remote
+      description: T0 secrets and T1 private never hit train-on-input APIs
+      tiers: [T0, T1]
+      enforcement: tier_refuse_tests
+    - id: pack_first_remotes
+      description: Remote seats receive context-pack + goal — not full chat history
+    - id: artifacts_survive_session
+      description: Residual, trails, export survive session death
+    - id: forkable
+      description: No permission required to run operator copy
+    - id: v5_optional_seats
+      description: GSTD, Vast, XRPL are scored optional seats — not architecture dependency
+  tiers:
+    T0:
+      keywords: [api_key, secret, password, .env, credential]
+      rule: never_remote
+    T1:
+      keywords: [data/raw, private, intimate, archive, annotation]
+      rule: never_train_on_input_apis
+    T2:
+      keywords: [public, readme, docs, open]
+      rule: remote_ok_with_pack
+    T3:
+      keywords: [escalate, specialist, architecture review, irreversible]
+      rule: human_l3_seal
+
+behavioral:
+  loop_pass_artifacts:
+    - release_gate_passed
+    - training_event_filed
+    - distill_to_local_when_eval_green
+  gates_log: memory/improve/releases/gates.jsonl
+  training_pattern: release_milestone
+  events_log: memory/training/events.jsonl
+
+# v2 UI consolidation — operator map (Nacho 2026-08-05)
+# Shore up functional surfaces before v3 loop. Hide theater, don't delete backend yet.
+v2_ui_map:
+  core_four:
+    - id: office_ideas
+      tabs: [home, ideas]
+      role: scrum_board
+      note: Office = signal + today; Ideas = backlog you still hold — share one board model
+    - id: days
+      tabs: [sessions, diary]
+      role: project_history
+      note: Days bead tree + diary = visual timeline of what happened
+    - id: desk
+      tabs: [chat]
+      role: agent_interaction_lab
+      note: Canvas + lanes + conductor — refine intra-agent protocol; v2 proof surface
+    - id: stack_minimal
+      tabs: [stack]
+      role: ops_strip
+      note: Services up/down, scheduler, desk health — must load in <5s or fix
+  demote_or_merge:
+    - id: body
+      tabs: [status]
+      action: merge_into_office
+      reason: Overlaps Stack + home; often broken when GPU busy; keep REST, slim UI
+    - id: pulse
+      tabs: [chronicle]
+      action: merge_into_days
+      reason: Redundant with Days/Diary filed activity
+    - id: canvas_viewports
+      tabs: [viewports]
+      action: merge_into_desk
+      reason: agent_desk.md is the canvas; Cursor manifests are v3+
+    - id: shell
+      tabs: [shell]
+      action: cli_only
+      reason: Stalled as tab; good patterns live in Desk compose + future v3 Chat
+    - id: fleet_panel
+      tabs: [status, stack]
+      action: hide_until_actionable
+      reason: Show agent cards only when spawn/kill/steer works from UI
+  v2_proof_harness:
+    - desk_handoff_loop_with_conductor
+    - chess_or_game_smoke_gate
+    - stack_loads_under_gpu_load
+    - ideas_office_shared_backlog
+
+v2_remainder_priorities:
+  - id: run_a
+    order: 1
+    blocker_for_v3: true
+    task: Merge PRs #8-11 + release record v2 run_a
+  - id: fix_stack_body
+    order: 2
+    task: Stack fast path (no blocking probes); Body health → Office home card
+    verify:
+      - GET /api/v1/stack?limit=5 under 5s while GPU busy
+      - home card shows integral_ok
+  - id: desk_as_proof
+    order: 3
+    task: Conductor + handoff loop + optional chess gate JSON
+    verify:
+      - conductor_trail.jsonl
+      - desk_conductor_trail.jsonl
+      - handoff completes 5 plies without stall
+  - id: ui_consolidation
+    order: 4
+    task: Hide fleet theater; merge Pulse→Days; Shell dock → CLI hint; Office↔Ideas link
+  - id: run_b
+    order: 5
+    blocker_for_v3: true
+    task: Factory pilot — first build_audit.v1 JSON on disk
+  - id: defer_v3_tabs
+    order: 6
+    task: Chat wave, mobile voice, full orchestrator UI — v3 not v2

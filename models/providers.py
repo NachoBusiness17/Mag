@@ -279,9 +279,13 @@ def chat_provider(
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 1024,
-    tier: str = "T2",
+    tier: str = "T1",
 ) -> dict[str, Any]:
-    """Chat a named provider; records quota usage."""
+    """Chat a named provider; records quota usage.
+
+    Callers must explicitly label public remote-safe work T2. The private T1
+    default makes omitted classification fail closed for non-local providers.
+    """
     from models.quota import pick_provider, provider_budget, record_usage
 
     pcfg = get_provider(provider_id)
@@ -462,7 +466,7 @@ def chat_messages(
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 2048,
-    tier: str = "T2",
+    tier: str = "T1",
     tool_choice: str | dict | None = "auto",
     stream: bool = False,
     on_stream=None,

@@ -722,17 +722,34 @@ def append_event(
         run["n_tool_calls"] = int(run.get("n_tool_calls") or 0) + 1
         max_t = int((run.get("bounds") or {}).get("max_tool_calls") or 0)
         if max_t and run["n_tool_calls"] > max_t:
-            run["status"] = "blocked"
-            run["close_reason"] = "max_tool_calls"
-            run["closed"] = _utc()
-            save_run(run)
-            set_active(None)
-            return {
-                "ok": False,
-                "error": "max_tool_calls",
-                "event": ev,
-                "run": run,
-            }
+            try:
+                from mag.run_worth import gate_before_truncate
+
+                gate = gate_before_truncate(run, trail_events=read_trail(rid, last_n=80))
+            except Exception:
+                gate = {"allow_continue": False, "close_reason": "max_tool_calls"}
+            if gate.get("allow_continue"):
+                new_max = int(gate.get("new_max_tool_calls") or max_t)
+                bounds = dict(run.get("bounds") or {})
+                bounds["max_tool_calls"] = new_max
+                run["bounds"] = bounds
+                run["worth_defer_count"] = int(run.get("worth_defer_count") or 0) + 1
+                run["worth_verdict"] = gate.get("verdict")
+                save_run(run)
+            else:
+                run["status"] = "blocked"
+                run["close_reason"] = str(gate.get("close_reason") or "max_tool_calls")
+                run["worth_verdict"] = gate.get("verdict")
+                run["closed"] = _utc()
+                save_run(run)
+                set_active(None)
+                return {
+                    "ok": False,
+                    "error": run["close_reason"],
+                    "event": ev,
+                    "run": run,
+                    "worth_gate": gate,
+                }
     save_run(run)
     return {"ok": True, "event": ev, "run_id": rid, "n_events": run["n_events"]}
 

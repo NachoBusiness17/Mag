@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import uuid
 
 import pytest
 
@@ -52,7 +53,7 @@ def test_orchestrator_queue_handler():
     code, body = h_orchestrator_queue_post({}, None)
     assert code == 400
 
-    code, body = h_orchestrator_queue_post({}, {"goal": "[test] three-track smoke"})
+    code, body = h_orchestrator_queue_post({}, {"goal": f"[test] three-track smoke {uuid.uuid4().hex}"})
     assert code == 200
     assert body.get("ok") is True
     assert body.get("queue_id") or body.get("goal")
@@ -68,13 +69,16 @@ def test_seat_task_routes_modes():
     assert code == 400
     assert "unknown mode" in str(body.get("error") or "")
 
-    code, body = h_seat_task({}, {"mode": "queue", "goal": "[test] seat task queue"})
+    code, body = h_seat_task({}, {"mode": "queue", "goal": f"[test] seat task queue {uuid.uuid4().hex}"})
     assert code == 200
     assert body.get("ok") is True
     assert body.get("mode") == "queue"
     assert body.get("seat") == "cursor"
 
-    code, body = h_seat_task({}, {"mode": "autopilot", "seat": "cursor"})
+    code, body = h_seat_task(
+        {},
+        {"mode": "autopilot", "seat": "cursor", "queue_improve": False, "governor": False, "drain": False},
+    )
     assert code == 200
     assert body.get("ok") is True
     assert body.get("mode") == "autopilot"

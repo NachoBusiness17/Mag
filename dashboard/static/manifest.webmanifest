@@ -1,0 +1,18 @@
+{
+  "name": "MAG Operations Base",
+  "short_name": "MAG Ops",
+  "description": "Private operations surface for local coding agents, evidence, costs, and system state.",
+  "start_url": "/?tab=home&surface=tablet",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#06100c",
+  "theme_color": "#06100c",
+  "icons": [
+    {
+      "src": "/static/mag-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -9,3 +9,5 @@ fastapi>=0.110
 uvicorn>=0.27
 PyYAML>=6.0
 pytest>=8.0
+chess>=1.10
+textarena>=0.7.0  # arena probes — also pulls chess if missing

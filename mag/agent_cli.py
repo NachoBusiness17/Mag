@@ -33,15 +33,7 @@ from mag.compass import (
 from mag import remedy  # at-will error toolkit: lookup cards from memory/remedies/
 from mag import rails  # deterministic hard rails: configs/constitutional_rails.json (Maelstrom V2)
 from models.providers import _looks_degenerate, chat_messages
-from mag.prefix_cache import (
-    byte_stable_prefix_enabled,
-    ensure_stable_system,
-    fresh_pack_text,
-    stable_system_prompt,
-    wrap_user_with_reminder,
-)
-from mag.tool_eco import compress_tool_output
-from tools import TOOL_MAP, dispatch as tool_dispatch
+from tools import TOOL_MAP, _normalize_args, dispatch as tool_dispatch
 
 # --- HTTP backend (FastAPI) -------------------------------------------------
 # The agent dispatches tools over HTTP to the FastAPI backend instead of
@@ -292,11 +284,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a text file under Mag root (jailed). Pass line_from/line_to for a 1-indexed numbered region (kills hand-rolled dump snippets).",
+            "description": "Read a text file under Mag root or sibling mycelial-republic (jailed FS_ROOTS). Pass line_from/line_to for a 1-indexed numbered region (kills hand-rolled dump snippets). Republic dual-progress: use ../mycelial-republic/docs/MILESTONES.md or absolute path under Documents/projects/mycelial-republic — not Mag docs/MILESTONES.md.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "File path relative to Mag root"},
+                    "path": {"type": "string", "description": "Path relative to Mag root, or under sibling mycelial-republic"},
                     "max_chars": {"type": "integer", "description": "Max characters to return"},
                     "line_from": {"type": "integer", "description": "1-indexed first line (line-range mode; numbered output)"},
                     "line_to": {"type": "integer", "description": "1-indexed last line, inclusive; clamps to EOF"},
@@ -372,7 +364,6 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
 
 
 def _system_prompt(pack_text: str, *, repacked: bool = False) -> str:
-    """Legacy monolithic system prompt (cache-hostile). Used when MAG_BYTE_STABLE_PREFIX=0."""
     repack_note = ""
     anchor_text = ""
     anchor_path = os.environ.get("MAG_ANCHORED_PLAN") or str(ROOT / "memory" / "plans" / "ANCHOR.md")
@@ -408,11 +399,31 @@ You keep work moving with local tools + this model.
 ## Law
 - One job at a time. Truth-only. No flattery.
 - Artifact > transcript. Prefer tools over guessing file contents.
-- Paths are relative to Mag project root unless absolute and jailed.
+- Paths: Mag root, or sibling `../mycelial-republic/` (read-allowed for dual progress / BOOT_SOIL). Absolute under Documents/projects/mycelial-republic is OK. Mag does NOT contain docs/MILESTONES.md — that lives in mycelial-republic.
 - Never read or echo .env secrets. Never destroy residual DNA / verkle_tip / knots.
 - Prefer write targets: memory/working.md, memory/runs/*/progress.md, queue/, dig leaves under memory/improve/.
 - When done, give a short final answer (what you did + paths). Do not narrate fake tool calls — call tools for real.
 - Context is scarce on remote seats (esp. DeepSeek). Prefer short tool results and finish; the harness will auto-repack if the window fills.
+
+## Final answer format (human-readable — always use when replying to operator)
+Structure your last message with markdown sections:
+
+### TL;DR
+One line.
+
+### What I did
+Bullets — files touched, commands run, artifacts written (paths).
+
+### What I think
+Honest assessment — what surprised you, risks, what might be wrong.
+
+### Next
+One concrete move for the operator (or ask one clarifying question).
+
+### Open
+What you still don't know — no bluffing.
+
+Keep each section short. Tool traces belong in tools, not prose walls.
 {repack_note}
 {anchor_block}
 {law_block}
@@ -440,10 +451,42 @@ def _safe_tool_args(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
     return args
 
 
-def _preflight_tool(name: str, args: dict[str, Any]) -> tuple[bool, str]:
+def _preflight_tool(
+    name: str,
+    args: dict[str, Any],
+    *,
+    session_id: str | None = None,
+) -> tuple[bool, str]:
     """Layer 1 (failure defense): reject obviously-failing tool calls before they hit the OS."""
+    sid = (session_id or "").strip()
+    if sid.startswith("desk-"):
+        if name in ("run_shell", "shell"):
+            return False, _with_remedy(
+                "desk seat blocks run_shell (nested shell/LLM loops took down operator network). "
+                "Use Workers tab, Shell window, or Local lane. Desk remote = read/write/search only.",
+                name,
+            )
+        if name == "run_python":
+            code = str(args.get("code") or "").lower()
+            if "from llm import" in code or "import llm" in code:
+                return False, _with_remedy(
+                    "desk seat blocks nested LLM via run_python — use Local lane (orchestrator) "
+                    "or spawn a Worker for research loops.",
+                    name,
+                )
+        if name == "search_files":
+            q = str(args.get("query") or args.get("pattern") or "")
+            if len(q) < 3:
+                return False, _with_remedy("search_files query too broad on desk seat", name)
     if name == "write_file":
-        path = str(args.get("path") or "")
+        path = str(args.get("path") or "").strip()
+        if not path:
+            msg = (
+                "write_file missing path= — emit flat JSON "
+                '{"path": "relative/file.py", "content": "..."} '
+                "(sibling keys, not nested arguments/parameters blob)"
+            )
+            return False, _with_remedy(msg, name)
         if path:
             ok, rmsg = rails.check_write_file(path, str(args.get("content") or ""))
             if not ok:
@@ -513,6 +556,9 @@ def _run_tool_http(name: str, args: dict[str, Any]) -> dict[str, Any]:
 def _run_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name not in TOOL_MAP:
         return {"ok": False, "error": f"unknown tool: {name}", "tools": list(TOOL_MAP)}
+    normalized = _normalize_args(name, args)
+    if normalized is not None:
+        args = normalized
     safe = _safe_tool_args(name, args)
     if safe is None:
         return {"ok": False, "error": f"blocked write/target for tool {name}: {args.get('path')}"}
@@ -670,14 +716,6 @@ def repack_messages(
         f"## Result crumbs (truncated)\n{crumbs or '(no tool bodies kept)'}\n\n"
         "Continue from residual. Call tools only for gaps. Final answer when done."
     )
-    if byte_stable_prefix_enabled(provider):
-        return [
-            {"role": "system", "content": stable_system_prompt()},
-            {
-                "role": "user",
-                "content": wrap_user_with_reminder(residual, pack_text, repacked=True),
-            },
-        ]
     return [
         {"role": "system", "content": _system_prompt(pack_text, repacked=True)},
         {"role": "user", "content": residual},
@@ -738,6 +776,9 @@ def run_turn(
     model: str | None,
     messages: list[dict[str, Any]],
     on_stream=None,
+    on_status=None,
+    session_id: str | None = None,
+    tier: str = "T1",
 ) -> tuple[str, list[dict[str, Any]], list[str]]:
     """One user turn: tool loop until final text. Mutates/returns messages.
 
@@ -749,23 +790,9 @@ def run_turn(
     """
     # Never append user onto a half-finished tool chain
     messages = _sanitize_messages(messages)
-    if byte_stable_prefix_enabled(provider):
-        messages = ensure_stable_system(messages, provider=provider)
-        pack_text = fresh_pack_text()
-        messages.append(
-            {
-                "role": "user",
-                "content": wrap_user_with_reminder(user_text, pack_text, repacked=False),
-            }
-        )
-    else:
-        messages.append({"role": "user", "content": user_text})
+    messages.append({"role": "user", "content": user_text})
     messages = _clip_history(messages, provider=provider)
     traces: list[str] = []
-    tool_trace: list[dict[str, Any]] = []
-    _activity["goal"] = user_text[:500]
-    _activity["phase"] = "working"
-    _sync_current(goal=user_text, status="running", tool_trace=tool_trace)
     budget = usable_context_budget(provider)
     ratio = _repack_ratio()
     threshold = int(budget * ratio)
@@ -778,9 +805,29 @@ def run_turn(
     collapse_window: deque[str] = deque(maxlen=5)
     collapse_nudges = 0
     last_tool = "-"
+    turn_t0 = time.time()
     while True:
         rnd += 1
         _steer_interrupt.clear()  # T1: fresh round = fresh interrupt budget
+        _emit_status(
+            on_status,
+            session_id,
+            phase="model",
+            detail=f"round {rnd} start",
+            round=rnd,
+            last_tool=last_tool,
+            elapsed_ms=int((time.time() - turn_t0) * 1000),
+        )
+        if session_id and str(session_id).startswith("desk-") and rnd > _DESK_MAX_ROUNDS:
+            _clear_live_turn(session_id)
+            return (
+                f"**Desk guard:** stopped after {rnd - 1} tool rounds (limit {_DESK_MAX_ROUNDS}). "
+                "The remote seat was looping — use **Reset agent**, narrow the goal on the canvas, "
+                "or spawn a **Worker** (Workers tab / Shell) for long shell loops.\n\n"
+                f"_Last tool: `{last_tool}` · steer with !pause then a one-line goal._",
+                messages,
+                traces + [f"desk_guard:round>{_DESK_MAX_ROUNDS}"],
+            )
         # B2/B3 (T1 fix 2026-08-03): act on steer commands IMMEDIATELY when they
         # arrive, not only at the next round boundary. _handle_steer_cmd sets
         # _paused/_steer_interrupt on !pause/!escape and records steer text;
@@ -790,6 +837,14 @@ def run_turn(
             if steer_text:
                 messages = apply_steer(messages, steer_text)
                 traces.append(f"steer:{steer_text[:30]}")
+                _emit_status(
+                    on_status,
+                    session_id,
+                    phase="steer",
+                    detail=steer_text[:120],
+                    round=rnd,
+                    last_tool=last_tool,
+                )
                 print(dim(f"  → operator steer absorbed: {steer_text[:60]}"), flush=True)
             elif cmd.strip().lower() in ("!continue", "!c"):
                 _paused.clear()
@@ -798,6 +853,14 @@ def run_turn(
         # pause gate: !pause blocks until !continue, but keep draining steer
         # text while paused so a queued !steer is still absorbed.
         while _paused.is_set():
+            _emit_status(
+                on_status,
+                session_id,
+                phase="pause",
+                detail="paused — waiting for !continue",
+                round=rnd,
+                last_tool=last_tool,
+            )
             time.sleep(0.3)
             for cmd in _drain_steer():
                 steer_text = _handle_steer_cmd(cmd)
@@ -809,8 +872,6 @@ def run_turn(
                     _paused.clear()
                     print(dim("  → resumed (Human Nod)"), flush=True)
         messages = _sanitize_messages(messages)
-        if byte_stable_prefix_enabled(provider):
-            messages = ensure_stable_system(messages, provider=provider)
         est = _estimate_tokens(messages)
         if est > threshold and repacks < max_repacks:
             messages = repack_messages(
@@ -822,6 +883,14 @@ def run_turn(
             repacks += 1
             est2 = _estimate_tokens(messages)
             traces.append(f"repack#{repacks}: {est}→{est2} tok (budget~{budget})")
+            _emit_status(
+                on_status,
+                session_id,
+                phase="repack",
+                detail=f"repack #{repacks}: {est}→{est2} tok",
+                round=rnd,
+                last_tool=last_tool,
+            )
             print(
                 dim(f"  ↻ auto-repack #{repacks}  est {est}→{est2} / ~{budget}  ({provider})"),
                 flush=True,
@@ -838,15 +907,17 @@ def run_turn(
                 traces,
             )
 
-        res = chat_messages(
-            provider,
-            messages,
-            tools=TOOL_SCHEMAS,
+        res = _chat_with_heartbeat(
+            provider=provider,
+            messages=messages,
             model=model,
-            tier="T2",
-            max_tokens=2048,
-            stream=on_stream is not None,
             on_stream=on_stream,
+            on_status=on_status,
+            session_id=session_id,
+            rnd=rnd,
+            last_tool=last_tool,
+            tier=tier,
+            max_tokens=2048,
         )
         if not res.get("ok"):
             err = res.get("error") or "model call failed"
@@ -896,7 +967,7 @@ def run_turn(
                     messages,
                     tools=TOOL_SCHEMAS,
                     model=model,
-                    tier="T2",
+                    tier=tier,
                     max_tokens=4096,
                     temperature=0.7,
                     stream=on_stream is not None,
@@ -908,6 +979,33 @@ def run_turn(
                     traces.append(
                         f"error: {(res.get('error') or 'degenerate again')[:100]}"
                     )
+                    if degenerate_retries >= 2:
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="degenerate",
+                                detail="model lock-loop after 2 retries",
+                                phase="degenerate_escalate",
+                                provider=provider,
+                            )
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                detail="degenerate model output",
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Degenerate loop — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception:
+                            pass
                     continue
             if not retried_ok and "tool" in err_l and "tool_calls" in err_l:
                 sys_m = messages[0] if messages and messages[0].get("role") == "system" else None
@@ -973,6 +1071,16 @@ def run_turn(
                 tc_id = tc.get("id") or f"call_{rnd}_{name}"
                 arg_s = json.dumps(args, ensure_ascii=False)[:120]
                 print(f"  {cyan('→')} {yellow(name)}{dim(f'({arg_s})')}", flush=True)
+                _emit_status(
+                    on_status,
+                    session_id,
+                    phase="tool",
+                    detail=f"start {name}",
+                    tool=name,
+                    round=rnd,
+                    last_tool=last_tool,
+                )
+                tool_t0 = time.time()
                 # T1: catch commands typed while the previous tool was running
                 messages = _absorb_steer(messages, traces, wait_s=0.02)
                 # T1 escape checkpoint #2: !escape/!pause landed mid-loop - stop
@@ -981,7 +1089,7 @@ def run_turn(
                     traces.append("escape: remaining tool calls skipped")
                     print(dim("  → escape checkpoint hit - skipping remaining tool calls"), flush=True)
                     break
-                pre_ok, pre_reason = _preflight_tool(name, args)
+                pre_ok, pre_reason = _preflight_tool(name, args, session_id=session_id)
                 if _steer_interrupt.is_set():
                     # escape landed between preflight and exec - bail now
                     traces.append("escape: preflight abort")
@@ -1003,7 +1111,48 @@ def run_turn(
                     except Exception:
                         pass
                 else:
-                    out = _run_tool(name, args)
+                    if on_status:
+                        out = _run_tool_with_heartbeat(
+                            name,
+                            args,
+                            on_status=on_status,
+                            session_id=session_id,
+                            rnd=rnd,
+                            last_tool=last_tool,
+                        )
+                    else:
+                        out = _run_tool(name, args)
+                    if not out.get("ok"):
+                        err_msg = str(out.get("error") or "tool failed")[:200]
+                        traces.append(f"{name}: failed")
+                        try:
+                            from mag.operator_inbox import log_behavioral_event
+
+                            log_behavioral_event(
+                                kind="tool_fail",
+                                detail=err_msg,
+                                tool=name,
+                                error=err_msg,
+                                phase=str(_activity.get("phase") or "tool"),
+                                **normalize_seat(load_run()),
+                            )
+                        except Exception:
+                            pass
+                tool_dur = time.time() - tool_t0
+                detail = f"done {name} ({tool_dur:.1f}s)"
+                if tool_dur > _TOOL_SLOW_S:
+                    detail += " — slow tool; Shell tab for long loops"
+                last_tool = name
+                _emit_status(
+                    on_status,
+                    session_id,
+                    phase="tool",
+                    detail=detail,
+                    tool=name,
+                    round=rnd,
+                    last_tool=last_tool,
+                    elapsed_ms=int(tool_dur * 1000),
+                )
                 # T1 pause gate INSIDE the tool loop: if the operator typed
                 # !pause/!escape while a tool was executing, freeze here and
                 # wait for !continue (or absorb any steer that landed too).
@@ -1041,6 +1190,13 @@ def run_turn(
                         print(dim("  \u2192 collapse detector: 5 identical tool calls - injecting nudge"), flush=True)
                         rem = remedy.prevent(name, json.dumps(args, default=str)[:200])
                         rem_txt = ("\n\nRemedy card:\n" + remedy.card_md(rem)) if rem else ""
+                        try:
+                            from mag.failure_kb import format_block, lookup
+
+                            fkb = lookup(name, json.dumps(args, default=str)[:120])
+                            fkb_txt = ("\n\n" + format_block(fkb)) if fkb else ""
+                        except Exception:
+                            fkb_txt = ""
                         messages.append(
                             {
                                 "role": "user",
@@ -1049,6 +1205,7 @@ def run_turn(
                                     "arguments 5 times in a row. Stop. Re-anchor:\n\n"
                                     + build_compass(reason="loop")
                                     + rem_txt
+                                    + fkb_txt
                                 ),
                             }
                         )
@@ -1056,28 +1213,45 @@ def run_turn(
                         collapse_window.clear()
                         traces.append("collapse_stop")
                         _mail(phase="collapse_stop", step=_activity["step"], last_tool=_activity["last_tool"])
-                        print(dim("  \u2192 collapse detector: hard stop after 2 nudges"), flush=True)
+                        print(dim("  → collapse detector: escalating to smarter seat"), flush=True)
+                        try:
+                            from mag.decision_framework import escalate_on_loop
+
+                            esc = escalate_on_loop(
+                                goal=user_text,
+                                provider=provider,
+                                tool=name,
+                                detail=f"5x identical {name}",
+                                session_id=str(normalize_seat(load_run()).get("session_id") or ""),
+                            )
+                            traces.append(f"escalate:{esc.get('target')}")
+                            if esc.get("action") == "file_for_grok":
+                                return (
+                                    "**Loop detected — escalated to Grok TUI (pack).**\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Local seat stopped burning tokens._",
+                                    messages,
+                                    traces,
+                                )
+                            if esc.get("queue_id"):
+                                return (
+                                    f"**Loop detected — escalated to {esc.get('target')}** "
+                                    f"(queue `{esc.get('queue_id')}`).\n\n"
+                                    f"{esc.get('hint', '')}\n\n"
+                                    "_Reset agent or check orchestrator drain._",
+                                    messages,
+                                    traces,
+                                )
+                        except Exception as exc:
+                            traces.append(f"escalate_failed:{str(exc)[:60]}")
                         return (
                             "**Stopped: collapse detector.** The same tool call repeated 5x twice "
                             "despite nudges - degenerate loop. Reset or /pack and re-state the goal.",
                             messages,
                             traces,
                         )
-                eco_off = os.environ.get("MAG_TOOL_ECO", "1").strip().lower() in ("0", "false", "no")
-                if eco_off:
-                    payload = json.dumps(out, default=str)[:TOOL_RESULT_CHARS]
-                else:
-                    payload = compress_tool_output(name, out, max_chars=TOOL_RESULT_CHARS)
+                payload = json.dumps(out, default=str)[:TOOL_RESULT_CHARS]
                 traces.append(f"{name}: ok={out.get('ok')}")
-                tool_trace.append(
-                    {
-                        "tool": name,
-                        "args": args,
-                        "ok": out.get("ok"),
-                        "exit_code": out.get("exit_code"),
-                        "output": (out.get("output") or out.get("error") or "")[:500],
-                    }
-                )
                 messages.append(
                     {
                         "role": "tool",
@@ -1089,15 +1263,6 @@ def run_turn(
             _activity["last_tool"] = name
             _activity["phase"] = "working"
             _maybe_status(rnd, name)
-            last_out = ""
-            if tool_trace:
-                last_out = str(tool_trace[-1].get("output") or "")[:2000]
-            _sync_current(
-                goal=user_text,
-                last_result=last_out,
-                status="running",
-                tool_trace=tool_trace,
-            )
             # T1 escape checkpoint #3: operator escape fired mid-tool-loop - end
             # the round cleanly instead of starting another model round. The
             # partial tool chain is sanitized away next turn by _sanitize_messages.
@@ -1118,12 +1283,6 @@ def run_turn(
         if text:
             _activity["phase"] = "answered"
             _mail(phase="answered")
-            _sync_current(
-                goal=user_text,
-                last_result=text[:2000],
-                status="running",
-                tool_trace=tool_trace,
-            )
             messages.append({"role": "assistant", "content": text})
             return text, messages, traces
 
@@ -1331,6 +1490,152 @@ _steer_active = threading.Event()  # B1 gate: listener reads stdin ONLY mid-turn
 # what phase we are in. No task id -> all calls no-op (interactive REPL).
 _TASK_ID = os.environ.get("MAG_TASK_ID", "").strip()
 _activity: dict[str, Any] = {"step": 0, "last_tool": "-", "phase": "starting"}
+
+# In-memory live turn state for dashboard polling (session_id -> snapshot).
+_LIVE_TURNS: dict[str, dict[str, Any]] = {}
+_LIVE_LOCK = threading.Lock()
+_TOOL_SLOW_S = 30  # run-worth hint when a single tool exceeds this
+_DESK_MAX_ROUNDS = 8  # dashboard desk-deepseek: strict — prevents API/network burn
+
+
+def _run_tool_with_heartbeat(
+    name: str,
+    args: dict[str, Any],
+    *,
+    on_status,
+    session_id: str | None,
+    rnd: int,
+    last_tool: str,
+) -> dict[str, Any]:
+    """Run tool with periodic SSE heartbeats so long shell/search does not look dead."""
+    tool_t0 = time.time()
+    stop = threading.Event()
+
+    def _beat() -> None:
+        while not stop.wait(5.0):
+            elapsed = time.time() - tool_t0
+            _emit_status(
+                on_status,
+                session_id,
+                kind="heartbeat",
+                phase="tool",
+                detail=f"running {name}… ({elapsed:.0f}s)",
+                tool=name,
+                round=rnd,
+                last_tool=last_tool,
+                idle_s=int(elapsed),
+            )
+
+    hb = threading.Thread(target=_beat, name=f"tool-hb-{name}", daemon=True)
+    hb.start()
+    try:
+        return _run_tool(name, args)
+    finally:
+        stop.set()
+
+
+def _emit_status(
+    on_status,
+    session_id: str | None,
+    *,
+    kind: str = "status",
+    **fields: Any,
+) -> None:
+    """Fire dashboard status/heartbeat callback + update live turn snapshot."""
+    payload: dict[str, Any] = {"type": kind, **{k: v for k, v in fields.items() if v is not None}}
+    if session_id:
+        with _LIVE_LOCK:
+            live = _LIVE_TURNS.setdefault(
+                session_id,
+                {"session_id": session_id, "started": time.time()},
+            )
+            live.update({k: v for k, v in fields.items() if k != "type"})
+            live["type"] = kind
+            live["updated"] = time.time()
+    if on_status:
+        try:
+            on_status(payload)
+        except Exception:
+            pass
+
+
+def get_live_turn(session_id: str) -> dict[str, Any]:
+    """Polling fallback: last known turn phase for a dashboard session."""
+    sid = (session_id or "").strip() or "dashboard"
+    with _LIVE_LOCK:
+        live = _LIVE_TURNS.get(sid)
+        if not live:
+            return {"ok": True, "session_id": sid, "active": False}
+        out = dict(live)
+    out["ok"] = True
+    out["active"] = True
+    out["idle_s"] = int(time.time() - float(out.get("updated") or out.get("started") or time.time()))
+    return out
+
+
+def _clear_live_turn(session_id: str | None) -> None:
+    if not session_id:
+        return
+    with _LIVE_LOCK:
+        _LIVE_TURNS.pop(session_id, None)
+
+
+def _chat_with_heartbeat(
+    *,
+    provider: str,
+    messages: list[dict[str, Any]],
+    model: str | None,
+    on_stream,
+    on_status,
+    session_id: str | None,
+    rnd: int,
+    last_tool: str,
+    tier: str = "T1",
+    **chat_kw: Any,
+) -> dict[str, Any]:
+    """Model call with periodic heartbeat while waiting on the provider."""
+    t0 = time.time()
+    stop = threading.Event()
+
+    def _beat() -> None:
+        while not stop.wait(5.0):
+            idle_s = int(time.time() - t0)
+            _emit_status(
+                on_status,
+                session_id,
+                kind="heartbeat",
+                phase="model",
+                detail="waiting on provider…",
+                round=rnd,
+                last_tool=last_tool,
+                idle_s=idle_s,
+                elapsed_ms=int((time.time() - t0) * 1000),
+            )
+
+    _emit_status(
+        on_status,
+        session_id,
+        phase="model",
+        detail="calling provider",
+        round=rnd,
+        last_tool=last_tool,
+        elapsed_ms=0,
+    )
+    hb = threading.Thread(target=_beat, name="agent-model-heartbeat", daemon=True)
+    hb.start()
+    try:
+        return chat_messages(
+            provider,
+            messages,
+            tools=TOOL_SCHEMAS,
+            model=model,
+            tier=tier,
+            stream=on_stream is not None,
+            on_stream=on_stream,
+            **chat_kw,
+        )
+    finally:
+        stop.set()
 
 
 def _ph() -> Any:
@@ -1647,6 +1952,7 @@ def run_agent(
     provider: str = "deepseek",
     model: str | None = None,
     one_shot: str | None = None,
+    tier: str = "T1",
 ) -> int:
     _enable_windows_vt()
     # optional NO_COLOR
@@ -1661,10 +1967,29 @@ def run_agent(
     except Exception:
         pass
 
-    if byte_stable_prefix_enabled(provider):
-        messages: list[dict[str, Any]] = [{"role": "system", "content": stable_system_prompt()}]
-    else:
-        messages = [{"role": "system", "content": _system_prompt(pack_text)}]
+    # Restful contract: queued/orchestrator seats must be one-shot, not REPL.
+    if not one_shot:
+        noninteractive = os.environ.get("MAG_NONINTERACTIVE", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        allow_repl = os.environ.get("MAG_ALLOW_REPL", "").strip().lower() in ("1", "true", "yes")
+        if noninteractive:
+            print(
+                "MAG_NONINTERACTIVE=1 — pass --query \"goal\" (restful one-shot seat).",
+                file=sys.stderr,
+            )
+            return 2
+        if not sys.stdin.isatty() and not allow_repl:
+            print(
+                "stdin is not a tty — use --query for one-shot work (or MAG_ALLOW_REPL=1 for REPL).",
+                file=sys.stderr,
+            )
+            return 2
+
+    system = _system_prompt(pack_text)
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     last_answer = ""
     pending_attach: list[str] = []
 
@@ -1739,6 +2064,7 @@ def run_agent(
                     model=model,
                     messages=messages,
                     on_stream=_on_stream,
+                    tier=tier,
                 )
             except Exception as exc:  # seat crash-guard: never die mid-turn
                 _log_seat_crash("do_turn", exc)
@@ -1765,8 +2091,9 @@ def run_agent(
             # and stalls orchestrator/gpipes fan/collect. Heuristic persist in
             # do_turn already filed the workday bead.
             _persist_cli(use_llm=not bool(_TASK_ID))
-            _mail(phase="done", exit_code=0)
-            return 0
+            failed = (last_answer or "").lstrip().startswith("**Agent error:**")
+            _mail(phase="failed" if failed else "done", exit_code=1 if failed else 0)
+            return 1 if failed else 0
         except Exception as exc:  # one-shot crash -> nonzero exit + log
             _log_seat_crash("one_shot", exc)
             _mail(phase="crashed", stage="one_shot", error=str(exc)[:200])
@@ -1855,16 +2182,8 @@ def run_agent(
         if low == "/pack":
             pack = build_context_pack(max_brief=900, max_live=400)
             pack_text = format_context_pack_text(pack)
-            if byte_stable_prefix_enabled(provider):
-                messages = [{"role": "system", "content": stable_system_prompt()}]
-                print(
-                    green("stable prefix ok")
-                    + dim(f" · volatile pack on next turn · {_tip_line(pack)}"),
-                    flush=True,
-                )
-            else:
-                messages = [{"role": "system", "content": _system_prompt(pack_text)}]
-                print(green("pack refreshed") + dim(f" · {_tip_line(pack)}"), flush=True)
+            messages = [{"role": "system", "content": _system_prompt(pack_text)}]
+            print(green("pack refreshed") + dim(f" · {_tip_line(pack)}"), flush=True)
             continue
         if low == "/save":
             if not last_answer:
@@ -1989,6 +2308,8 @@ def api_agent_turn(
     session_id: str = "dashboard",
     reset: bool = False,
     on_stream=None,
+    on_status=None,
+    tier: str | None = None,
 ) -> dict[str, Any]:
     """One multi-tool turn for dashboard. Continues session messages on disk.
 
@@ -1998,6 +2319,14 @@ def api_agent_turn(
     goal = (goal or "").strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+
+    if tier is None:
+        try:
+            from mag.router import route
+
+            tier = str(route(goal).get("tier") or "T1")
+        except Exception:
+            tier = "T1"
 
     depth = "heavy_code" if provider == "deepseek" else "simple_code"
     act_id: str | None = None
@@ -2020,30 +2349,38 @@ def api_agent_turn(
 
     sess = load_session(session_id)
     if reset or not sess.get("messages"):
-        pack = build_context_pack(max_brief=900, max_live=400)
-        pack_text = format_context_pack_text(pack)
+        from mag.context_pack import build_context_pack, infer_pack_mode
+
+        mode = infer_pack_mode(goal, depth=depth if depth else "")
+        pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+        pack_text = format_context_pack_text(pack, mode=mode)
         try:
             (ROOT / "memory" / "context_pack_latest.md").write_text(pack_text, encoding="utf-8")
         except Exception:
             pass
-        messages: list[dict[str, Any]] = (
-            [{"role": "system", "content": stable_system_prompt()}]
-            if byte_stable_prefix_enabled(provider)
-            else [{"role": "system", "content": _system_prompt(pack_text)}]
-        )
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": _system_prompt(pack_text)}
+        ]
         tip = _tip_line(pack)
     else:
         messages = list(sess.get("messages") or [])
-        # ensure system present
-        if not messages or messages[0].get("role") != "system":
-            pack = build_context_pack(max_brief=900, max_live=400)
-            sys_msg = (
-                stable_system_prompt()
-                if byte_stable_prefix_enabled(provider)
-                else _system_prompt(format_context_pack_text(pack))
-            )
-            messages = [{"role": "system", "content": sys_msg}] + messages
         tip = "session-continued"
+        # Desk UI seat: bloated sessions → repack before burn (82-msg sessions crash seats)
+        if str(session_id).startswith("desk-") and len(messages) > 28:
+            traces_pre: list[str] = []
+            messages = repack_messages(
+                messages,
+                user_text=goal,
+                traces=traces_pre,
+                provider=provider,
+            )
+            tip = f"desk-auto-repack ({len(messages)} msgs after trim)"
+        elif not messages or messages[0].get("role") != "system":
+            from mag.context_pack import infer_pack_mode
+
+            mode = infer_pack_mode(goal, depth=depth)
+            pack = build_context_pack(mode=mode, goal=goal, max_brief=900, max_live=400)
+            messages = [{"role": "system", "content": _system_prompt(format_context_pack_text(pack, mode=mode))}] + messages
 
     if on_stream is None:
         def _on_stream(delta: str) -> None:
@@ -2051,13 +2388,26 @@ def api_agent_turn(
     else:
         _on_stream = on_stream
 
-    ans, messages, traces = run_turn(
-        goal,
-        provider=provider,
-        model=model,
-        messages=messages,
-        on_stream=_on_stream,
-    )
+    try:
+        ans, messages, traces = run_turn(
+            goal,
+            provider=provider,
+            model=model,
+            messages=messages,
+            on_stream=_on_stream,
+            on_status=on_status,
+            session_id=session_id,
+            tier=tier,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": str(exc),
+            "session_id": session_id,
+            "hint": "Reset agent if desk seat poisoned; use Local lane for meta questions.",
+        }
+    finally:
+        _clear_live_turn(session_id)
     sess.update(
         {
             "session_id": session_id,
@@ -2115,13 +2465,19 @@ def main_argv(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(prog="mag agent", description="Mag tool-using agent CLI")
     p.add_argument("-q", "--query", default="", help="One-shot goal then exit")
-    p.add_argument("--provider", default="deepseek", help="deepseek|ollama|…")
+    p.add_argument(
+        "--provider",
+        default="ollama",
+        help="ollama (default, local) | deepseek (only frozen BUILD / T2 plan)",
+    )
     p.add_argument("--model", default="", help="Override model id")
+    p.add_argument("--tier", choices=("T0", "T1", "T2", "T3"), default="T1")
     args = p.parse_args(argv)
     return run_agent(
-        provider=(args.provider or "deepseek").strip(),
+        provider=(args.provider or "ollama").strip(),
         model=(args.model or "").strip() or None,
         one_shot=(args.query or "").strip() or None,
+        tier=args.tier,
     )
 
 

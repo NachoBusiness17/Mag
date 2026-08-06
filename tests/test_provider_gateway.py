@@ -65,7 +65,7 @@ def test_run_turn_success_mocked():
     ) as cm:
         r = client.post(
             "/api/v1/run_turn",
-            json={"prompt": "hello", "provider": "deepseek"},
+            json={"prompt": "hello", "provider": "deepseek", "tier": "T2"},
             headers={"X-API-Key": "test-key-123"},
         )
     assert r.status_code == 200
@@ -74,6 +74,23 @@ def test_run_turn_success_mocked():
     assert body["provider_used"] == "deepseek"
     assert "hello" in body["content"]
     assert body["error"] is None
+    assert cm.call_args.kwargs["tier"] == "T2"
+
+
+def test_run_turn_omitted_tier_fails_closed():
+    with patch(
+        "backend.provider_gateway.chat_messages",
+        return_value={"ok": False, "error": "refused: tier T1 cannot use remote deepseek"},
+    ) as cm:
+        r = client.post(
+            "/api/v1/run_turn",
+            json={"prompt": "unclassified", "provider": "deepseek"},
+            headers={"X-API-Key": "test-key-123"},
+        )
+    assert r.status_code == 200
+    assert r.json()["status"] == "error"
+    assert "tier T1" in r.json()["error"]
+    assert cm.call_args.kwargs["tier"] == "T1"
 
 
 def test_run_turn_history_snapshot():
@@ -87,7 +104,7 @@ def test_run_turn_history_snapshot():
     with patch("backend.provider_gateway.chat_messages", side_effect=fake):
         r = client.post(
             "/api/v1/run_turn",
-            json={"prompt": "hello", "provider": "deepseek"},
+            json={"prompt": "hello", "provider": "deepseek", "tier": "T2"},
             headers={"X-API-Key": "test-key-123"},
         )
     assert r.status_code == 200
@@ -138,12 +155,12 @@ def test_context_preservation_across_chain():
     with patch("backend.provider_gateway.chat_messages", side_effect=fake_chat):
         r1 = client.post(
             "/api/v1/run_turn",
-            json={"prompt": "job one", "context_id": "chain-a", "provider": "deepseek"},
+            json={"prompt": "job one", "context_id": "chain-a", "provider": "deepseek", "tier": "T2"},
             headers={"X-API-Key": "test-key-123"},
         )
         r2 = client.post(
             "/api/v1/run_turn",
-            json={"prompt": "job two", "context_id": "chain-a", "provider": "deepseek"},
+            json={"prompt": "job two", "context_id": "chain-a", "provider": "deepseek", "tier": "T2"},
             headers={"X-API-Key": "test-key-123"},
         )
     assert r1.json()["content"] == "answer1"
@@ -162,7 +179,7 @@ def test_provider_failure_does_not_poison_chain():
         "backend.provider_gateway.chat_messages",
         return_value={"ok": False, "error": "HTTP 429: rate limited"},
     ):
-        res = run_turn("will fail", context_id="chain-b", provider="deepseek")
+        res = run_turn("will fail", context_id="chain-b", provider="deepseek", tier="T2")
     assert res["status"] == "error"
     assert "429" in res["error"]
     # chain-b history: only the failed user turn was popped -> empty

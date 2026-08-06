@@ -19,7 +19,7 @@ const KIND_HEX = {
   turn: PALETTE.accent2,
   subsession: 0x7cffc8,
   run: 0xff9f43,
-  lattice: 0x3d5a80,
+  lattice: 0x33d6ff,
   theme: PALETTE.accent,
   doc: PALETTE.residual,
   hierarchy: PALETTE.accent2,
@@ -27,7 +27,7 @@ const KIND_HEX = {
   affinity: PALETTE.accent,
   thread: 0x7cffc8,
   run_edge: 0xff9f43,
-  lattice_chain: 0x3d5a80,
+  lattice_chain: 0x33d6ff,
   spatial: 0x6ea8fe,
   residual: PALETTE.warn,
   unknown: PALETTE.muted,
@@ -39,7 +39,7 @@ const KIND_LABEL = {
   turn: "Summary bullet",
   subsession: "Operator turn",
   run: "Orchestrator run",
-  lattice: "Verkle leaf",
+  lattice: "Verkle knot artifact",
   theme: "Theme cluster",
   doc: "Project doc",
 };
@@ -50,6 +50,85 @@ function colorForS(S) {
   if (S < 0.5) return new THREE.Color(PALETTE.accent2);
   if (S < 1.2) return new THREE.Color(0xa0b8c8);
   return new THREE.Color(0xff3d5a);
+}
+
+/** Steiniger-inspired temperature palette (ops metaphor): cold cyan → warm magenta */
+function colorForTemp(temp) {
+  const t = Math.max(0, Math.min(1, Number(temp) || 0.45));
+  const cold = new THREE.Color(0x2ee8d0);
+  const neutral = new THREE.Color(0x7aa8ff);
+  const warm = new THREE.Color(PALETTE.accent);
+  const hot = new THREE.Color(0xff3d6a);
+  if (t < 0.33) return cold.clone().lerp(neutral, t / 0.33);
+  if (t < 0.66) return neutral.clone().lerp(warm, (t - 0.33) / 0.33);
+  return warm.clone().lerp(hot, (t - 0.66) / 0.34);
+}
+
+function baseRadiusForKind(kind) {
+  switch (kind) {
+    case "root":
+      return 0.38;
+    case "session":
+      return 0.28;
+    case "theme":
+      return 0.22;
+    case "subsession":
+      return 0.16;
+    case "run":
+      return 0.14;
+    case "lattice":
+      return 0.16;
+    case "doc":
+      return 0.2;
+    default:
+      return 0.12;
+  }
+}
+
+function geometryForVisual(visual, baseR) {
+  const v = visual || {};
+  const shape = v.shape || "sphere";
+  const p = Math.max(2, Math.min(8, Number(v.knot_p) || 3));
+  const q = Math.max(3, Math.min(9, Number(v.knot_q) || 4));
+  const r = baseR;
+  switch (shape) {
+    case "icosahedron":
+      return new THREE.IcosahedronGeometry(r * 1.05, 0);
+    case "dodecahedron":
+      return new THREE.DodecahedronGeometry(r * 1.1, 0);
+    case "octahedron":
+      return new THREE.OctahedronGeometry(r * 1.05, 0);
+    case "tetrahedron":
+      return new THREE.TetrahedronGeometry(r * 1.15, 0);
+    case "box":
+      return new THREE.BoxGeometry(r * 1.6, r * 0.55, r * 1.2);
+    case "torus_knot":
+      return new THREE.TorusKnotGeometry(r * 0.95, r * 0.28, 64, 12, p, q);
+    case "torus":
+      return new THREE.TorusGeometry(r * 1.1, r * 0.32, 16, 32);
+    case "ellipsoid":
+    case "sphere":
+    default:
+      return new THREE.SphereGeometry(r, 20, 16);
+  }
+}
+
+function applyVisualScale(mesh, visual, baseR) {
+  const sc = (visual && visual.scale) || [1, 1, 1];
+  const sx = Number(sc[0]) || 1;
+  const sy = Number(sc[1]) || 1;
+  const sz = Number(sc[2]) || 1;
+  if (visual?.shape === "ellipsoid") {
+    mesh.scale.set(sx, sy, sz);
+  } else if (visual?.shape === "torus_knot") {
+    mesh.scale.set(sx, sy, sz);
+    if (visual.knot_twist != null) {
+      mesh.rotation.y = Number(visual.knot_twist) || 0;
+    }
+  } else {
+    const u = (sx + sy + sz) / 3;
+    mesh.scale.set(u, u, u);
+  }
 }
 
 function escapeHtml(s) {
@@ -124,6 +203,17 @@ function formatNodeHtml(ud, { short = false } = {}) {
   if (ud.S != null && ud.S !== "" && !short) {
     lines.push(`<div class="muted">tension proxy S=${Number(ud.S).toFixed(2)}</div>`);
   }
+  const vis = ud.visual || {};
+  if (!short && vis.band) {
+    lines.push(
+      `<div class="tap-chip">temp ${escapeHtml(String(vis.band))}${
+        vis.temp != null ? ` · ${Number(vis.temp).toFixed(2)}` : ""
+      }</div>`
+    );
+  }
+  if (!short && vis.note) {
+    lines.push(`<div class="muted sm">${escapeHtml(vis.note)}</div>`);
+  }
   if (!short && meta.session_id) {
     lines.push(
       `<p class="muted">Open <b>DAY</b> for full residual · id pinned above.</p>`
@@ -154,6 +244,7 @@ export class TapestryView {
     this._spin = 0.012; // slow; pauses on interaction
     this._drag = false;
     this.showLattice = true;
+    this.latticeFocus = false;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -327,8 +418,9 @@ export class TapestryView {
 
     const box = new THREE.Box3();
     if (this.nodeMeshes && this.nodeMeshes.size) {
-      for (const mesh of this.nodeMeshes.values()) {
-        box.expandByObject(mesh);
+      const wanted = new Set(nodes.map((n) => n.id));
+      for (const [id, mesh] of this.nodeMeshes) {
+        if (wanted.has(id)) box.expandByObject(mesh);
       }
     } else {
       for (const n of nodes) {
@@ -447,7 +539,7 @@ export class TapestryView {
         color: col,
         transparent: true,
         opacity: isLattice
-          ? Math.min(0.35, 0.08 + 0.25 * Math.min(1, w))
+          ? Math.min(0.72, 0.38 + 0.34 * Math.min(1, w))
           : Math.min(0.75, 0.12 + 0.55 * Math.min(1, w)),
       });
       const line = new THREE.Line(geo, mat);
@@ -458,43 +550,36 @@ export class TapestryView {
 
     for (const n of nodes) {
       if (n.kind === "lattice" && !this.showLattice) continue;
-      const r =
-        n.kind === "root"
-          ? 0.38
-          : n.kind === "session"
-            ? 0.28
-            : n.kind === "theme"
-              ? 0.22
-              : n.kind === "subsession"
-                ? 0.16
-                : n.kind === "run"
-                  ? 0.14
-                  : n.kind === "lattice"
-                    ? 0.09
-                    : n.kind === "doc"
-                      ? 0.2
-                      : 0.12;
+      const visual = n.visual || {};
+      const baseR = baseRadiusForKind(n.kind);
       const isGhost = n.kind === "lattice" || n.layer === "lattice";
+      const temp = visual.temp != null ? visual.temp : null;
       const col =
-        n.kind === "session"
-          ? colorForS(n.S ?? 0)
-          : new THREE.Color(KIND_HEX[n.kind] || KIND_HEX.unknown);
+        temp != null
+          ? colorForTemp(temp)
+          : n.kind === "session"
+            ? colorForS(n.S ?? 0)
+            : new THREE.Color(KIND_HEX[n.kind] || KIND_HEX.unknown);
+      const emissiveBoost = Number(visual.emissive) || (isGhost ? 0.62 : 0.4);
+      const geo = geometryForVisual(visual, baseR);
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 20, 16),
+        geo,
         new THREE.MeshStandardMaterial({
           color: col,
           emissive: col,
-          emissiveIntensity: isGhost ? 0.15 : 0.4,
-          metalness: 0.15,
-          roughness: 0.4,
+          emissiveIntensity: emissiveBoost,
+          metalness: isGhost ? 0.18 : 0.15,
+          roughness: isGhost ? 0.32 : 0.4,
           transparent: isGhost,
-          opacity: isGhost ? 0.28 : 1,
+          opacity: isGhost ? 0.7 + 0.12 * (1 - (temp ?? 0.3)) : 1,
+          wireframe: false,
         })
       );
       mesh.position.set(n.x || 0, n.y || 0, n.z || 0);
-      // invisible larger hit shell for easier pick
+      applyVisualScale(mesh, visual, baseR);
+      const hitR = Math.max(baseR * 2.6, 0.28);
       const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(Math.max(r * 2.4, 0.28), 12, 10),
+        new THREE.SphereGeometry(hitR, 12, 10),
         new THREE.MeshBasicMaterial({
           transparent: true,
           opacity: 0,
@@ -507,6 +592,7 @@ export class TapestryView {
         label: n.label,
         kind: n.kind,
         S: n.S,
+        visual: visual,
         meta: n.meta || {},
       };
       mesh.userData = ud;
@@ -545,10 +631,11 @@ export class TapestryView {
           "Each sphere is a bead (day), theme, ask, or doc. Hover for a label. Click to pin context here."
       )}</p>
       <ul class="tap-legend">
-        <li><span class="dot session"></span> Workday bead</li>
-        <li><span class="dot theme"></span> Theme</li>
-        <li><span class="dot turn"></span> Ask / bullet</li>
+        <li><span class="dot session"></span> Workday bead (ellipsoid · tension)</li>
+        <li><span class="dot theme"></span> Theme (dodecahedron)</li>
+        <li><span class="dot turn"></span> Turn / ask</li>
         <li><span class="dot doc"></span> Doc / tip</li>
+        <li class="muted">Verkle knot = portable agent context backed by a filed source · the lattice shows relationships between knots</li>
       </ul>
       <p class="muted">Drag to orbit · scroll to zoom · spin pauses while you move.</p>
     `;
@@ -628,7 +715,26 @@ export class TapestryView {
 
   setLatticeVisible(on) {
     this.showLattice = !!on;
+    if (!this.showLattice) this.latticeFocus = false;
     if (this.pack) this.setPack(this.pack);
+  }
+
+  setLatticeFocus(on) {
+    this.latticeFocus = !!on && this.showLattice;
+    for (const [, mesh] of this.nodeMeshes) {
+      const lattice = mesh.userData?.kind === "lattice";
+      mesh.material.transparent = true;
+      mesh.material.opacity = this.latticeFocus ? (lattice ? 1 : 0.07) : lattice ? 0.78 : 1;
+      mesh.material.emissiveIntensity = this.latticeFocus ? (lattice ? 1.15 : 0.05) : lattice ? 0.62 : 0.4;
+    }
+    for (const line of this.edgeLines) {
+      line.material.opacity = this.latticeFocus
+        ? line.userData?.lattice ? 0.9 : 0.035
+        : line.userData?.lattice ? 0.58 : 0.5;
+    }
+    const nodes = this.pack?.connections?.nodes || [];
+    const framed = this.latticeFocus ? nodes.filter((n) => n.kind === "lattice") : nodes;
+    if (framed.length) this.fitCamera(framed);
   }
 
   focusSession(sessionId) {
@@ -668,8 +774,8 @@ export class TapestryView {
         (sid && msid === sid);
       const isLattice = m.kind === "lattice";
       if (isLattice && !this.showLattice) continue;
-      mesh.material.emissiveIntensity = sameTree ? (isLattice ? 0.35 : 0.95) : isLattice ? 0.08 : 0.12;
-      mesh.material.opacity = sameTree ? (isLattice ? 0.55 : 1) : isLattice ? 0.12 : 0.22;
+      mesh.material.emissiveIntensity = sameTree ? (isLattice ? 0.95 : 0.95) : isLattice ? 0.28 : 0.12;
+      mesh.material.opacity = sameTree ? (isLattice ? 0.95 : 1) : isLattice ? 0.38 : 0.22;
       mesh.material.transparent = true;
     }
   }
