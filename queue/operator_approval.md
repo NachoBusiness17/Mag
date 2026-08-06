@@ -22,3 +22,11 @@ Items that need Nacho’s nod — **not** coding blockers. Dinner session will k
 - token-chain product (already pushed)
 
 _Update this file when you approve or reject rows._
+
+## Dinner loop progress (auto)
+
+- 2026-08-06: shipped c86b7ea, 3eddf0b, 65d705f (jail, steward, token-chain UI)
+- A1–A8 still need you; nothing blocking Mag local work
+- dual_progress_status: docs/ref/DUAL_PROGRESS_STATUS.md
+- Token-chain: Body pane button + orchestrator tag token-chain
+
