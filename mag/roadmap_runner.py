@@ -113,8 +113,8 @@ def compile_run(selection: dict[str, Any]) -> dict[str, Any]:
     sources = [s for s in selection.get("sources") or [] if (ROOT / s).is_file()]
     goal = (
         f"[build] Complete roadmap {vid} gate {gid} from the frozen contract at "
-        f"queue/handoff/{build_path.name}. Use the cheapest capable worker, run the full test suite, "
-        "file evidence, and stop only when the gate is verified or genuinely blocked."
+        f"queue/handoff/{build_path.name}. Use the cheapest capable worker to inspect and implement "
+        "only this gate, run its focused tests once, then return a concise result to the verifier."
     )
     source_lines = "\n".join(f"- `{s}`" for s in sources) or "- `configs/releases.yaml`"
     description = str(gate.get("description") or f"Implement and verify release gate {gid}.")
@@ -143,21 +143,18 @@ This is one gate-sized branch in the filed roadmap. Do not expand scope to the r
 - Prefer the cheapest capable local/DeepSeek worker; summon frontier judgment only for uncertainty.
 - Preserve T0/T1 locally and keep external seats optional.
 - Add or update focused tests for the gate.
-- Run the full repository test suite.
-- File `{evidence_path.relative_to(ROOT).as_posix()}` with commands, results, changed paths, costs if available, and unresolved risks.
-- Record the release gate only after evidence is green; do not mark the release shipped automatically.
+- Run focused tests once. The roadmap verifier owns the full repository suite, evidence file, commit, and release-gate record.
+- If an unrelated infrastructure or test-harness problem appears, report it concisely after one diagnosed retry; do not investigate operating-system locks or broaden scope.
 {verify_lines}
 
 ## Done when
 
 1. Focused tests for `{gid}` pass.
-2. Full `pytest tests -q` passes.
-3. The evidence JSON exists and identifies `{vid}`, `{gid}`, test totals, and the commit/branch.
-4. `release record {vid} {gid}` is filed with the evidence path.
+2. Return control to the roadmap verifier. It will run full `pytest tests -q`, file evidence, commit, and record the gate.
 
 ## Stop conditions
 
-Stop only for a genuine external dependency, secret, spending/publishing approval, irreversible action, or failed evidence that cannot be repaired safely.
+Stop for completion or a genuine external dependency, secret, spending/publishing approval, irreversible action, or a focused-test failure that cannot be repaired safely. Do not diagnose unrelated full-suite or operating-system failures; the verifier owns them.
 """
     cfg = {
         "schema": "coding_session_loop.v1",
