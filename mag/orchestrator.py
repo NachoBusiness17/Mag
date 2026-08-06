@@ -559,6 +559,43 @@ def spawn_task(goal: str, *, provider: str = "ollama", model: str | None = None,
         except Exception as exc:
             return {"ok": False, "error": f"steward: {exc}"}
 
+    # Token-chain experiment: DeepSeek plans → local exec (not a long agent tool-loop)
+    gl = goal.lower().strip()
+    if tag == "token-chain" or gl.startswith("token-chain:") or gl.startswith("[token-chain]"):
+        try:
+            from mag.token_chain import run_token_chain
+
+            g = goal
+            for prefix in ("token-chain:", "[token-chain]", "TOKEN_CHAIN:"):
+                if g.lower().startswith(prefix.lower()):
+                    g = g[len(prefix) :].strip()
+                    break
+            res = run_token_chain(goal=g or None, dry=False, live=True, planner="deepseek")
+            tid = "t-tchain-" + uuid.uuid4().hex[:8]
+            ok = bool(res.get("ok") or (res.get("execution") or {}).get("ok"))
+            rec_tc: dict[str, Any] = {
+                "ok": ok,
+                "task_id": tid,
+                "goal": goal,
+                "status": "done" if ok else "failed",
+                "provider": "deepseek+local",
+                "tag": tag or "token-chain",
+                "detail": str((res.get("token_thesis") or {}))[:300],
+                "token_chain": {
+                    "frontier_tokens": (res.get("token_thesis") or {}).get("frontier_tokens"),
+                    "artifact": res.get("artifact"),
+                    "execution_ok": (res.get("execution") or {}).get("ok"),
+                },
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec_tc)
+            _trail("token-chain-inline", tid, goal=goal[:120], ok=ok)
+            return rec_tc
+        except Exception as exc:
+            return {"ok": False, "error": f"token-chain: {exc}"}
+
     timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     for t in _running_tasks():
         if t.get("goal") == goal:
@@ -616,6 +653,13 @@ def _queue_save(q: dict[str, Any]) -> None:
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     _queue_path(q["queue_id"]).write_text(
         json.dumps(q, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def queue_has_goal(goal: str) -> bool:
+    """Re-export: true if goal already queued/running (steward + autorun)."""
+    from mag.governor_autorun import queue_has_goal as _qhg
+
+    return _qhg(goal)
 
 
 def enqueue(goal: str, *, provider: str = "ollama", model: str | None = None,

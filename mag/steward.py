@@ -285,7 +285,7 @@ def run_steward_scope(
 
     # Queue follow-up build goal if none pending (optional nudge)
     try:
-        from mag.orchestrator import queue_has_goal
+        from mag.governor_autorun import queue_has_goal
 
         dumb = f"[build] implement scope card {card_slug} per {pick['path']}"
         if not queue_has_goal(dumb):
@@ -371,8 +371,7 @@ def parse_steward_goal(goal: str) -> str | None:
 
 def fill_steward_queue(*, max_jobs: int = 2) -> list[dict[str, Any]]:
     """Seed orchestrator with steward jobs not yet run today."""
-    from mag.governor_autorun import enqueue_routed
-    from mag.orchestrator import queue_has_goal
+    from mag.governor_autorun import enqueue_routed, queue_has_goal
 
     queued: list[dict[str, Any]] = []
     candidates: list[tuple[str, str]] = []

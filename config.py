@@ -23,6 +23,13 @@ WORKING_MD = MEMORY_DIR / "working.md"
 # Jail for filesystem tools (project root only by default)
 FS_ROOTS = [ROOT]
 
+# Sibling product (mycelial-republic) — read-allowed when present so dual-progress
+# / BOOT_SOIL agents can open docs/MILESTONES without path-outside-jail failures.
+# Still T2 discipline: agents must not send private raw exports to remote seats.
+_REPUBLIC = (ROOT.parent / "mycelial-republic").resolve()
+if _REPUBLIC.is_dir():
+    FS_ROOTS.append(_REPUBLIC)
+
 # Shell allowlist prefixes (first token)
 SHELL_ALLOW = {
     "dir",
