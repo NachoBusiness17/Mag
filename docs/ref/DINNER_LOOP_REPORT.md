@@ -40,3 +40,10 @@ cd $env:USERPROFILE\Documents\projects\local_sovereign_agent
 # Body pane → Token-chain
 # Read queue/operator_approval.md
 ```
+
+## Still eating — continued
+
+- Agent prompt + tool desc: sibling \../mycelial-republic/\ for MILESTONES
+- Lab restarted up
+- Rel path read_file verified PASS
+
