@@ -716,6 +716,33 @@ def enqueue(goal: str, *, provider: str = "ollama", model: str | None = None,
     return q
 
 
+def purge_failed_queue(*, also_killed: bool = True) -> dict[str, Any]:
+    """Archive failed (and optional killed) queue rows under purged/."""
+    import shutil
+    from datetime import datetime, timezone
+
+    QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    arch = ROOT / "memory" / "runs" / "orchestrator" / "purged" / f"purge-failed-{stamp}"
+    arch.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    statuses = {"failed", "killed"} if also_killed else {"failed"}
+    for p in list(QUEUE_DIR.glob("*.json")):
+        try:
+            q = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if q.get("status") not in statuses:
+            continue
+        try:
+            shutil.move(str(p), str(arch / p.name))
+            moved += 1
+        except OSError:
+            pass
+    _trail("queue-purge-failed", "batch", moved=moved, archive=str(arch))
+    return {"ok": True, "moved": moved, "archive": str(arch)}
+
+
 def list_queue(limit: int = 100) -> list[dict[str, Any]]:
     """All queue entries, newest first, with live task linkage."""
     _ensure_dirs()
