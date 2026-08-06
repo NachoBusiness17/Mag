@@ -49,6 +49,52 @@ def test_gstd_route_recommendation_local_fast():
     assert route["primary"] == "local"
 
 
+def test_gstd_stats_probe(monkeypatch):
+    """Phase T0: GET /api/v1/stats probe returns structured result."""
+    monkeypatch.setattr(
+        gp,
+        "_http_json",
+        lambda url, timeout=12.0: (200, {"nodes": 3, "tasks": 42}),
+    )
+    out = gp._gstd_stats()
+    assert out["ok"] is True
+    assert out["http"] == 200
+    assert out["body"] == {"nodes": 3, "tasks": 42}
+    assert "latency_ms" in out
+
+
+def test_gstd_stats_probe_down(monkeypatch):
+    """Phase T0: stats probe handles API down gracefully."""
+    monkeypatch.setattr(
+        gp,
+        "_http_json",
+        lambda url, timeout=12.0: (0, {"ok": False, "error": "connection refused"}),
+    )
+    out = gp._gstd_stats()
+    assert out["ok"] is False
+    assert out["http"] == 0
+
+
+def test_gstd_probe_includes_stats(tmp_path, monkeypatch):
+    """run_gstd_probe report includes gstd_stats key."""
+    report = tmp_path / "gstd_probe_report.json"
+    monkeypatch.setattr(gp, "REPORT_PATH", report)
+    monkeypatch.setattr(gp, "_clone_inventory", lambda: {"ok": True, "n": 6, "repos": []})
+    monkeypatch.setattr(gp, "_gstd_health", lambda: {"ok": True, "http": 200})
+    monkeypatch.setattr(gp, "_gstd_stats", lambda: {"ok": True, "http": 200, "body": {"nodes": 3}})
+    monkeypatch.setattr(gp, "_local_ollama_bench", lambda: {"ok": True, "tokens_per_sec": 15, "gpu_pct": 100})
+    monkeypatch.setattr(
+        "mag.training_events.emit",
+        lambda *a, **kw: {"event_id": "x"},
+    )
+
+    out = gp.run_gstd_probe(bench_local=True)
+    assert out["ok"] is True
+    assert "gstd_stats" in out
+    assert out["gstd_stats"]["ok"] is True
+    assert report.is_file()
+
+
 def test_desk_probe_emits_event(tmp_path, monkeypatch):
     report = tmp_path / "desk_model_probe.json"
     events: list[dict] = []

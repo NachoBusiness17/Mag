@@ -93,6 +93,20 @@ def _gstd_health() -> dict[str, Any]:
     }
 
 
+def _gstd_stats() -> dict[str, Any]:
+    """Probe GET /api/v1/stats (Phase T0 read-only shadow)."""
+    t0 = time.perf_counter()
+    code, body = _http_json(f"{GSTD_API}/api/v1/stats")
+    ms = round((time.perf_counter() - t0) * 1000)
+    return {
+        "ok": code == 200,
+        "http": code,
+        "latency_ms": ms,
+        "api": GSTD_API,
+        "body": body if isinstance(body, dict) else {"raw": str(body)[:200]},
+    }
+
+
 def _route_recommendation(
     *,
     local: dict[str, Any],
@@ -132,6 +146,7 @@ def _route_recommendation(
 def run_gstd_probe(*, bench_local: bool = True) -> dict[str, Any]:
     clones = _clone_inventory()
     gstd = _gstd_health()
+    stats = _gstd_stats()
     local: dict[str, Any] = {"ok": False, "skipped": True}
     if bench_local:
         try:
@@ -146,6 +161,7 @@ def run_gstd_probe(*, bench_local: bool = True) -> dict[str, Any]:
         "schema": "mag_gstd_probe.v1",
         "clones": clones,
         "gstd_health": gstd,
+        "gstd_stats": stats,
         "local_bench": local,
         "route": route,
         "note": "Probe only — does not register node or spend GSTD credits",
