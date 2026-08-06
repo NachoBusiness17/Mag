@@ -344,6 +344,14 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
     body_ok = bool(ollama)
     integral_ok = bool(dash and health.get("status") == "up")
 
+    fs_roots: list[str] = []
+    try:
+        from config import FS_ROOTS
+
+        fs_roots = [str(p) for p in FS_ROOTS]
+    except Exception:
+        pass
+
     glance: dict[str, Any] = {
         "schema": SCHEMA,
         "ts": _utc(),
@@ -357,6 +365,7 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
             "health_status": health.get("status"),
             "live_stale": health.get("live_stale"),
         },
+        "fs_roots": fs_roots,
         "session_tip": {
             "root": tip.get("root"),
             "root_short": (tip.get("root") or "")[:16] or None,
@@ -416,6 +425,7 @@ def format_glance_text(glance: dict[str, Any] | None = None) -> str:
         f"session_tip={(tip.get('root_short') or '?')}… leaves={tip.get('n_leaves')}",
         f"agent_tip={(atip.get('root_short') or '?')}… commit={atip.get('commit8')}",
         f"keys: {', '.join(key_bits)}",
+        f"fs_roots: {', '.join((g.get('fs_roots') or [])[:4]) or 'Mag only'}",
         f"note: {g.get('note')}",
         f"face: {g.get('path_md') or FACE_MD}",
     ]
