@@ -6972,6 +6972,30 @@ async function onImproveCycle() {
   }
 }
 
+async function onTokenChain() {
+  const btn = $("#btnTokenChain");
+  if (btn) btn.disabled = true;
+  toast("Token-chain: DeepSeek plans → local exec…");
+  try {
+    const res = await postJSON("/api/v1/token-chain", {
+      goal: "Inspect improve field_brief and candidates; note top tickets",
+      dry: false,
+    });
+    const ft = (res.token_thesis && res.token_thesis.frontier_tokens) || 0;
+    const ok = res.ok || (res.execution && res.execution.ok);
+    toast(
+      ok
+        ? `Token-chain OK — frontier ${ft} tok · see memory/runs/token_chain/latest.json`
+        : `Token-chain incomplete: ${(res.error || res.planner_error || "check latest.json")}`,
+    );
+    await loadStatus();
+  } catch (e) {
+    toast("Token-chain failed: " + (e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function onPowerStop() {
   if (!confirm("Stop entire Mag stack? Dashboard will go down.")) return;
   const btn = $("#btnPowerStop");
@@ -8286,6 +8310,7 @@ async function bind() {
   $("#btnPowerStop")?.addEventListener("click", () => onPowerStop());
   $("#btnPowerStart")?.addEventListener("click", () => onPowerStart());
   $("#btnImproveCycle")?.addEventListener("click", () => onImproveCycle());
+  $("#btnTokenChain")?.addEventListener("click", () => onTokenChain());
   $("#btnSeatFeedReload")?.addEventListener("click", () => loadSeatFeed());
   $("#btnAutopilotOnce")?.addEventListener("click", () => onAutopilotOnce());
   $("#drainerToggle")?.addEventListener("change", () => onDrainerToggleChange());
