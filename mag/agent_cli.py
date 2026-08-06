@@ -284,11 +284,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a text file under Mag root (jailed). Pass line_from/line_to for a 1-indexed numbered region (kills hand-rolled dump snippets).",
+            "description": "Read a text file under Mag root or sibling mycelial-republic (jailed FS_ROOTS). Pass line_from/line_to for a 1-indexed numbered region (kills hand-rolled dump snippets). Republic dual-progress: use ../mycelial-republic/docs/MILESTONES.md or absolute path under Documents/projects/mycelial-republic — not Mag docs/MILESTONES.md.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "File path relative to Mag root"},
+                    "path": {"type": "string", "description": "Path relative to Mag root, or under sibling mycelial-republic"},
                     "max_chars": {"type": "integer", "description": "Max characters to return"},
                     "line_from": {"type": "integer", "description": "1-indexed first line (line-range mode; numbered output)"},
                     "line_to": {"type": "integer", "description": "1-indexed last line, inclusive; clamps to EOF"},
@@ -399,7 +399,7 @@ You keep work moving with local tools + this model.
 ## Law
 - One job at a time. Truth-only. No flattery.
 - Artifact > transcript. Prefer tools over guessing file contents.
-- Paths are relative to Mag project root unless absolute and jailed.
+- Paths: Mag root, or sibling `../mycelial-republic/` (read-allowed for dual progress / BOOT_SOIL). Absolute under Documents/projects/mycelial-republic is OK. Mag does NOT contain docs/MILESTONES.md — that lives in mycelial-republic.
 - Never read or echo .env secrets. Never destroy residual DNA / verkle_tip / knots.
 - Prefer write targets: memory/working.md, memory/runs/*/progress.md, queue/, dig leaves under memory/improve/.
 - When done, give a short final answer (what you did + paths). Do not narrate fake tool calls — call tools for real.
