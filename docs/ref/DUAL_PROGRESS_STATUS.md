@@ -23,3 +23,5 @@
 - `mycelial-republic/docs/MILESTONES.md` dual-progress table  
 - `docs/BOOT_SOIL.md`  
 - Live validate 2026-08-06: 115 ≥ 100 PASS
+
+- Agent FS proof 2026-08-06T22:24:19.116501+00:00: read_file ../mycelial-republic/docs/MILESTONES.md ok=True
