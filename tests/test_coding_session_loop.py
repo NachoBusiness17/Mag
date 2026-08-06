@@ -88,6 +88,27 @@ def test_close_session_if_ready_gates_open(tmp_path, monkeypatch):
     assert out.get("reason") == "session_done_gates_open"
 
 
+def test_session_done_defers_expensive_command_until_artifact_exists(tmp_path, monkeypatch):
+    from mag.coding_session_loop import session_status
+
+    desk = tmp_path / "desk.md"
+    state = tmp_path / "state.json"
+    desk.write_text("# Agent desk\n", encoding="utf-8")
+    monkeypatch.setattr("mag.agent_desk.DESK_PATH", desk)
+    monkeypatch.setattr("mag.coding_session_loop.SESSION_STATE_PATH", state)
+    monkeypatch.setattr("mag.desk_dialogue.read_cursor", lambda: {})
+    called = []
+    monkeypatch.setattr("mag.coding_session_loop._run_cmd", lambda *a, **k: called.append(a) or {"pass": True, "ok": True})
+    cfg = {
+        "ok": True,
+        "session_id": "ordered-gates",
+        "gates": {"session_done": [{"id": "artifact", "path": "missing.json"}, {"id": "full", "cmd": "pytest tests -q"}]},
+    }
+    out = session_status(config=cfg)
+    assert called == []
+    assert out["session_done_gates"][1]["deferred"] is True
+
+
 def test_close_session_if_ready_closes_when_green(tmp_path, monkeypatch):
     desk = tmp_path / "agent_desk.md"
     desk.write_text("# Agent desk\n\n## Goal\nx\n", encoding="utf-8")

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -203,22 +205,101 @@ Stop only for a genuine external dependency, secret, spending/publishing approva
     }
 
 
+def _run_command(*args: str, timeout: int = 900) -> dict[str, Any]:
+    proc = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
+    return {"ok": proc.returncode == 0, "returncode": proc.returncode, "stdout_tail": proc.stdout[-4000:], "stderr_tail": proc.stderr[-2000:]}
+
+
+def execute_contract(contract: dict[str, Any], *, dry: bool = False, timeout: int = 900) -> dict[str, Any]:
+    """Create the branch, run the cheap coding seat, verify, file, and commit."""
+    if dry:
+        return {"ok": True, "dry": True, "phase": "prepared", "contract": contract}
+    from mag.factory_machine import checkout_run_branch
+
+    selection = contract["selection"]
+    vid = str(selection["version"])
+    gid = str((selection.get("gate") or {}).get("id") or "gate")
+    branch = checkout_run_branch(session_id=f"{vid}-{gid}", branch_prefix=contract["branch_prefix"])
+    if not branch.get("ok"):
+        return {"ok": False, "phase": "branch_failed", "branch": branch, "contract": contract}
+
+    from mag.operating_protocol import build_envelope
+
+    envelope = build_envelope(contract["goal"], source="automation", depth="heavy_code", dry=True)
+    provider = str((envelope.get("execution") or {}).get("provider") or "deepseek")
+    if provider in {"ollama", "local"}:
+        provider = "deepseek"
+    from mag.orchestrator import spawn_task, task_status
+
+    task = spawn_task(
+        contract["goal"],
+        provider=provider,
+        timeout=timeout,
+        tag=f"roadmap-{vid}-{gid}",
+        require_build=Path(contract["build_path"]).name,
+    )
+    if not task.get("ok"):
+        return {"ok": False, "phase": "spawn_failed", "branch": branch, "task": task, "contract": contract}
+    tid = str(task["task_id"])
+    deadline = time.monotonic() + max(30, timeout + 30)
+    terminal = task
+    while time.monotonic() < deadline:
+        terminal = task_status(tid) or terminal
+        if terminal.get("status") in {"done", "failed", "timeout", "stalled", "killed", "died"}:
+            break
+        time.sleep(2)
+
+    worker_ok = terminal.get("status") == "done"
+    tests = _run_command(str(ROOT / ".venv" / "Scripts" / "python.exe"), "-m", "pytest", "tests", "-q", timeout=timeout) if worker_ok else {"ok": False, "deferred": True, "reason": "worker did not finish green"}
+    evidence_path = ROOT / contract["evidence_path"]
+    evidence = {
+        "schema": "roadmap_gate_evidence.v1",
+        "ts": _now(),
+        "version": vid,
+        "gate": gid,
+        "branch": branch.get("branch"),
+        "worker": {k: terminal.get(k) for k in ("task_id", "status", "provider", "detail", "duration_s", "exit_code", "log")},
+        "tests": tests,
+        "contract": {k: contract.get(k) for k in ("build_path", "config_path", "goal")},
+        "verified": bool(worker_ok and tests.get("ok")),
+    }
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text(json.dumps(evidence, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+
+    commit: dict[str, Any] = {"ok": False, "deferred": True}
+    gate_record = None
+    if evidence["verified"]:
+        _run_command("git", "add", "-A", timeout=60)
+        diff = _run_command("git", "diff", "--cached", "--quiet", timeout=60)
+        if diff.get("returncode") == 1:
+            commit = _run_command("git", "commit", "-m", f"Complete roadmap {vid} gate {gid}", timeout=120)
+        else:
+            commit = {"ok": True, "no_changes": True}
+        if commit.get("ok"):
+            from mag.release_registry import record_gate
+
+            gate_record = record_gate(vid, gid, ok=True, note="Roadmap worker and full suite green", evidence_path=contract["evidence_path"])
+    return {
+        "ok": bool(evidence["verified"] and commit.get("ok")),
+        "schema": "roadmap_run.v1",
+        "phase": "verified" if evidence["verified"] else "failed_verification",
+        "contract": contract,
+        "branch": branch,
+        "envelope": envelope,
+        "task": terminal,
+        "tests": tests,
+        "evidence_path": contract["evidence_path"],
+        "commit": commit,
+        "gate_record": gate_record,
+    }
+
+
 def run_next(*, version: str | None = None, gate: str | None = None, prepare_only: bool = False, dry: bool = False, max_ticks: int = 50) -> dict[str, Any]:
     selection = select_next(version=version, gate=gate)
     contract = compile_run(selection)
     if not contract.get("ok") or prepare_only:
         return contract
-    from mag.factory_machine import factory_machine_run
-
-    result = factory_machine_run(
-        config_path=ROOT / contract["config_path"],
-        branch_prefix=contract["branch_prefix"],
-        note=contract["goal"],
-        max_ticks=max_ticks,
-        dry=dry,
-        force_new_seed=True,
-    )
-    return {"ok": result.get("ok") is not False, "schema": "roadmap_run.v1", "contract": contract, "machine": result}
+    return execute_contract(contract, dry=dry, timeout=max(120, int(max_ticks) * 30))
 
 
 def status() -> dict[str, Any]:

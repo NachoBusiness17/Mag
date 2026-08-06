@@ -63,21 +63,49 @@ def test_prepare_does_not_start_factory(monkeypatch):
     assert out["ok"] is True
 
 
-def test_run_delegates_compiled_contract_to_factory(monkeypatch):
+def test_run_delegates_compiled_contract_to_executor(monkeypatch):
     from mag import roadmap_runner as rr
 
     contract = {"ok": True, "config_path": "memory/working/test.yaml", "branch_prefix": "mag/roadmap-v5-gate", "goal": "goal"}
-    seen = {}
     monkeypatch.setattr(rr, "select_next", lambda **kw: {"ok": True})
     monkeypatch.setattr(rr, "compile_run", lambda selection: contract)
-
-    def fake_factory(**kwargs):
-        seen.update(kwargs)
-        return {"ok": True, "phase": "done"}
-
-    monkeypatch.setattr("mag.factory_machine.factory_machine_run", fake_factory)
+    seen = {}
+    monkeypatch.setattr(rr, "execute_contract", lambda value, **kw: seen.update({"contract": value, **kw}) or {"ok": True})
     out = rr.run_next(max_ticks=7)
     assert out["ok"] is True
-    assert seen["branch_prefix"] == contract["branch_prefix"]
-    assert seen["max_ticks"] == 7
-    assert seen["force_new_seed"] is True
+    assert seen["contract"] == contract
+    assert seen["timeout"] == 210
+
+
+def test_execute_contract_verifies_commits_and_records_gate(tmp_path, monkeypatch):
+    from mag import roadmap_runner as rr
+
+    monkeypatch.setattr(rr, "ROOT", tmp_path)
+    monkeypatch.setattr("mag.factory_machine.checkout_run_branch", lambda **kw: {"ok": True, "branch": "mag/roadmap-v5-g"})
+    monkeypatch.setattr("mag.operating_protocol.build_envelope", lambda *a, **k: {"execution": {"provider": "deepseek"}})
+    monkeypatch.setattr("mag.orchestrator.spawn_task", lambda *a, **k: {"ok": True, "task_id": "t1", "status": "running"})
+    monkeypatch.setattr("mag.orchestrator.task_status", lambda tid: {"task_id": tid, "status": "done", "provider": "deepseek"})
+    commands = []
+
+    def fake_command(*args, **kwargs):
+        commands.append(args)
+        if args[:4] == ("git", "diff", "--cached", "--quiet"):
+            return {"ok": False, "returncode": 1}
+        return {"ok": True, "returncode": 0, "stdout_tail": "472 passed", "stderr_tail": ""}
+
+    monkeypatch.setattr(rr, "_run_command", fake_command)
+    recorded = {}
+    monkeypatch.setattr("mag.release_registry.record_gate", lambda *a, **k: recorded.update({"args": a, **k}) or {"ok": True})
+    contract = {
+        "selection": {"version": "v5", "gate": {"id": "gstd_t0_probe"}},
+        "goal": "[build] use queue/handoff/BUILD-roadmap-v5-gstd-t0-probe.md",
+        "build_path": "queue/handoff/BUILD-roadmap-v5-gstd-t0-probe.md",
+        "config_path": "memory/working/x.yaml",
+        "evidence_path": "memory/runs/roadmap/v5-gstd_t0_probe.json",
+        "branch_prefix": "mag/roadmap-v5-gstd",
+    }
+    out = rr.execute_contract(contract, timeout=30)
+    assert out["ok"] is True
+    assert (tmp_path / contract["evidence_path"]).is_file()
+    assert any(cmd[:2] == ("git", "commit") for cmd in commands)
+    assert recorded["args"] == ("v5", "gstd_t0_probe")

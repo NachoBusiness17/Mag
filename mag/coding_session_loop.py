@@ -398,12 +398,20 @@ def session_status(*, config: dict[str, Any] | None = None) -> dict[str, Any]:
     text = read_desk().get("text") or ""
     done_gates = (cfg.get("gates") or {}).get("session_done") or []
     done_results = []
+    prerequisites_passed = True
     for spec in done_gates:
         if isinstance(spec, dict):
             if spec.get("cmd"):
-                done_results.append({**_run_cmd(str(spec["cmd"]), optional=True), "id": spec.get("id")})
+                if not prerequisites_passed:
+                    done_results.append({"id": spec.get("id"), "pass": False, "ok": False, "deferred": True, "reason": "earlier completion gate is still open"})
+                else:
+                    row = {**_run_cmd(str(spec["cmd"]), optional=True), "id": spec.get("id")}
+                    done_results.append(row)
+                    prerequisites_passed = prerequisites_passed and bool(row.get("pass") or row.get("ok"))
             else:
-                done_results.append(_check_path_gate(spec))
+                row = _check_path_gate(spec)
+                done_results.append(row)
+                prerequisites_passed = prerequisites_passed and bool(row.get("pass") or row.get("ok"))
     done_marker = (cfg.get("done_marker") or "Done").strip()
     has_done = bool(re.search(rf"^##\s+{re.escape(done_marker)}\s*$", text, re.M))
     return {

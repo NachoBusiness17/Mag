@@ -149,6 +149,8 @@ def assess_sprint_status(*, config: dict[str, Any] | None = None) -> dict[str, A
     if not cfg.get("ok"):
         return cfg
     state = _load_orch_state()
+    if state.get("session_id") != cfg.get("session_id"):
+        state = {}
     active = active_sprint_key(config=cfg, state=state)
     keys = _sprint_keys(cfg)
     completed = list(state.get("completed_sprints") or [])
