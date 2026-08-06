@@ -314,6 +314,25 @@ def h_mag_os(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     return 200, live_status()
 
 
+def h_attention_ranked(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Decision-useful signals ordered by consequence, with visible reasons."""
+    from mag.attention_ranker import build_ranked_attention
+
+    return 200, build_ranked_attention()
+
+
+def h_attention_feedback(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Teach the ranker what helped without weakening deterministic guards."""
+    from mag.attention_ranker import record_feedback
+
+    body = body or {}
+    result = record_feedback(
+        str(body.get("item_id") or ""), str(body.get("signal") or ""),
+        source=str(body.get("source") or "dashboard"),
+    )
+    return (200 if result.get("ok") else 400), result
+
+
 def h_home_summary(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """One payload for the Home tab: health, tip, latest bead, loops, economy."""
     from mag.health import sanity
@@ -2814,6 +2833,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
 
     ("GET", "/api/v1/home", h_home_summary),
     ("GET", "/api/v1/summary", h_home_summary),
+    ("GET", "/api/v1/attention-ranked", h_attention_ranked),
+    ("POST", "/api/v1/attention-feedback", h_attention_feedback),
     # Ideas — primary OS board (collection + item + pack + seed)
     ("GET", "/api/v1/ideas", h_ideas),
     ("POST", "/api/v1/ideas", h_ideas_create),

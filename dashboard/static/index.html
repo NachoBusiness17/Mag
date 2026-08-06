@@ -11,7 +11,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/static/mag-icon.png" />
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v58-command-brief" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v59-ranked-attention" />
   <script type="importmap">
   {
     "imports": {
@@ -161,6 +161,17 @@
               <article class="card home-brief-attention"><h3>What needs attention</h3><ul class="signal-list" id="homeBriefAttention"><li>Loading…</li></ul></article>
             </div>
             <article class="home-next-move"><span>Next consequential move</span><strong id="homeBriefNext">Loading…</strong></article>
+            <section class="home-attention-board" aria-labelledby="rankedAttentionTitle">
+              <div class="home-attention-head">
+                <div><p class="ideas-kicker">Needs you · ranked by consequence</p><h3 id="rankedAttentionTitle">Operator attention</h3></div>
+                <p class="muted sm" id="rankedAttentionMeta">Reading live evidence…</p>
+              </div>
+              <div id="rankedAttentionList" class="ranked-attention-list" aria-live="polite"></div>
+              <details id="rankedAttentionLow" class="ranked-attention-low hidden">
+                <summary>Evidence and low-priority signals</summary>
+                <div id="rankedAttentionLowList" class="ranked-attention-list"></div>
+              </details>
+            </section>
           </section>
           <div class="home-legacy hidden" aria-hidden="true">
           <p class="home-headline" id="homeHeadline">Loading office…</p>
@@ -1479,6 +1490,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=dashboard-nav-v37"></script>
-  <script src="/static/app.js?v=dashboard-v58-command-brief"></script>
+  <script src="/static/app.js?v=dashboard-v59-ranked-attention"></script>
 </body>
 </html>

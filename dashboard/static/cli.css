@@ -5910,6 +5910,24 @@ body.desk-tabs .dashboard-nav + .desk {
   text-transform: uppercase;
 }
 .home-next-move strong { font-size: 1.05rem; }
+.home-attention-board { margin-top: .15rem; }
+.home-attention-head { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin-bottom:.55rem; }
+.home-attention-head h3 { margin:.1rem 0 0; font-size:1.2rem; color:var(--ink); }
+.ranked-attention-list { display:grid; gap:.55rem; }
+.attention-card { padding:.75rem .85rem; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); }
+.attention-card.attention-p0 { border-left:4px solid #ff5f67; }
+.attention-card.attention-p1 { border-left:4px solid #ffca58; }
+.attention-card.attention-p2 { border-left:4px solid var(--accent); }
+.attention-card-head { display:grid; grid-template-columns:max-content 1fr max-content; gap:.6rem; align-items:baseline; }
+.attention-band { font:700 .7rem var(--mono); color:var(--accent); }
+.attention-score { color:var(--muted); font:.7rem var(--mono); }
+.attention-card > p { margin:.45rem 0; }
+.attention-action { color:var(--ink); }
+.attention-action span { color:var(--accent); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; margin-right:.35rem; }
+.attention-controls { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.55rem; }
+.attention-feedback { border:0; background:transparent; color:var(--muted); cursor:pointer; padding:.25rem; font-size:.72rem; }
+.attention-feedback:hover { color:var(--accent); }
+.ranked-attention-low { margin-top:.55rem; color:var(--muted); }
 .home-cta-simple { margin-top: .85rem; }
 
 #win-sessions .days-view-diary,

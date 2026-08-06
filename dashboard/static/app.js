@@ -725,6 +725,52 @@ function renderVerkleMap(h) {
   `;
 }
 
+function attentionCard(item) {
+  const evidence = (item.evidence || []).filter(Boolean).slice(0, 3);
+  return `<article class="attention-card attention-${esc(String(item.band || "P4").toLowerCase())}" data-attention-id="${esc(item.id)}">
+    <div class="attention-card-head"><span class="attention-band">${esc(item.band)}</span><strong>${esc(item.headline)}</strong><span class="attention-score">${esc(item.score)}/100</span></div>
+    <p>${esc(item.meaning || "")}</p>
+    <p class="attention-action"><span>Suggested</span> ${esc(item.operator_action || "Inspect this signal.")}</p>
+    <details><summary>Why this rank</summary><p class="muted sm">${esc(item.rank_reason || "")}</p>${evidence.length ? `<ul class="signal-list sm">${evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>
+    <div class="attention-controls">
+      <button type="button" class="btn ghost btn-sm attention-route" data-kind="${esc(item.kind)}">${item.kind === "roadmap" ? "Open roadmap" : item.kind === "worker" ? "Open workers" : "Inspect"}</button>
+      <button type="button" class="btn ghost btn-sm attention-direct">Direct Mag</button>
+      ${item.hard_rule ? "" : `<button type="button" class="attention-feedback" data-signal="useful">Useful</button><button type="button" class="attention-feedback" data-signal="wallpaper">Wallpaper</button><button type="button" class="attention-feedback" data-signal="pin">Pin</button><button type="button" class="attention-feedback" data-signal="mute">Mute</button>`}
+    </div>
+  </article>`;
+}
+
+async function loadRankedAttention() {
+  const list = $("#rankedAttentionList");
+  if (!list) return;
+  try {
+    const data = await getJSON("/api/v1/attention-ranked");
+    const items = data.items || [];
+    const important = items.filter((x) => ["P0", "P1", "P2"].includes(x.band));
+    const low = items.filter((x) => !["P0", "P1", "P2"].includes(x.band));
+    list.innerHTML = important.length ? important.map(attentionCard).join("") : `<p class="muted">Nothing currently needs intervention.</p>`;
+    const lowWrap = $("#rankedAttentionLow");
+    if (lowWrap) lowWrap.classList.toggle("hidden", !low.length);
+    if ($("#rankedAttentionLowList")) $("#rankedAttentionLowList").innerHTML = low.map(attentionCard).join("");
+    const counts = data.counts || {};
+    if ($("#rankedAttentionMeta")) $("#rankedAttentionMeta").textContent = `${counts.P0 || 0} interrupt · ${counts.P1 || 0} act · ${counts.P2 || 0} monitor · ${data.ranker || "ranker"}`;
+    document.querySelectorAll(".attention-route").forEach((btn) => btn.addEventListener("click", () => {
+      setTab(btn.dataset.kind === "roadmap" ? "ideas" : "status");
+    }));
+    document.querySelectorAll(".attention-direct").forEach((btn) => btn.addEventListener("click", () => setTab("chat")));
+    document.querySelectorAll(".attention-feedback").forEach((btn) => btn.addEventListener("click", async () => {
+      const card = btn.closest("[data-attention-id]");
+      try {
+        await postJSON("/api/v1/attention-feedback", { item_id: card.dataset.attentionId, signal: btn.dataset.signal });
+        toast(`Attention marked ${btn.dataset.signal}`);
+        await loadRankedAttention();
+      } catch (e) { toast(String(e.message || e), "err"); }
+    }));
+  } catch (e) {
+    list.innerHTML = `<p class="muted">Ranked attention is offline: ${esc(String(e.message || e))}</p>`;
+  }
+}
+
 async function loadHome() {
   let h = {};
   try {
@@ -787,6 +833,7 @@ async function loadHome() {
   briefList("#homeBriefProgress", whereBrief.held, "No verified progress has been summarized yet.");
   briefList("#homeBriefAttention", [...(whereBrief.open || []), ...(liveBrief.open_loops || [])], "No consequential open need is currently filed.");
   if ($("#homeBriefNext")) $("#homeBriefNext").textContent = (storyBrief.how_to_live_it || [])[0] || traj.primary_next || "Choose one project need and direct Mag.";
+  await loadRankedAttention();
 
   if ($("#homeHeadline")) {
     $("#homeHeadline").textContent = h.headline || "Your last filed day";
