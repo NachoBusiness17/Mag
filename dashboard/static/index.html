@@ -11,7 +11,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/static/mag-icon.png" />
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v59-ranked-attention" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v60-feature-lab" />
   <script type="importmap">
   {
     "imports": {
@@ -98,6 +98,7 @@
       </div>
       <div class="dashboard-view-group" data-dashboard-group="system">
         <a class="dashboard-view-tab" href="?tab=stack" data-dashboard-view="stack">Health</a>
+        <a class="dashboard-view-tab" href="?tab=featurelab" data-dashboard-view="featurelab">Feature Lab</a>
         <a class="dashboard-view-tab" href="?tab=blast" data-dashboard-view="blast">Learning</a>
         <a class="dashboard-view-tab" href="?tab=flow" data-dashboard-view="flow">Economics</a>
         <a class="dashboard-view-tab" href="?tab=board" data-dashboard-view="board">Provenance</a>
@@ -1353,6 +1354,30 @@
       </div>
     </div>
 
+    <div class="win" data-win="featurelab" id="win-featurelab">
+      <div class="win-titlebar">
+        <span class="win-title">Feature Lab · test before graduation</span>
+        <span class="win-ctrls"><button type="button" class="win-min" title="minimize">_</button><button type="button" class="win-max" title="maximize">□</button><button type="button" class="win-close" title="close">×</button></span>
+      </div>
+      <div class="win-body">
+        <section id="panel-featurelab" class="panel pane-pad feature-lab-panel">
+          <nav class="local-view-nav" aria-label="System views">
+            <button type="button" class="btn ghost btn-sm" data-open-tab="stack">Health</button>
+            <button type="button" class="btn ghost btn-sm on" data-open-tab="featurelab">Feature Lab</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="blast">Learning</button>
+          </nav>
+          <div class="pane-head">
+            <div><p class="ideas-kicker">Existing rails · no shadow infrastructure</p><h2 class="pane-h">Test features here. Graduate evidence, not enthusiasm.</h2><p class="muted pane-sub" id="featureLabPolicy">Loading graduation policy…</p></div>
+            <button type="button" class="btn ghost btn-sm" id="btnFeatureLabReload">Reload</button>
+          </div>
+          <div class="feature-lab-metrics" id="featureLabMetrics"></div>
+          <div class="feature-lab-flow" aria-label="Graduation flow"><span>Isolated worktree</span><b>→</b><span>Bound tests</span><b>→</b><span>Audit handoff</span><b>→</b><span>Main dashboard</span></div>
+          <div id="featureLabCandidates" class="feature-lab-candidates"><p class="muted">Reading worktrees and evidence…</p></div>
+          <p class="muted sm" id="featureLabSources"></p>
+        </section>
+      </div>
+    </div>
+
     <div class="win" data-win="stack" id="win-stack">
       <div class="win-titlebar">
         <span class="win-title">Stack — services · agents · REST outputs</span>
@@ -1366,6 +1391,7 @@
         <section id="panel-stack" class="panel agent-desk-v2 stack-panel pane-pad">
           <nav class="local-view-nav" aria-label="System views">
             <button type="button" class="btn ghost btn-sm on" data-open-tab="stack">Health</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="featurelab">Feature Lab</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="blast">Learning</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="flow">Economics</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="board">Provenance</button>
@@ -1490,6 +1516,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=dashboard-nav-v37"></script>
-  <script src="/static/app.js?v=dashboard-v59-ranked-attention"></script>
+  <script src="/static/app.js?v=dashboard-v60-feature-lab"></script>
 </body>
 </html>

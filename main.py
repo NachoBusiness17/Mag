@@ -395,6 +395,25 @@ def main(argv: list[str] | None = None) -> int:
     p_autorun.add_argument("--no-fill", action="store_true", help="skip queue fill")
     p_autorun.add_argument("--fill-only", action="store_true", help="fill + plan only")
     p_autorun.add_argument("--interval", type=float, default=5.0, help="loop interval seconds")
+    p_tchain = sub.add_parser(
+        "token-chain",
+        help="DeepSeek plans a local work order; deterministic local executor runs it (token-save test)",
+    )
+    p_tchain.add_argument(
+        "goal",
+        nargs="*",
+        help="T2 goal for the planner (default: inspect improve brief)",
+    )
+    p_tchain.add_argument(
+        "--dry",
+        action="store_true",
+        help="No DeepSeek call — fixture plan + local exec only",
+    )
+    p_tchain.add_argument(
+        "--planner",
+        default="deepseek",
+        help="Planner provider (default deepseek)",
+    )
     p_sg = sub.add_parser(
         "seat-guard",
         help="Supervise the seat REPL: relaunch on crash/glitch/stall/hard-stop",
@@ -3661,6 +3680,10 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "interval", None):
             argv.extend(["--interval", str(args.interval)])
         return autorun_main(argv)
+    if args.cmd == "token-chain":
+        from mag.token_chain import cmd_token_chain
+
+        return cmd_token_chain(args)
     if args.cmd == "seat-guard":
         from mag.seat_guard import main as sg_main
         return sg_main(args.sg_args)

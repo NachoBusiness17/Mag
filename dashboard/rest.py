@@ -260,6 +260,32 @@ def h_improve_cycle(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[in
     return (200 if res.get("ok") else 500), res
 
 
+def h_token_chain(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """DeepSeek plan → local work order exec (token-save chain). GET returns latest run."""
+    from mag.token_chain import RUN_DIR, run_token_chain
+
+    if body is None:
+        latest = RUN_DIR / "latest.json"
+        if latest.is_file():
+            try:
+                data = json.loads(latest.read_text(encoding="utf-8"))
+                return 200, {"ok": True, "latest": data}
+            except Exception as exc:
+                return 200, {"ok": False, "error": str(exc)[:200]}
+        return 200, {"ok": True, "latest": None, "hint": "POST {goal?, dry?} to run"}
+
+    data = dict(body or {})
+    goal = str(data.get("goal") or data.get("text") or "").strip() or None
+    dry = bool(data.get("dry"))
+    res = run_token_chain(
+        goal=goal,
+        dry=dry,
+        live=not dry,
+        planner=str(data.get("planner") or "deepseek"),
+    )
+    return (200 if res.get("ok") or (res.get("execution") or {}).get("ok") else 500), res
+
+
 def h_governance(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     from mag.governance import build_governance
 
@@ -1634,6 +1660,16 @@ def h_repo_readiness(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int
     return 200, repo_readiness()
 
 
+def h_feature_lab(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Experimental worktrees and their evidence-backed graduation gates."""
+    from mag.feature_lab import request, status
+
+    if body is None:
+        return 200, status()
+    result = request(str(body.get("branch") or ""), str(body.get("action") or ""))
+    return (200 if result.get("ok") else 400), result
+
+
 def h_local_scheduler(p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Local GPU task scheduler — queue depth, steer, triage."""
     from mag.local_scheduler import deepseek_triage, run_exclusive, status, steer
@@ -2805,6 +2841,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/stack", h_stack),
     ("GET", "/api/stack", h_stack),
     ("GET", "/api/v1/repo-readiness", h_repo_readiness),
+    ("GET", "/api/v1/feature-lab", h_feature_lab),
+    ("POST", "/api/v1/feature-lab", h_feature_lab),
     ("GET", "/api/v1/local-pulse", h_local_pulse),
     ("GET", "/api/local-pulse", h_local_pulse),
     ("GET", "/api/v1/arena", h_agent_arena),
@@ -2901,6 +2939,8 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("POST", "/api/v1/power/start", h_power_start),
     ("POST", "/api/v1/improve/cloud", h_improve_cloud),
     ("POST", "/api/v1/improve/cycle", h_improve_cycle),
+    ("GET", "/api/v1/token-chain", h_token_chain),
+    ("POST", "/api/v1/token-chain", h_token_chain),
     ("GET", "/api/v1/governance", h_governance),
     ("POST", "/api/v1/governance", h_post_governance),
     ("GET", "/api/v1/operator-inbox", h_operator_inbox),

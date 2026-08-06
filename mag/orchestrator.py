@@ -515,7 +515,7 @@ def _running_tasks() -> list[dict[str, Any]]:
     return out
 
 
-def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = None,
+def spawn_task(goal: str, *, provider: str = "ollama", model: str | None = None,
                timeout: int = DEFAULT_TIMEOUT, tag: str = "",
                require_build: str | None = None) -> dict[str, Any]:
     """Spawn a one-shot sub-agent for a goal. Returns the task record (async).
@@ -618,7 +618,7 @@ def _queue_save(q: dict[str, Any]) -> None:
         json.dumps(q, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
+def enqueue(goal: str, *, provider: str = "ollama", model: str | None = None,
             timeout: int = DEFAULT_TIMEOUT, tag: str = "",
             require_build: str | None = None) -> dict[str, Any]:
     """Add a goal to the queue. Returns the queue entry (not yet spawned)."""
@@ -786,7 +786,7 @@ def drain_once(*, force: bool = False) -> dict[str, Any]:
     if nxt is None:
         return {"ok": True, "action": "empty", "detail": "no queued goals"}
     qid = nxt["queue_id"]
-    rec = spawn_task(nxt["goal"], provider=nxt.get("provider") or "deepseek",
+    rec = spawn_task(nxt["goal"], provider=nxt.get("provider") or "ollama",
                      model=nxt.get("model"), timeout=int(nxt.get("timeout") or DEFAULT_TIMEOUT),
                      tag=nxt.get("tag") or "")
     if not rec.get("ok"):
@@ -1141,7 +1141,7 @@ def main(argv: list[str] | None = None) -> int:
         if sub == "add":
             rest = args[2:]
             goal = ""
-            provider = "deepseek"
+            provider = "ollama"
             model = None
             timeout = DEFAULT_TIMEOUT
             tag = ""
@@ -1187,7 +1187,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "run":
         rest = args[1:]
         goal = ""
-        provider = "deepseek"
+        provider = "ollama"
         model = None
         timeout = DEFAULT_TIMEOUT
         tag = ""

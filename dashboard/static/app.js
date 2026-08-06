@@ -572,6 +572,7 @@ function setTab(name) {
   if (name === "ideas") loadIdeas();
   if (name === "status") startStatusPoll();
   if (name === "stack") startStackPoll();
+  if (name === "featurelab") loadFeatureLab();
   if (name === "chronicle") startChroniclePoll();
   if (name === "agents") {
     const fr = $("#agentsFrame");
@@ -6578,6 +6579,53 @@ async function unslothAction(action, extra) {
   }
 }
 
+function featureGate(label, ok) {
+  return `<span class="feature-gate ${ok ? "pass" : "wait"}">${ok ? "✓" : "·"} ${esc(label)}</span>`;
+}
+
+async function featureLabAction(branch, action) {
+  try {
+    const result = await postJSON("/api/v1/feature-lab", { branch, action });
+    toast(action === "verify" ? "Verification handoff filed" : "Graduation review filed");
+    await loadFeatureLab();
+    return result;
+  } catch (e) {
+    toast(String(e.message || e), "err");
+    return null;
+  }
+}
+
+async function loadFeatureLab() {
+  const host = $("#featureLabCandidates");
+  if (!host) return;
+  try {
+    const data = await getJSON("/api/v1/feature-lab");
+    const metrics = data.metrics || {};
+    if ($("#featureLabPolicy")) $("#featureLabPolicy").textContent = data.policy || "";
+    if ($("#featureLabMetrics")) $("#featureLabMetrics").innerHTML = [
+      ["Experiments", metrics.experiments || 0], ["Building", metrics.building || 0],
+      ["Needs tests", metrics.testing || 0], ["Ready", metrics.ready || 0],
+      ["Review queued", metrics.queued || 0],
+    ].map(([label, value]) => `<article><strong>${esc(value)}</strong><span>${esc(label)}</span></article>`).join("");
+    const candidates = (data.candidates || []).filter((x) => !x.operational);
+    host.innerHTML = candidates.length ? candidates.map((item) => {
+      const gates = item.gates || {};
+      const evidence = item.evidence || {};
+      return `<article class="feature-candidate ${item.graduation_ready ? "ready" : ""}">
+        <div class="feature-candidate-head"><div><span class="ideas-kicker">${esc(item.stage)}</span><h3>${esc(item.branch || "detached worktree")}</h3></div><code>${esc(item.head || "?")}</code></div>
+        <p class="muted sm">${esc(item.root)}</p>
+        <div class="feature-gates">${featureGate("isolated", gates.isolated)}${featureGate("clean", gates.clean)}${featureGate("tracked", gates.tracked)}${featureGate("synced", gates.synced)}${featureGate("tests bound", gates.verified)}</div>
+        <p class="feature-evidence">${evidence.path ? `${evidence.bound_to_head ? "HEAD-bound evidence" : "Older evidence (does not prove this HEAD)"}: <code>${esc(evidence.path)}</code>` : "No branch-bound test evidence yet."}</p>
+        <div class="row"><button type="button" class="btn ghost btn-sm feature-lab-action" data-action="verify" data-branch="${esc(item.branch)}">Request verification</button><button type="button" class="btn primary btn-sm feature-lab-action" data-action="graduate" data-branch="${esc(item.branch)}" ${item.graduation_ready ? "" : "disabled"}>Request graduation review</button></div>
+      </article>`;
+    }).join("") : `<p class="muted">No isolated feature worktrees are registered.</p>`;
+    host.querySelectorAll(".feature-lab-action").forEach((btn) => btn.addEventListener("click", () => featureLabAction(btn.dataset.branch, btn.dataset.action)));
+    if ($("#featureLabSources")) $("#featureLabSources").textContent = `Sources: ${(data.sources || []).join(" · ")}`;
+  } catch (e) {
+    host.innerHTML = `<p class="muted">Feature Lab offline: ${esc(String(e.message || e))}</p>`;
+  }
+}
+
 async function loadStack() {
   const head = $("#stackHeadline");
   const meta = $("#stackMeta");
@@ -8049,6 +8097,7 @@ async function refresh() {
     } else if (active === "ideas") await loadIdeas();
     else if (active === "status") await loadStatus();
     else if (active === "stack") await loadStack();
+    else if (active === "featurelab") await loadFeatureLab();
     else if (active === "chronicle") await loadChronicle();
     else if (active === "diary") await loadDiary();
     else if (active === "board") await loadBoard();
@@ -8226,6 +8275,7 @@ async function bind() {
   $("#btnIdeaReopen")?.addEventListener("click", () => patchIdeaStatus("open"));
   $("#btnStatusReload")?.addEventListener("click", () => loadStatus());
   $("#btnStackReload")?.addEventListener("click", () => loadStack());
+  $("#btnFeatureLabReload")?.addEventListener("click", () => loadFeatureLab());
   $("#btnSchedPause")?.addEventListener("click", () => schedulerAction("steer", { cmd: "!pause" }));
   $("#btnSchedContinue")?.addEventListener("click", () => schedulerAction("steer", { cmd: "!continue" }));
   $("#btnSchedTriage")?.addEventListener("click", () => schedulerAction("triage"));

@@ -2465,12 +2465,16 @@ def main_argv(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(prog="mag agent", description="Mag tool-using agent CLI")
     p.add_argument("-q", "--query", default="", help="One-shot goal then exit")
-    p.add_argument("--provider", default="deepseek", help="deepseek|ollama|…")
+    p.add_argument(
+        "--provider",
+        default="ollama",
+        help="ollama (default, local) | deepseek (only frozen BUILD / T2 plan)",
+    )
     p.add_argument("--model", default="", help="Override model id")
     p.add_argument("--tier", choices=("T0", "T1", "T2", "T3"), default="T1")
     args = p.parse_args(argv)
     return run_agent(
-        provider=(args.provider or "deepseek").strip(),
+        provider=(args.provider or "ollama").strip(),
         model=(args.model or "").strip() or None,
         one_shot=(args.query or "").strip() or None,
         tier=args.tier,
