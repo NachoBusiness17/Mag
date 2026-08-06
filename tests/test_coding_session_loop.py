@@ -25,6 +25,11 @@ def test_load_config_has_session_id():
     assert cfg.get("playbook") == "code_scout_janitor"
 
 
+def test_load_config_accepts_repo_relative_path():
+    cfg = load_config(Path("configs/coding_session_loop.yaml"))
+    assert cfg.get("ok") is True
+
+
 def test_seed_desk_writes_goal(tmp_path, monkeypatch):
     desk = tmp_path / "agent_desk.md"
     cursor = tmp_path / "agent_desk_cursor.json"

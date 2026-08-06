@@ -988,6 +988,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Re-seed desk when session is closed (testing / new sprint)",
     )
 
+    p_roadmap = sub.add_parser(
+        "roadmap-run",
+        help="Select the next filed roadmap gate and run it through the factory",
+    )
+    p_roadmap.add_argument(
+        "roadmap_action",
+        nargs="?",
+        default="run",
+        choices=("run", "prepare", "status"),
+        help="run | prepare frozen contract only | status",
+    )
+    p_roadmap.add_argument("--version", default="", help="Optional version override, e.g. v5")
+    p_roadmap.add_argument("--gate", default="", help="Optional gate override within the selected version")
+    p_roadmap.add_argument("--max-ticks", type=int, default=50)
+    p_roadmap.add_argument("--dry", action="store_true", help="Run factory in dry mode after preparing contract")
+
     p_csync = sub.add_parser(
         "canvas-sync",
         help="Sync Cursor Canvas *.tsx → memory/viewports/ manifests",
@@ -3249,6 +3265,22 @@ def main(argv: list[str] | None = None) -> int:
                 track=track,
                 dry=bool(getattr(args, "dry", False)),
                 force_new_seed=bool(getattr(args, "force_new_seed", False)),
+            )
+        print(json.dumps(out, indent=2, default=str))
+        return 0 if out.get("ok") is not False else 1
+    if args.cmd == "roadmap-run":
+        from mag.roadmap_runner import run_next, status
+
+        action = getattr(args, "roadmap_action", "run") or "run"
+        if action == "status":
+            out = status()
+        else:
+            out = run_next(
+                version=(getattr(args, "version", "") or "").strip() or None,
+                gate=(getattr(args, "gate", "") or "").strip() or None,
+                prepare_only=action == "prepare",
+                dry=bool(getattr(args, "dry", False)),
+                max_ticks=int(getattr(args, "max_ticks", 50) or 50),
             )
         print(json.dumps(out, indent=2, default=str))
         return 0 if out.get("ok") is not False else 1

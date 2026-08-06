@@ -31,6 +31,8 @@ def _utc() -> str:
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
     p = path or CONFIG_PATH
+    if not p.is_absolute():
+        p = (ROOT / p).resolve()
     if not p.is_file():
         return {"ok": False, "error": f"missing config: {p}"}
     try:

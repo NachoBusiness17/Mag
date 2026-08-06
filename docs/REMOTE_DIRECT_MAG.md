@@ -33,3 +33,16 @@ Enter the same token. It remains in the page only while that page is open.
 
 The full dashboard on port 8765 should remain local. Only the narrow cast/control
 service on port 8766 is intended for LAN access.
+
+## Let Mag choose the next roadmap branch
+
+From PowerShell, run:
+
+```powershell
+.\run_roadmap.ps1
+```
+
+This does not ask for a new goal. It reads `configs/version_roadmap.yaml` and
+`configs/releases.yaml`, skips gates already recorded green, freezes the next
+gate-sized BUILD, creates its roadmap branch, and runs the factory. Versions
+whose curriculum is still `TBD` fail closed instead of inventing work.
