@@ -1222,6 +1222,9 @@ def main(argv: list[str] | None = None) -> int:
         if sub == "status":
             print(json.dumps(queue_status(), indent=2, default=str))
             return 0
+        if sub in ("purge-failed", "purge_failed"):
+            print(json.dumps(purge_failed_queue(), indent=2, default=str))
+            return 0
         print("unknown queue subcommand: " + sub)
         return 2
     if cmd == "drain":
