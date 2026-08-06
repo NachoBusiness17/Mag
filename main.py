@@ -1124,6 +1124,15 @@ def main(argv: list[str] | None = None) -> int:
     p_train.add_argument("--pattern", default="", help="Filter by pattern type")
     p_train.add_argument("--json", action="store_true", help="JSON output")
 
+    p_vast_train = sub.add_parser(
+        "vast-train",
+        help="Validate a redacted training export and estimate a Vast job",
+    )
+    p_vast_train.add_argument("--dry", action="store_true", help="Validate and estimate only; never launch")
+    p_vast_train.add_argument("--export-path", required=True, help="Training export JSONL path")
+    p_vast_train.add_argument("--base-model", default=None, help="Configured base-model id")
+    p_vast_train.add_argument("--max-hours", type=float, default=None, help="Hard runtime cap")
+
     p_tshell = sub.add_parser(
         "tesuji-shell",
         help="Log emergent wins / brilliant moves (symmetric to behavioral errors)",
@@ -2069,6 +2078,19 @@ def main(argv: list[str] | None = None) -> int:
         for r in rows:
             print(f"{r.get('ts', '')[:19]} [{r.get('pattern')}] tags={r.get('pattern_tags')}")
         return 0
+    if args.cmd == "vast-train":
+        from mag.vast_train import dry_run
+
+        if not getattr(args, "dry", False):
+            print(json.dumps({"ok": False, "error": "Only --dry is available in v5 V1; no instance was launched."}, indent=2))
+            return 2
+        res = dry_run(
+            getattr(args, "export_path"),
+            base_model=getattr(args, "base_model", None),
+            max_hours=getattr(args, "max_hours", None),
+        )
+        print(json.dumps(res, indent=2, default=str)[:12000])
+        return 0 if res.get("ok") else 1
     if args.cmd == "run-worth":
         from mag import run_worth as rw
 
