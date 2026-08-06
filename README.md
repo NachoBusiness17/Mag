@@ -1,6 +1,10 @@
 # local_sovereign_agent — Mag Resource Harness
 
 **For LLMs — load framework first:** [`docs/FRAMEWORK_LOAD.md`](docs/FRAMEWORK_LOAD.md) · [`LOAD.md`](LOAD.md)  
+**Compass — vision, loop, v1–v10 arc:** [`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`](docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md)  
+**Mycelial science — biology ↔ protocol:** [`docs/ref/MYCELIAL_SCIENCE_MAP.md`](docs/ref/MYCELIAL_SCIENCE_MAP.md)  
+**Future walkthrough — v2→v10 + subsystems:** [`docs/ref/MAG_FUTURE_WALKTHROUGH.md`](docs/ref/MAG_FUTURE_WALKTHROUGH.md)  
+**Vision — v2 completion + desk loop factory:** [`docs/ref/MAG_VISION_AUTOMATION.md`](docs/ref/MAG_VISION_AUTOMATION.md)  
 **For everyone — full proposal:** [`docs/ref/MAG_PROJECT_PROPOSAL.md`](docs/ref/MAG_PROJECT_PROPOSAL.md)  
 **For humans — dashboard how-to:** [`docs/HOW_TO_MAG_DASHBOARD.md`](docs/HOW_TO_MAG_DASHBOARD.md)
 
@@ -23,6 +27,14 @@ Strike desk (`sovereign-mirror-scaffold` :8743) is **optional analysis** of Mag 
 | **LOAD** | Brief any AI cheaply | `mag.cmd context-pack` |
 
 See [`docs/FRAMEWORK_LOAD.md`](docs/FRAMEWORK_LOAD.md) for metaphors, load order, and use cases.
+
+## Compass
+
+North star for operators and agents — Mycelial Republic vision, forever agent loop, v1–v10 version arc, sovereignty law:
+
+→ [`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`](docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md)
+
+Machine arc: [`configs/version_roadmap.yaml`](configs/version_roadmap.yaml) · Version index: [`docs/ref/releases/VERSION_REGISTRY.md`](docs/ref/releases/VERSION_REGISTRY.md)
 
 ## Dashboard (Body · Pulse · Days · Chat)
 

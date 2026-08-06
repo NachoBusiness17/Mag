@@ -1,6 +1,6 @@
 # local_sovereign_agent — harness rules
 
-**LLMs: load framework first → `docs/FRAMEWORK_LOAD.md`** (or repo root `LOAD.md`)
+**LLMs: load framework first → `docs/FRAMEWORK_LOAD.md`** (or repo root `LOAD.md`) · then **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** (compass)
 
 This project is the **Mag Resource Harness** (standalone product home): local Ollama **janitors** first (`gemma:2b` scut, `gemma4` short worker), **remote specialist scarce** for hard inference, Hermes **parked**, biographer + orchestrator.
 
@@ -12,10 +12,15 @@ This project is the **Mag Resource Harness** (standalone product home): local Ol
 | # | File | Why |
 |---|------|-----|
 | 1 | `docs/FRAMEWORK_LOAD.md` | Navigation, metaphors, use cases, commands |
-| 2 | `docs/ref/MAG_PROJECT_PROPOSAL.md` | Where we are / going (alpha → v2 → v3) |
-| 3 | `docs/ref/OPERATOR_CARD.md` | FIND · FILE · LOAD |
-| 4 | `AGENTS.md` | This file — env + commands |
-| 5 | `mag.cmd context-pack` | Min-token pack for your seat |
+| 2 | **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** | **Compass** — vision, agent loop, v1–v10 arc, sovereignty |
+| 3 | **`docs/ref/MYCELIAL_SCIENCE_MAP.md`** | **Biology ↔ protocol** — mycelial science map |
+| 4 | `docs/ref/MAG_DIRECTION_ARTIFACT_v2.md` | Phase gates, v3–v5 mold |
+| 5 | `docs/ref/MAG_PROJECT_PROPOSAL.md` | Problem depth |
+| 6 | `docs/ref/OPERATOR_CARD.md` | FIND · FILE · LOAD |
+| 7 | `AGENTS.md` | This file — env + commands |
+| 8 | `mag.cmd context-pack` | Min-token pack for your seat |
+
+Machine arc: `configs/version_roadmap.yaml` · Version index: `docs/ref/releases/VERSION_REGISTRY.md`
 
 Then: `memory/briefs/latest.md` · `queue/todo.md` · `HANDOFF_MAG_AGENT_TODOS.md` if implementing.
 

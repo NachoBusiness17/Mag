@@ -12,6 +12,9 @@ pending notes and either:
 
 Errors during tool loops are logged to logs/behavioral_events.jsonl for the
 behavioral-analysis framework (scout mines them like decisions_log).
+
+Emergent wins / brilliant moves: mag.tesuji_shell.log_tesuji_shell or
+`python main.py tesuji-shell log` → logs/tesuji_shells.jsonl (scout kind=tesuji).
 """
 from __future__ import annotations
 

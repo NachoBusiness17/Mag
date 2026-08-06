@@ -7,7 +7,7 @@
 **Job:** One artifact: where we've been · where we are · what's left before v3 · how v4/v5 reshape direction **using Mag's own framework**  
 **Honesty:** This is planning law on disk — not a shipped product claim. Alpha until RUN A ritual green on home PC.
 
-**Load with:** `docs/FRAMEWORK_LOAD.md` · `HANDOFF_MAG_AGENT_TODOS.md` · `docs/ref/MAG_NEXT_CODING_RUN.md`
+**Load with:** `docs/FRAMEWORK_LOAD.md` · **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** · `HANDOFF_MAG_AGENT_TODOS.md` · `docs/ref/MAG_NEXT_CODING_RUN.md`
 
 **Parents:** `MAG_PROJECT_PROPOSAL.md` · `DNA.md` · `OPERATOR_CARD.md` · `MAG_V4_CONDUCTOR_LOOP_DRAFT.md` · `MAG_v5_PIPE.md`
 
@@ -241,12 +241,13 @@ Steal contracts from Cursor (`MAG_STEAL_AUTOPILOT.md`); reject SaaS memory thron
 
 ```text
 1. docs/FRAMEWORK_LOAD.md
-2. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md   ← this file (direction)
-3. docs/ref/MAG_PROJECT_PROPOSAL.md         ← depth (problem, inventory)
-4. docs/ref/MAG_NEXT_CODING_RUN.md          ← next code run order
-5. HANDOFF_MAG_AGENT_TODOS.md               ← merge + ops
-6. mag.cmd context-pack
-7. ONE job from queue/todo.md
+2. docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md   ← compass (vision, loop, v1-v10)
+3. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md       ← this file (phase gates)
+4. docs/ref/MAG_PROJECT_PROPOSAL.md            ← depth (problem, inventory)
+5. docs/ref/MAG_NEXT_CODING_RUN.md             ← next code run order
+6. HANDOFF_MAG_AGENT_TODOS.md                  ← merge + ops
+7. mag.cmd context-pack
+8. ONE job from queue/todo.md
 ```
 
 ### 8.4 Success metrics (artifact v2)
@@ -272,11 +273,32 @@ Steal contracts from Cursor (`MAG_STEAL_AUTOPILOT.md`); reject SaaS memory thron
 | chat target | `V3_DEEPSEEK_RUN.md` §6 wave 3 (CHAT) |
 | ilap protocol | `docs/ref/MAG_ILAP_PROTOCOL.md` · `docs/ref/templates/ILAP-PROPOSAL.md` |
 | framework | `DNA.md`, `OPERATOR_CARD.md`, `MAG_BEHAVIORAL_COMPOUNDING.md` |
-| releases | `docs/ref/releases/VERSION_REGISTRY.md`, `configs/releases.yaml` |
+| releases | `docs/ref/releases/VERSION_REGISTRY.md`, `configs/releases.yaml`, `configs/version_roadmap.yaml` |
+| compass | **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** |
 
 ---
 
-## 10. Closing (one paragraph)
+## 10. Compass pointer (v1–v10 arc)
+
+This artifact covers **phase gates and v3–v5 mold rules**. The full north star — Mycelial Republic vision, forever agent loop, v1–v10 version arc, service milestones, sovereignty guarantees — lives in the **compass**:
+
+→ **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`**
+
+| Topic | Where |
+|-------|-------|
+| Vision (coordination without bureaucracy) | Compass §1 |
+| Agent loop (Grok → Cursor → Ollama → DeepSeek ↑) | Compass §2 |
+| v1–v2 hand-built · v3–v10 loop-trained | Compass §3 |
+| Current v2.x built state | Compass §4 |
+| Service path (install → pennies not dollars) | Compass §5 |
+| T0/T1 never remote | Compass §6 |
+| Machine arc | `configs/version_roadmap.yaml` |
+
+Do not duplicate compass content here. Amend compass at version gates; amend this artifact at RUN A / factory / v4 eval gates.
+
+---
+
+## 11. Closing (one paragraph)
 
 We've been building **law and loops** while the nation stayed on branches. We are alpha with a honest map: graduate v2 on home PC, enter v3 build through factory + Chat + wiring — but **fit every slice to v4 mold** (patterns, eval, FILE). v5 adds GSTD, Vast training, and XRPL as **scored optional seats**, not a new product. Refine this artifact at phase gates; let the framework compound behavior instead of guessing the final shape.
 

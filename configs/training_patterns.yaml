@@ -190,6 +190,34 @@ patterns:
     action_tier: auto
     eval_case: null
 
+  arena_match:
+    description: Competitive seat probe finished — chess or future arena games
+    trail_rule: pattern == arena_match and join.game_id set
+    min_count: 1
+    join_keys: [game_id, white, black]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Prefer arena league top seat for similar structured tasks
+    spider_hint: Surface strength/weakness drift when illegal_rate rises
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-arena-001
+
+  desk_teaching:
+    description: DeepSeek troubleshoots Local L0 failure into owned skill artifact
+    trail_rule: pattern == desk_teaching and join.skill_id set
+    min_count: 1
+    join_keys: [skill_id, session_id, failure_class]
+    chord_loops: []
+    fkb_signatures: []
+    waste_kind: ok
+    conductor_hint: Retry Local with drill packet — do not substitute moves
+    spider_hint: Surface skill accumulation for slow_to_fast trust
+    safe_action: observe
+    action_tier: auto
+    eval_case: eval-desk-teaching-001
+
 labels:
   accept:
     - delegation_success
@@ -249,3 +277,6 @@ eval_cases:
   - id: eval-ilap-003
     pattern: steal_compose
     fixture: reddit_harness_contract_candidate_not_dna
+  - id: eval-desk-teaching-001
+    pattern: desk_teaching
+    fixture: local_echo_three_turns_skill_artifact_filed

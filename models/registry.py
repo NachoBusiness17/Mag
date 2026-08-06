@@ -9,12 +9,15 @@ from typing import Any, Literal
 
 from config import ROOT
 
-Role = Literal["router", "worker", "critic", "embed", "clerk", "biographer"]
+Role = Literal["router", "worker", "critic", "embed", "clerk", "biographer", "orchestrator", "desk_orchestrator", "desk_conductor"]
 
 # Fallback if YAML missing
 _DEFAULTS: dict[str, str] = {
     "router": "gemma:2b",
     "clerk": "gemma:2b",
+    "orchestrator": "gemma:2b",
+    "desk_orchestrator": "gemma4:latest",
+    "desk_conductor": "gemma4:latest",
     "worker": "gemma4:latest",
     "critic": "gemma4:latest",
     "biographer": "gemma4:latest",
@@ -24,6 +27,7 @@ _DEFAULTS: dict[str, str] = {
 # Mag roles that map to the same physical models
 _ALIASES: dict[str, str] = {
     "clerk": "router",  # small model
+    "orchestrator": "router",
     "biographer": "worker",
 }
 

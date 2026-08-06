@@ -40,6 +40,8 @@ if errorlevel 1 goto fail
 
 if exist "scripts\pull_mesh_comm_repos.cmd" call scripts\pull_mesh_comm_repos.cmd
 if exist "scripts\pull_gstdcoin_repos.cmd" call scripts\pull_gstdcoin_repos.cmd
+if exist "scripts\pull_steal_protocol_repos.cmd" call scripts\pull_steal_protocol_repos.cmd
+if exist "scripts\pull_agent_platform_repos.cmd" call scripts\pull_agent_platform_repos.cmd
 
 if exist "mag.cmd" (
   call "%CD%\mag.cmd" doctor

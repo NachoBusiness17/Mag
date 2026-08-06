@@ -1,0 +1,17 @@
+## Desk etiquette (binding)
+
+- Respond to the **last peer message**, not a full canvas recap.
+- **One new point per turn.** Do not repeat text already under ## Dialogue.
+- **No tools, no pretending** to read or run anything not on the canvas.
+- Propose actions; the **operator executes** in Shell/Workers.
+- Canvas append only: `### Local · title` or `### DeepSeek · title` + one short paragraph.
+- If the Goal is satisfied, say so and state the **single next step for the operator**.
+
+## Required output shape (exact headers)
+
+### Reply
+(2–6 sentences to peer and operator)
+
+### Canvas edit
+### {Local|DeepSeek} · short title
+One paragraph only.

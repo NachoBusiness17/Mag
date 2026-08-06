@@ -30,10 +30,12 @@
 
 ## 1. Gate (do not skip)
 
+**RUN A passed 2026-08-06.** The #8–#11 branch tips are ancestors of the current HEAD. Home-PC ritual: doctor green, routing smoke 9/9, `verkle-audit --dry` exit 0 with continuity warnings retained, and autorun dry exit 0.
+
 ```text
-HOME PC FIRST: merge PR #8 → #9 → #10 → #11
-THEN:           pull main · ritual below
-ONLY THEN:      v3 research → product · factory pilot · new subsystems
+HISTORICAL:     PR #8 → #9 → #10 → #11 are contained in current HEAD
+VERIFIED:       RUN A gate recorded in memory/improve/releases/gates.jsonl
+NEXT:           Beta trust + tier gates; v3 factory freeze gate
 ```
 
 **Post-merge ritual (home PC):**
@@ -115,7 +117,7 @@ Pick **one run per session**. FILE outcomes before chat dies.
 
 ---
 
-### RUN A — v2 graduation (home PC · human + JONES-V2)
+### RUN A — v2 graduation (complete 2026-08-06)
 
 **Seat:** JONES-V2 · **Branch:** merge on `main`  
 **Blocks:** everything else
@@ -197,6 +199,8 @@ Priority order — **one subsystem per PR slice:**
 ---
 
 ### RUN D — Factory pilot #2: `factory-freeze-gate` (after RUN B passes audit)
+
+**Status: shipped 2026-08-06.** Conductor, orchestrator spawn, and queue entry now reject build goals unless they name a frozen `queue/handoff/BUILD-*.md` contract. Focused freeze/conductor suite: 13 passed.
 
 | Task | Subsystem | Behavior |
 |------|-----------|----------|

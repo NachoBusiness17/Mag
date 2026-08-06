@@ -28,6 +28,15 @@ FLEET_CFG = ROOT / "configs" / "agent_fleet" / "jones.yaml"
 
 TIER_ORDER = ("T0", "T1", "T2", "T3")
 TIER_RANK = {t: i for i, t in enumerate(TIER_ORDER)}
+TIER_RECEIVE = {
+    "T0": frozenset({"T0"}),
+    "T1": frozenset({"T0", "T1"}),
+    # T2 is the remote/public boundary. It must never inherit access to the
+    # numerically lower but more sensitive T0/T1 classes.
+    "T2": frozenset({"T2"}),
+    # T3 represents the human/L3 authority boundary, not a remote provider.
+    "T3": frozenset(TIER_ORDER),
+}
 
 # Seat → default platform mapping (router seats)
 _SEAT_PLATFORM: dict[str, str] = {
@@ -70,7 +79,9 @@ def tier_rank(tier: str) -> int:
 
 def tier_allows(*, holder_tier_max: str, payload_tier: str) -> bool:
     """True when holder may receive payload at payload_tier."""
-    return tier_rank(payload_tier) <= tier_rank(holder_tier_max)
+    holder = (holder_tier_max or "T2").upper()
+    payload = (payload_tier or "T2").upper()
+    return payload in TIER_RECEIVE.get(holder, TIER_RECEIVE["T2"])
 
 
 @dataclass
@@ -367,17 +378,33 @@ def mesh(*, include_seats: bool = True) -> dict[str, Any]:
             groups.setdefault(prof.group, []).append(f"seat:{sid}")
 
     orphan = find_orphans(dry=True)
+    arena_league: dict[str, Any] = {}
+    try:
+        from mag.arena_learning import league_snapshot
+
+        league = league_snapshot()
+        ranks = league.get("rankings") or []
+        arena_league = {
+            "n_seats": len(ranks),
+            "top": ranks[0] if ranks else None,
+            "routing_hint": league.get("routing_hint"),
+            "path": "memory/training/arena_league.json",
+        }
+    except Exception:
+        pass
     return {
         "schema": SCHEMA,
         "ts": _now(),
         "seats": {k: v.to_dict() for k, v in seats.items()},
         "peers": [p.to_dict() for p in peers],
         "groups": groups,
+        "arena_league": arena_league,
         "summary": {
             "n_seats": len(seats),
             "n_peers": len(peers),
             "n_live_tasks": sum(1 for p in peers if p.kind == "task" and p.status == "running"),
             "n_orphans": len(orphan.get("orphans") or []),
+            "arena_seats_ranked": arena_league.get("n_seats", 0),
         },
     }
 
@@ -595,7 +622,9 @@ def route_intent(goal: str, *, dry: bool = False) -> dict[str, Any]:
     try:
         from mag.conductor import conduct
 
-        decision = conduct(goal, dry=dry)
+        # route_intent is itself the mesh layer. Re-entering conduct with mesh
+        # enabled recursively calls route_intent forever.
+        decision = conduct(goal, dry=dry, mesh=False)
     except Exception as exc:
         decision = {"error": str(exc)}
 
@@ -624,6 +653,26 @@ def route_intent(goal: str, *, dry: bool = False) -> dict[str, Any]:
     if not prof or not prof.api_ready:
         importance -= 15
 
+    arena_route: dict[str, Any] = {}
+    try:
+        from mag.arena_learning import league_snapshot, routing_hint
+
+        league = league_snapshot()
+        budget = "low" if any(w in goal.lower() for w in ("scut", "canvas", "handoff", "local", "fast")) else "high"
+        arena_route = routing_hint(
+            task="route",
+            budget=budget,
+            league=league.get("rankings"),
+        )
+        rec = str(arena_route.get("recommend") or "")
+        if rec and rec != seat and arena_route.get("value_score", 0) >= 0.55:
+            seat = rec
+            platform = _SEAT_PLATFORM.get(seat, seat)
+            prof = seats.get(platform) or seats.get(seat)
+            importance = prof.importance if prof else _IMPORTANCE["unknown"]
+    except Exception:
+        pass
+
     return {
         "schema": "switchboard_route.v1",
         "ts": _now(),
@@ -640,6 +689,7 @@ def route_intent(goal: str, *, dry: bool = False) -> dict[str, Any]:
         },
         "best_live_peer": best_peer,
         "signals": signals,
+        "arena_learning": arena_route,
         "dry": dry,
     }
 
@@ -678,12 +728,16 @@ def self_test() -> dict[str, Any]:
     """Tier gate + dry steer round-trip (no live task required)."""
     ok_tier = tier_allows(holder_tier_max="T1", payload_tier="T2") is False
     ok_tier2 = tier_allows(holder_tier_max="T2", payload_tier="T2") is True
+    ok_private = all(
+        tier_allows(holder_tier_max="T2", payload_tier=tier) is False
+        for tier in ("T0", "T1")
+    )
     reg = build_seat_registry()
     m = mesh(include_seats=False)
     drop = steer_drop("conductor", "nonexistent-task", "test", tier="T2", dry=True)
     return {
-        "ok": ok_tier and ok_tier2 and len(reg) >= 3 and m.get("schema") == SCHEMA and drop.get("ok"),
-        "tier_gate": ok_tier and ok_tier2,
+        "ok": ok_tier and ok_tier2 and ok_private and len(reg) >= 3 and m.get("schema") == SCHEMA and drop.get("ok"),
+        "tier_gate": ok_tier and ok_tier2 and ok_private,
         "n_seats": len(reg),
         "mesh_peers": m.get("summary", {}).get("n_peers"),
         "dry_drop": drop.get("ok"),

@@ -1,0 +1,78 @@
+# Arena seat strategies — ocean behaviors → spider steering → routing bias
+# Used on the adversarial canvas: agents play with different "ocean" personas.
+# Schema: arena_strategies.v1
+
+schema: arena_strategies.v1
+
+strategies:
+  tide_janitor:
+    label: Tide · Janitor
+    ocean: tide
+    description: Slow, legal, minimal — local-first cost discipline
+    spider_steer: observe
+    routing_task: handoff
+    prompt_suffix: |
+      Strategy TIDE: prefer simple legal moves. Develop pieces. Avoid complications.
+      Minimize reasoning length. One move only.
+
+  reef_defender:
+    label: Reef · Defender
+    ocean: reef
+    description: Solid structure, punish blunders, patient
+    spider_steer: stall_break_cautious
+    routing_task: canvas_move
+    prompt_suffix: |
+      Strategy REEF: play solid and defensive. Protect king, trade when ahead.
+      Avoid gambits. Prefer moves that improve structure.
+
+  predator_strike:
+    label: Predator · Strike
+    ocean: predator
+    description: Aggressive tempo, attack weak squares
+    spider_steer: push_tempo
+    routing_task: deep_priority
+    prompt_suffix: |
+      Strategy PREDATOR: seek initiative. Attack loose pieces and weak squares.
+      Prefer checks and captures when sound.
+
+  current_teacher:
+    label: Current · Teacher
+    ocean: current
+    description: Explain intent briefly — communication probe
+    spider_steer: diagnose_peer
+    routing_task: conductor_steer
+    prompt_suffix: |
+      Strategy CURRENT: before your move, one short clause naming your intent
+      (development / center / attack). Then the move in SAN.
+
+  abyss_gambit:
+    label: Abyss · Gambit
+    ocean: abyss
+    description: High-variance sacrifices — stress-test opponent
+    spider_steer: escalate_frontier
+    routing_task: structured_handoff
+    prompt_suffix: |
+      Strategy ABYSS: consider sacrifices for initiative. Prefer sharp lines.
+      Accept calculated risk if attack continues.
+
+  kelp_coordinate:
+    label: Kelp · Coordinate
+    ocean: kelp
+    description: Multi-step plan — coordination probe
+    spider_steer: mesh_handoff
+    routing_task: mesh_handoff
+    prompt_suffix: |
+      Strategy KELP: name a 2-step plan in one short phrase, then execute step one.
+      Example intent "develop then castle" then the move.
+
+defaults:
+  white: tide_janitor
+  black: predator_strike
+
+ocean_to_spider:
+  tide: observe
+  reef: stall_break_cautious
+  predator: push_tempo
+  current: diagnose_peer
+  abyss: escalate_frontier
+  kelp: mesh_handoff

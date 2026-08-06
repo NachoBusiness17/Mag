@@ -347,6 +347,12 @@ def _finalize(task_id: str, status: str, exit_code: int | None = None,
     _save(task)
     _trail(status, task_id, exit_code=exit_code, detail=detail, killed=killed)
     _emit_task_lifecycle(status, task_id, killed=killed, detail=(detail or "")[:120])
+    try:
+        from mag.tripartite_boot import weave_terminal
+
+        weave_terminal(task_id=task_id, status=status, detail=detail)
+    except Exception:
+        pass
     return task
 
 
@@ -404,6 +410,18 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
     _save(task)
     _trail("spawn", task_id, pid=proc.pid, timeout_s=timeout)
     _emit_task_lifecycle("spawn", task_id, pid=proc.pid, timeout_s=timeout)
+    try:
+        from mag.tripartite_boot import weave_spawn
+
+        weave_spawn(
+            task_id=task_id,
+            goal=_goal_from_cmd(cmd),
+            provider=_provider_from_cmd(cmd),
+            pid=proc.pid,
+            tag=tag,
+        )
+    except Exception:
+        pass
 
     def _monitor() -> None:
         """Supervise: exit -> finalize; stall -> nudge (!steer) then kill;
@@ -452,11 +470,33 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
                     except Exception:
                         pass
                 elif stall_polls >= 6:  # ~30s after the nudge threshold
-                    _kill_tree(proc.pid)
-                    log_fh.close()
-                    _finalize(task_id, "stalled", exit_code=None,
-                              detail="no heartbeat for %ss" % age, killed=True)
-                    return
+                    defer_kill = False
+                    try:
+                        from mag.run_worth import evaluate_task_hung
+
+                        hung_eval = evaluate_task_hung(task_id)
+                        defer_kill = bool(hung_eval.get("defer_kill"))
+                        if hung_eval.get("hung"):
+                            defer_kill = False
+                    except Exception:
+                        hung_eval = {}
+                    if defer_kill and stall_polls < 10:
+                        stall_polls = 4  # one grace cycle when worth uncertain
+                        _trail(
+                            "stall-defer-worth",
+                            task_id,
+                            age_s=age,
+                            verdict=(hung_eval or {}).get("verdict"),
+                        )
+                    else:
+                        _kill_tree(proc.pid)
+                        log_fh.close()
+                        detail = "no heartbeat for %ss" % age
+                        if hung_eval.get("hung"):
+                            detail = "hung: %s" % (hung_eval.get("reason") or detail)
+                        _finalize(task_id, "stalled", exit_code=None,
+                                  detail=detail, killed=True)
+                        return
             time.sleep(5.0)
 
     threading.Thread(target=_monitor, daemon=True).start()
@@ -476,7 +516,8 @@ def _running_tasks() -> list[dict[str, Any]]:
 
 
 def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = None,
-               timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
+               timeout: int = DEFAULT_TIMEOUT, tag: str = "",
+               require_build: str | None = None) -> dict[str, Any]:
     """Spawn a one-shot sub-agent for a goal. Returns the task record (async).
 
     Same-goal dedupe (2026-08-03): if a non-terminal task with the SAME goal
@@ -486,6 +527,11 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    from mag.factory_gate import check_frozen_build
+
+    build_gate = check_frozen_build(goal, require_build=require_build)
+    if not build_gate.get("ok"):
+        return {"ok": False, "error": build_gate.get("reason"), "factory_gate": build_gate}
 
     if goal.lower().startswith("[steward]"):
         try:
@@ -531,6 +577,8 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
         pass
     cmd = [sys.executable, str(ROOT / "main.py"), "agent", "--query", goal,
            "--provider", provider]
+    if build_gate.get("required"):
+        cmd += ["--tier", str(build_gate.get("tier") or "T1")]
     if model:
         cmd += ["--model", model]
     rec = _spawn_cmd(cmd, task_id=task_id, timeout=timeout, tag=tag)
@@ -571,11 +619,17 @@ def _queue_save(q: dict[str, Any]) -> None:
 
 
 def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
-            timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
+            timeout: int = DEFAULT_TIMEOUT, tag: str = "",
+            require_build: str | None = None) -> dict[str, Any]:
     """Add a goal to the queue. Returns the queue entry (not yet spawned)."""
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    from mag.factory_gate import check_frozen_build
+
+    build_gate = check_frozen_build(goal, require_build=require_build)
+    if not build_gate.get("ok"):
+        return {"ok": False, "error": build_gate.get("reason"), "factory_gate": build_gate}
     try:
         from mag.loop_audit import _goal_key
 
@@ -600,11 +654,18 @@ def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
         "model": model,
         "timeout": timeout,
         "tag": tag,
+        "build_spec": build_gate.get("spec_path"),
         "created_at": _now(),
         "status": "queued",   # queued -> running -> done/failed
         "task_id": None,
         "detail": "",
     }
+    try:
+        from mag.cost_ledger import task_estimate
+
+        q["task_estimate"] = task_estimate(goal, provider=provider, model=model)
+    except Exception:
+        pass
     _queue_save(q)
     _trail("queue-add", q["queue_id"], goal=goal[:120], tag=tag)
     q["ok"] = True
@@ -691,11 +752,17 @@ def _reconcile_queue() -> int:
             q["detail"] = t.get("detail") or t.get("status")
             _queue_save(q)
             _trail("queue-end", q["queue_id"], task_status=t.get("status"))
+            try:
+                from mag.cost_ledger import emit_terminal
+
+                emit_terminal(q, t)
+            except Exception:
+                pass
             fixed += 1
     return fixed
 
 
-def drain_once() -> dict[str, Any]:
+def drain_once(*, force: bool = False) -> dict[str, Any]:
     """Spawn the next queued goal IF no task is currently running.
 
     This is the auto-advance: call it in a loop (or from a timer) and the
@@ -705,7 +772,7 @@ def drain_once() -> dict[str, Any]:
     try:
         from mag.autorun_common import autorun_pause_reason
 
-        pause = autorun_pause_reason()
+        pause = None if force else autorun_pause_reason()
         if pause:
             return {"ok": True, "action": "paused", "detail": pause}
     except Exception:
@@ -734,8 +801,20 @@ def drain_once() -> dict[str, Any]:
     q["status"] = "running"
     q["task_id"] = rec["task_id"]
     q["detail"] = "spawned"
+    q["usage_started_at"] = _now()
     _queue_save(q)
     _trail("queue-start", qid, spawned_task_id=rec["task_id"])
+    try:
+        from mag.tripartite_boot import weave_drain
+
+        weave_drain(
+            action="started",
+            goal=nxt.get("goal", ""),
+            task_id=rec.get("task_id", ""),
+            queue_id=qid,
+        )
+    except Exception:
+        pass
     return {"ok": True, "action": "started", "queue_id": qid,
             "task_id": rec["task_id"], "goal": nxt["goal"][:120]}
 
@@ -793,7 +872,9 @@ def queue_status() -> dict[str, Any]:
 def list_tasks(limit: int = 20) -> list[dict[str, Any]]:
     _ensure_dirs()
     out: list[dict[str, Any]] = []
-    for p in sorted(TASK_DIR.glob("*.json"), reverse=True)[:limit]:
+    # IDs are random and therefore not chronological. Fleet/handoff views need
+    # the records most recently written, especially when many old tasks exist.
+    for p in sorted(TASK_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime_ns, reverse=True)[:limit]:
         try:
             out.append(json.loads(p.read_text(encoding="utf-8")))
         except Exception:

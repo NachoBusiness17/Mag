@@ -13,6 +13,7 @@
 2. **Do** use `scripts\home_sync.cmd` (batch handles paths) or verify repo root.  
 3. **Do** use `.cmd` scripts on Windows, `.sh` on Linux/cloud.  
 4. **Default repo (Nacho):** `%USERPROFILE%\Documents\projects\local_sovereign_agent`
+5. **Switch tracks** (research / operational / queue-lanes / baseline): `docs/ref/ENV_SWITCHING.md` · `scripts\env_switch.ps1 list`
 
 ---
 

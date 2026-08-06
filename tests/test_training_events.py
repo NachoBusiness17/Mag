@@ -27,7 +27,12 @@ def test_export_jsonl(tmp_path, monkeypatch):
     from mag import training_events as te
 
     monkeypatch.setattr(te, "EVENTS_PATH", tmp_path / "events.jsonl")
-    te.emit("fkb_failure", pattern_tags=["empty_reply"])
+    te.emit(
+        "fkb_failure",
+        join={"task_id": "test-task"},
+        outcome={"success": True},
+        pattern_tags=["empty_reply"],
+    )
     res = te.export_jsonl(dest=tmp_path / "out.jsonl")
     assert res.get("ok") is True
     assert res.get("n_exported", 0) >= 1

@@ -98,7 +98,28 @@ Or dashboard Chat → **Agent** mode → DeepSeek seat → Send.
 
 ---
 
-## 6. Next waves (after this run passes)
+## 6. Chat preflight (CHAT-1–4) — verify before deepseek run
+
+| ID | Check | Pass when |
+|----|-------|-----------|
+| CHAT-1 | Seat visible | `#chatProvider` shows selected seat |
+| CHAT-2 | Cost visible | `#chatPreflight` + `#chatQuota` show deepseek tok/calls |
+| CHAT-3 | Mode honest | Default **Ask**; Agent warns → Shell for tools |
+| CHAT-4 | No stuck pending | Chip "What was I doing?" returns in Ask mode; no infinite `pending …` |
+
+**Smoke (dashboard open):**
+
+1. Hard refresh (`Ctrl+Shift+R`) — cache bust `app.js?v=v3-chat-ready-1`
+2. Chat tab → preflight strip shows `mode=ask · seat=local · deepseek …`
+3. Click **What was I doing?** → Ask answer (not Agent tool loop)
+4. Switch Agent → send → status shows `tool N…` or times out with error (not forever pending)
+5. **Open Shell** for `[build]` goals
+
+Record gate: `python main.py release record --version v3 --gate chat_preflight --ok`
+
+---
+
+## 7. Next waves (after this run passes)
 
 | Wave | BUILD | Seat |
 |------|-------|------|
@@ -110,7 +131,7 @@ See `docs/ref/MAG_V3_DISPATCH_PLAN.md` · `docs/ref/MAG_NEXT_CODING_RUN.md`.
 
 ---
 
-## 7. If it fails
+## 8. If it fails
 
 | Symptom | Fix |
 |---------|-----|

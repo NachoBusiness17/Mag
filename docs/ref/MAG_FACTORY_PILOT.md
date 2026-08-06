@@ -13,7 +13,7 @@
 
 | # | Slug | Status | Spec | Purpose |
 |---|------|--------|------|---------|
-| 1 | `factory-audit-json` | draft | `docs/ref/BUILD-factory-audit-json-EXAMPLE.md` | Audit phase FILEs structured JSON |
+| 1 | `factory-audit-json` | **pass (2026-08-05)** | `docs/ref/BUILD-factory-audit-json-EXAMPLE.md` | Audit phase FILEs structured JSON |
 | 2 | `factory-freeze-gate` | not started | TBD after #1 audit | Orchestrator rejects `[build]` without frozen handoff |
 | 3 | `plain-office-tagline` | not started | TBD after #2 audit | Small v3-011 slice — plain copy on dashboard |
 

@@ -3,9 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#06100c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="MAG Ops" />
   <title>MAG · マグ · 勾玉</title>
+  <link rel="manifest" href="/static/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/mag-icon.png" />
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=canvas-viewports-v1" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v58-command-brief" />
   <script type="importmap">
   {
     "imports": {
@@ -57,18 +63,46 @@
     </div>
   </header>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <nav class="cli-dock sticky-chrome" aria-label="primary doors">
-    <button type="button" class="dock-btn on" data-win="home" title="Where you were, are, and go next">Office</button>
-    <button type="button" class="dock-btn" data-win="sessions" title="Workdays and how they connect">Days</button>
-    <button type="button" class="dock-btn" data-win="diary" title="Day-by-day story of how we got here">Diary</button>
-    <button type="button" class="dock-btn" data-win="story" title="Full thesis, inspiration, hero journey, artifacts">Story</button>
-    <button type="button" class="dock-btn" data-win="ideas" title="What you still hold — primary board for Mag as OS">Ideas</button>
-    <button type="button" class="dock-btn" data-win="chat" title="Ask Mag from filed memory">Chat</button>
-    <button type="button" class="dock-btn" data-win="status" title="Seats, workers, governance, router">Body</button>
-    <a class="dock-btn" href="/static/agents.html" title="Launch + monitor sub-agents">Workers</a>
-    <a class="dock-btn" href="/shell" title="Monaco editor + file tree + Mag agent (owned chrome)">Shell</a>
-    <button type="button" class="dock-btn" data-win="chronicle" title="Honest activity pulse from filed sources">Pulse</button>
-    <button type="button" class="dock-btn" data-win="viewports" title="Cursor Canvas manifests synced to Mag">Canvas</button>
+  <nav class="dashboard-nav" aria-label="Dashboard sections">
+    <div class="dashboard-primary" role="tablist" aria-label="Information groups">
+      <a class="dashboard-primary-tab on" href="?tab=home" data-dashboard-section="home" data-dashboard-default="home" role="tab">Home</a>
+      <a class="dashboard-primary-tab" href="?tab=ideas" data-dashboard-section="projects" data-dashboard-default="ideas" role="tab">Projects</a>
+      <a class="dashboard-primary-tab" href="?tab=sessions" data-dashboard-section="history" data-dashboard-default="sessions" role="tab">History</a>
+      <a class="dashboard-primary-tab" href="?tab=chat" data-dashboard-section="run" data-dashboard-default="chat" role="tab">Run</a>
+      <a class="dashboard-primary-tab" href="?tab=ingest" data-dashboard-section="library" data-dashboard-default="ingest" role="tab">Library</a>
+      <a class="dashboard-primary-tab" href="?tab=stack" data-dashboard-section="system" data-dashboard-default="stack" role="tab">System</a>
+      <span class="dashboard-nav-context" id="dashboardNavContext">What matters now</span>
+    </div>
+    <div class="dashboard-secondary" aria-label="Views in selected group">
+      <div class="dashboard-view-group on" data-dashboard-group="home">
+        <a class="dashboard-view-tab on" href="?tab=home" data-dashboard-view="home">Home</a>
+      </div>
+      <div class="dashboard-view-group" data-dashboard-group="projects">
+        <a class="dashboard-view-tab" href="?tab=ideas" data-dashboard-view="ideas">Project board</a>
+      </div>
+      <div class="dashboard-view-group" data-dashboard-group="history">
+        <a class="dashboard-view-tab" href="?tab=sessions" data-dashboard-view="sessions">Days</a>
+        <a class="dashboard-view-tab" href="?tab=diary" data-dashboard-view="diary">Diary</a>
+        <a class="dashboard-view-tab" href="?tab=story" data-dashboard-view="story">Story so far</a>
+        <a class="dashboard-view-tab" href="?tab=verkle" data-dashboard-view="verkle">Verkle knots</a>
+      </div>
+      <div class="dashboard-view-group" data-dashboard-group="run">
+        <a class="dashboard-view-tab" href="?tab=chat" data-dashboard-view="chat">Direct Mag</a>
+        <a class="dashboard-view-tab" href="?tab=status" data-dashboard-view="status">Runs &amp; seats</a>
+        <a class="dashboard-view-tab" href="?tab=orchestrate" data-dashboard-view="orchestrate">Capability lab</a>
+        <a class="dashboard-view-tab" href="?tab=viewports" data-dashboard-view="viewports">Shared artifacts</a>
+        <a class="dashboard-view-tab" href="/shell" target="_blank" rel="noopener">Shell ↗</a>
+      </div>
+      <div class="dashboard-view-group" data-dashboard-group="library">
+        <a class="dashboard-view-tab" href="?tab=ingest" data-dashboard-view="ingest">Research &amp; skills</a>
+      </div>
+      <div class="dashboard-view-group" data-dashboard-group="system">
+        <a class="dashboard-view-tab" href="?tab=stack" data-dashboard-view="stack">Health</a>
+        <a class="dashboard-view-tab" href="?tab=blast" data-dashboard-view="blast">Learning</a>
+        <a class="dashboard-view-tab" href="?tab=flow" data-dashboard-view="flow">Economics</a>
+        <a class="dashboard-view-tab" href="?tab=board" data-dashboard-view="board">Provenance</a>
+      </div>
+    </div>
   </nav>
   <div class="desk" id="desk">
 
@@ -90,15 +124,23 @@
               <p class="honesty-note" id="chronicleHonesty">Sourced from attention.md, seat feed, workers — not invented commentary.</p>
             </div>
           </div>
-          <pre id="chronicle-content" class="chronicle-pre"></pre>
-          <h3 class="ideas-col-h">Events</h3>
+          <div class="pulse-meaning-grid" aria-label="Human-readable pulse">
+            <article class="card"><h3>Needs you</h3><p id="chronicleNeeds">Loading…</p></article>
+            <article class="card"><h3>What changed</h3><p id="chronicleChanged">Loading…</p></article>
+            <article class="card"><h3>Why it matters</h3><p id="chronicleMeaning">Loading…</p></article>
+          </div>
+          <details class="pulse-evidence">
+            <summary>Show source evidence</summary>
+            <pre id="chronicle-content" class="chronicle-pre"></pre>
+          </details>
+          <h3 class="ideas-col-h">Recent interpreted events</h3>
           <ul id="chronicleEvents" class="chronicle-events signal-list"></ul>
           <p class="muted sm" id="chronicleSources"></p>
         </section>
       </div>
     </div>
 
-    <div class="win focused" data-win="home" id="win-home">
+    <div class="win" data-win="home" id="win-home">
       <div class="win-titlebar">
         <span class="win-title">Office · been → now → next</span>
         <span class="win-ctrls">
@@ -108,8 +150,21 @@
         </span>
       </div>
       <div class="win-body">
-        <section id="panel-home" class="panel active home-signal">
+        <section id="panel-home" class="panel home-signal">
+          <section class="home-command-brief" aria-labelledby="homeBriefTitle">
+            <p class="ideas-kicker" id="homeBriefEyebrow">Mag's current understanding · source-backed</p>
+            <h2 id="homeBriefTitle">Loading the story so far…</h2>
+            <p class="home-brief-thesis" id="homeBriefThesis">Reconstructing the project thesis, present position, and next consequential move.</p>
+            <div class="home-brief-grid">
+              <article class="card home-brief-position"><h3>Where we are</h3><p class="lead" id="homeBriefPhase">Loading…</p><p id="homeBriefWhy">Generated from filed project history—not generic system status.</p></article>
+              <article class="card"><h3>What has become real</h3><ul class="signal-list" id="homeBriefProgress"><li>Loading…</li></ul></article>
+              <article class="card home-brief-attention"><h3>What needs attention</h3><ul class="signal-list" id="homeBriefAttention"><li>Loading…</li></ul></article>
+            </div>
+            <article class="home-next-move"><span>Next consequential move</span><strong id="homeBriefNext">Loading…</strong></article>
+          </section>
+          <div class="home-legacy hidden" aria-hidden="true">
           <p class="home-headline" id="homeHeadline">Loading office…</p>
+          <p class="home-run-status muted sm" id="homeRunStatus">Run status — loading…</p>
           <div class="alert hidden" id="homePhoenix" role="status"></div>
           <article class="card launch-pad hidden" id="homeLaunchPad" aria-labelledby="homeLaunchTitle">
             <h2 id="homeLaunchTitle">Republic launch point</h2>
@@ -143,17 +198,20 @@
             </article>
           </div>
 
-          <div class="row home-cta">
-            <button type="button" class="btn primary" id="btnHomeChat">Chat · what was I doing?</button>
-            <button type="button" class="btn ghost" id="btnHomeDays">Open Days</button>
-            <button type="button" class="btn ghost" id="btnHomeDiary">Read diary</button>
-            <button type="button" class="btn ghost" id="btnHomeStory">Read story</button>
-            <button type="button" class="btn ghost" id="btnHomeIdeas">Open Ideas</button>
-            <button type="button" class="btn ghost" id="btnHomeRefresh">Refresh</button>
-            <button type="button" class="btn ghost" id="btnHomePack">Copy pack CLI</button>
+          </div>
+          <div class="row home-cta home-cta-simple">
+            <button type="button" class="btn primary" id="btnHomeLaunchAgent" title="Tell Mag the outcome; it will remember, route, verify, and learn">Direct Mag</button>
+            <button type="button" class="btn ghost" id="btnHomeDays">Review history</button>
+            <button type="button" class="hidden" id="btnHomeChat"></button>
+            <button type="button" class="hidden" id="btnHomeDiary"></button>
+            <button type="button" class="hidden" id="btnHomeStory"></button>
+            <button type="button" class="hidden" id="btnHomeIdeas"></button>
+            <button type="button" class="hidden" id="btnHomeRefresh"></button>
+            <button type="button" class="hidden" id="btnHomePack"></button>
+            <span class="muted sm">Home explains the situation. Projects holds the plan. Run acts. History shows why.</span>
           </div>
 
-          <details class="home-adv">
+          <details class="home-adv hidden" aria-hidden="true">
             <summary>Advanced · tip · verify · tokens · bonds · chain map</summary>
             <div class="stats" id="homeStats"></div>
             <div class="chain" id="vmapTree" aria-label="Memory chain map"></div>
@@ -194,58 +252,231 @@
       <div class="win-resize" title="resize"></div>
     </div>
 
-    <div class="win" data-win="chat" id="win-chat">
+    <div class="win focused" data-win="chat" id="win-chat">
       <div class="win-titlebar">
-        <span class="win-title">â–¶ TTY // CHAT</span>
+        <span class="win-title">▶ TTY // CHAT</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
         <section id="panel-chat" class="panel">
-<div class="chat-shell">
-          <div style="padding:0.65rem 1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+<div class="chat-shell agent-desk-shell agent-desk-v2">
+          <nav class="local-view-nav" aria-label="Run views">
+            <button type="button" class="btn ghost btn-sm on" data-open-tab="chat">Direct Mag</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="status">Runs &amp; seats</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="orchestrate">Capability lab</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="viewports">Shared artifacts</button>
+            <a class="btn ghost btn-sm" href="/shell" target="_blank" rel="noopener">Expert shell ↗</a>
+          </nav>
+          <header class="desk-bar">
             <div>
-              <strong>Chat with Mag</strong>
-              <span class="muted" style="font-size:0.95rem"> · one desk · pack stays local · brain = seat below</span>
+              <strong>Direct Mag</strong>
+              <span class="muted sm"> · give direction once · Mag routes, checks, and continues</span>
             </div>
-            <div class="row" style="margin:0;align-items:center;gap:0.4rem">
-              <label class="muted" for="chatProvider" style="font-size:0.85rem">Seat</label>
-              <select id="chatProvider" title="Where compute runs" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem">
-                <option value="deepseek" selected>DeepSeek (API)</option>
-                <option value="local">Local (Ollama)</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="gemini">Gemini</option>
-                <option value="xai">xAI API</option>
-                <option value="auto">Auto dispatch</option>
+            <details class="desk-lab-menu">
+              <summary>Expert controls</summary>
+              <div class="row desk-bar-actions">
+              <button type="button" class="btn ghost btn-sm" id="btnDeskManual" title="Operator manual — etiquette & limits">Manual</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskUserModel" title="First user model — baseline-derived">User model</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskTemplate" title="Reset canvas to template">Template</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskReload">Reload</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskRefreshLocal" title="Reset dialogue + reload gemma4 local seat">Refresh Local</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskResetDialogue" title="Clear dialogue log — fixes echo loop">Reset dialogue</button>
+              <button type="button" class="btn ghost btn-sm" id="btnChatClear">Clear lanes</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskLabMode" title="Show prototype lane inputs and handoff diagnostics">Show prototype controls</button>
+              </div>
+            </details>
+          </header>
+          <details class="desk-manual-drawer" id="deskManualDrawer">
+            <summary id="deskManualSummary">Operator manual · click Manual above or expand here</summary>
+            <div id="deskManualBody" class="desk-manual-body reply-doc muted sm">Click <strong>Manual</strong> above or expand this drawer.</div>
+          </details>
+          <section class="desk-orchestrator" id="deskOrchestrator" aria-label="Central orchestrator between Local and DeepSeek">
+            <div class="desk-orch-head row">
+              <div class="desk-orch-title">
+                <strong>Outcome</strong>
+                <span class="muted sm" id="deskOrchModel"> · router chooses the cheapest capable seat</span>
+              </div>
+              <span class="desk-orch-badge" id="deskOrchAction">—</span>
+              <select id="deskOrchDoc" class="desk-orch-select sm desk-lab-control" title="Baseline docs">
+                <option value="">Docs</option>
+                <option value="user_model">User model</option>
+                <option value="trust">Trust ladder</option>
+                <option value="manual">Manual</option>
               </select>
-              <button type="button" class="btn chat-mode-btn on" data-mode="agent" id="chatModeAgent" title="DeepSeek + Mag tools — when Grok is empty">Agent</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="ask" id="chatModeAsk">Ask</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="dispatch" id="chatModeDispatch">Dispatch</button>
-              <button type="button" class="btn ghost chat-mode-btn" data-mode="tangent" id="chatModeTangent">Tangent</button>
-              <button type="button" class="btn ghost" id="btnCopyPack" title="Copy Mag pack for DeepSeek web">Copy pack</button>
-              <button type="button" class="btn ghost" id="btnAgentReset" title="Reset agent tool session + pack">Reset agent</button>
-              <button type="button" class="btn ghost" id="btnChatClear">Clear</button>
+              <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnOrchPlan" title="Update working contract without waking">Plan only</button>
+              <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnOrchTick" title="Orchestrate one diagnostic step">Single step</button>
+              <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnRunSprint" title="Run factory machine (branch → sprint → retro → bead)">Build sprint</button>
+              <button type="button" class="btn primary btn-sm" id="btnOrchLoop" title="Commit this direction and let the behavioral router continue until done, blocked, or gated">Route goal</button>
+              <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnOrchKeepalive" title="Diagnostic keepalive control">Keepalive</button>
             </div>
-          </div>
-          <p class="help-bar" style="margin:0;border-radius:0;border-left:0;border-right:0">
-            <strong>Agent</strong> = Grok-like tools on Mag disk (DeepSeek brain, multi-line paste in box).
-            <strong>Ask/Dispatch</strong> = talk only. <strong>Copy pack</strong> = DeepSeek web. No Grok tokens.
-          </p>
+            <div class="desk-orch-body">
+              <textarea id="deskConductorPrompt" class="desk-orch-prompt sm" rows="2" placeholder="What do you want accomplished? Add constraints or a definition of done if they matter. Ctrl+Enter routes it."></textarea>
+              <div class="desk-autonomy-contract sm"><strong>Autonomy:</strong> reversible work continues automatically · cheap/local first · escalate on uncertainty · ask only for secrets, irreversible actions, spending, publishing, or a genuinely ambiguous choice.</div>
+              <div class="desk-orch-advisory" id="deskOrchAdvisory">Loading conductor…</div>
+              <div class="desk-orch-meta muted sm" id="deskOrchMeta">—</div>
+            </div>
+          </section>
 
-          <div class="economy-bar" id="economyBar" style="padding:0.45rem 1rem;font-size:0.95rem;color:var(--muted);border-bottom:1px solid var(--line)">
-            <span id="economyGoal">Local spend vs full Grok dump</span>
-            Â· <b id="econLocal">0</b> local Â· <b id="econSaved">0</b> saved Â· <span id="econTurns">0 turns</span>
-            <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
+          <div class="desk-grid">
+            <section class="desk-lane" data-lane="local">
+              <header class="desk-lane-head">
+                <div class="desk-lane-head-main">
+                  <strong>Local</strong>
+                  <select id="deskLocalMode" class="desk-orch-select sm" title="Real Local tests Ollama; Workflow test uses a deterministic simulated Local">
+                    <option value="real">Real Local</option>
+                    <option value="simulated">Workflow test</option>
+                  </select>
+                  <span class="muted sm">gemma4 · desk orchestrator</span>
+                </div>
+                <div class="desk-lane-head-badges">
+                  <span class="desk-cursor-badge local" id="cursorBadgeLocal" title="Canvas cursor">◎ local</span>
+                  <span class="local-pulse idle" id="localPulse" title="Local model CPU signal">● CPU —</span>
+                  <span class="desk-timing-badges muted sm" id="deskTimingBadges" title="Last agent response timing per lane"></span>
+                  <button type="button" class="btn ghost btn-sm" id="btnNetworkToggle" title="Routing network — multi-seat concert">Network</button>
+                </div>
+              </header>
+              <div class="desk-log" id="localChatLog" aria-live="polite"></div>
+              <div class="desk-compose">
+                <textarea id="localChatInput" rows="2" placeholder="Local (slow) — must edit board to wake DeepSeek…"></textarea>
+                <button type="button" class="btn primary btn-sm" id="btnLocalSend">Send</button>
+              </div>
+              <div class="arena-popup hidden" id="arenaPopup" aria-hidden="true" style="display:none!important"></div>
+            </section>
+
+            <section class="desk-canvas">
+              <header class="desk-lane-head">
+                <strong>Working contract</strong>
+                <span class="muted sm" id="deskCanvasPath">memory/working/agent_desk.md</span>
+              </header>
+              <div class="desk-canvas-toolbar row">
+                <span class="desk-cursor-indicator" id="deskCursorIndicator">Cursor: operator</span>
+                <span class="muted sm desk-split-hint">The durable brief agents share; you may edit it directly.</span>
+                <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnDeskPingPong" title="Local → board edit → DeepSeek">Test handoff</button>
+                <button type="button" class="btn ghost btn-sm desk-lab-control" id="btnDeskHandoffs" title="5 bidirectional handoffs with escalating prompts">Stress test</button>
+                <button type="button" class="btn ghost btn-sm" id="btnDeskCopy" title="Copy canvas">Copy</button>
+              </div>
+              <div class="desk-canvas-body desk-canvas-split" id="deskCanvasBody" data-mode="split">
+                <div class="desk-canvas-pane">
+                  <div class="desk-pane-label">Preview</div>
+                  <div id="deskCanvasView" class="desk-canvas-view reply-doc" tabindex="0"></div>
+                </div>
+                <div class="desk-canvas-pane">
+                  <div class="desk-pane-label">Editable contract</div>
+                  <textarea id="agentDeskCanvas" rows="12" placeholder="Same markdown as preview — agents append ## Dialogue here…"></textarea>
+                </div>
+              </div>
+              <div class="row desk-canvas-actions">
+                <button type="button" class="btn ghost btn-sm" id="btnDeskSave">Save</button>
+                <span class="muted sm" id="deskCanvasStatus">—</span>
+              </div>
+              <div class="desk-operator-bar desk-redundant-compose">
+                <input type="text" id="deskOperatorNote" placeholder="Operator intent → commits to ## Goal on canvas, then wakes…" />
+                <button type="button" class="btn ghost btn-sm" id="btnDeskOperatorSend">Kick off</button>
+              </div>
+            </section>
+
+            <section class="desk-remote-stack">
+            <section class="desk-lane" data-lane="remote">
+              <header class="desk-lane-head">
+                <strong>DeepSeek</strong>
+                <span class="desk-cursor-badge remote" id="cursorBadgeRemote" title="Canvas cursor">◎ deepseek</span>
+              </header>
+              <div class="desk-log" id="remoteChatLog" aria-live="polite"></div>
+              <div class="desk-compose">
+                <textarea id="remoteChatInput" rows="2" placeholder="Manual wake — normally sleeps until Local edits board…"></textarea>
+                <button type="button" class="btn primary btn-sm" id="btnRemoteSend">Send</button>
+              </div>
+            </section>
+
+            <details class="desk-meta-future" id="deskMetaFuture">
+              <summary class="desk-meta-summary muted sm">Meta (future) · A↔B strategy for Local</summary>
+            <section class="desk-lane desk-lane-meta" data-lane="meta">
+              <header class="desk-lane-head">
+                <strong>DeepSeek Meta</strong>
+                <span class="muted sm">A ↔ B · strategy for Local</span>
+              </header>
+              <div class="desk-log desk-log-meta" id="metaChatLog" aria-live="polite"></div>
+              <div class="desk-compose">
+                <textarea id="metaChatInput" rows="2" placeholder="Meta strategy note (optional) — A then B discuss how to talk to Local…"></textarea>
+                <button type="button" class="btn ghost btn-sm" id="btnMetaPing" title="One round: Meta-A then Meta-B">Meta ping</button>
+                <button type="button" class="btn primary btn-sm" id="btnMetaSend" title="Single Meta-A turn">Meta A</button>
+              </div>
+            </section>
+            </details>
+            </section>
           </div>
-          <div class="chat-chips" id="chatChips" style="padding:0.5rem 1rem;display:flex;flex-wrap:wrap;gap:0.35rem">
-            <button type="button" class="btn ghost chip" data-q="what was I doing?">What was I doing?</button>
-            <button type="button" class="btn ghost chip" data-q="what should I do next?">What next?</button>
-            <button type="button" class="btn ghost chip" data-q="Is the office healthy?">Office healthy?</button>
+          <div class="routing-network-popup hidden" id="routingNetworkPopup" aria-label="Routing network" aria-hidden="true">
+            <header class="routing-net-head row">
+              <strong>Routing network</strong>
+              <span class="muted sm" id="routingNetMeta">switchboard · concert</span>
+              <button type="button" class="btn ghost btn-sm routing-close" id="btnNetworkClose" title="Close">×</button>
+            </header>
+            <p class="muted sm routing-net-hint">DeepSeek conducts · Local scouts · seats run in concert per switchboard</p>
+            <textarea id="routingNetGoal" class="routing-net-goal sm" rows="2" placeholder="Goal — e.g. define beta 1 scope, run doctor, implement factory audit…"></textarea>
+            <div class="routing-net-mesh" id="routingNetMesh">—</div>
+            <div class="routing-net-steps" id="routingNetSteps">Plan a goal to see seat concert</div>
+            <div class="routing-actions row">
+              <button type="button" class="btn ghost btn-sm" id="btnRoutingPlan">Plan</button>
+              <button type="button" class="btn primary btn-sm" id="btnRoutingDeepSeek">DeepSeek conduct</button>
+              <button type="button" class="btn ghost btn-sm" id="btnRoutingRun">Run concert</button>
+              <button type="button" class="btn ghost btn-sm" id="btnRoutingTeach" title="DeepSeek authors playbook rules for Local">Teach rules</button>
+            </div>
+            <details class="routing-probe-fold sm">
+              <summary>Arena probe (chess)</summary>
+              <div class="arena-popup-inner" id="arenaProbeInner">
+                <div class="arena-meta muted sm" id="arenaMeta">—</div>
+                <div class="arena-board-wrap">
+                  <div class="arena-board" id="arenaBoard" role="grid" aria-label="Chess board"></div>
+                </div>
+                <div class="arena-moves muted sm" id="arenaMoves"></div>
+                <div class="arena-strategies row sm">
+                  <label>White <select id="arenaWhiteStrategy" class="arena-strat-select"></select></label>
+                  <label>Black <select id="arenaBlackStrategy" class="arena-strat-select"></select></label>
+                </div>
+                <div class="arena-actions row">
+                  <button type="button" class="btn ghost btn-sm" id="btnArenaNew">New</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnArenaLocal">Local</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnArenaRemote">DeepSeek</button>
+                  <button type="button" class="btn ghost btn-sm" id="btnArenaPlay">Both</button>
+                </div>
+              </div>
+            </details>
           </div>
-          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <!-- legacy hidden for economy/quota hooks -->
+          <details class="desk-control-drawer hidden" hidden>
+            <summary>Control · steer · guidance queue</summary>
+            <div class="economy-bar hidden" id="economyBar" aria-hidden="true">
+              <span id="economyGoal"></span>
+              <b id="econLocal">0</b><b id="econSaved">0</b><span id="econTurns">0</span>
+              <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
+            </div>
+            <!-- legacy ids for refreshEconomy / refreshChatQuota -->
+            <span class="hidden" id="chatQuota">—</span>
+            <span class="hidden" id="chatStatus">Ready</span>
+            <select id="chatProvider" class="hidden" aria-hidden="true">
+              <option value="local" selected>local</option>
+              <option value="deepseek">deepseek</option>
+            </select>
+            <button type="button" class="hidden" id="chatModeAsk" data-mode="ask"></button>
+            <button type="button" class="hidden" id="chatModeAgent" data-mode="agent"></button>
+            <button type="button" class="hidden" id="chatModeDispatch" data-mode="dispatch"></button>
+            <button type="button" class="hidden" id="chatModeTangent" data-mode="tangent"></button>
+            <div class="chat-log hidden" id="chatLog"></div>
+            <textarea class="hidden" id="chatInput"></textarea>
+            <button type="button" class="hidden" id="btnChatSend"></button>
+            <button type="button" class="hidden" id="btnCopyPack"></button>
+            <button type="button" class="hidden" id="btnAgentReset"></button>
+            <div class="chat-chips hidden" id="chatChips"></div>
+            <div class="row desk-steer-row">
+              <input type="text" id="steerInput" placeholder="!steer / !pause / !continue …" class="desk-steer-input" />
+              <button type="button" class="btn ghost btn-sm" id="btnSteer">Steer</button>
+            </div>
+            <div class="compose-attach hidden" id="composeAttach" hidden></div>
+            <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />
           <div class="operator-inbox-dock" id="operatorInboxDock">
             <div class="inbox-head">
               <strong>Guidance queue</strong>
@@ -263,32 +494,27 @@
               <button type="button" class="btn ghost btn-sm" data-gov-steer="!continue" title="Immediate resume">!continue now</button>
             </div>
           </div>
-          <div class="chat-compose grok-compose">
-            <div class="compose-attach" id="composeAttach" hidden></div>
-            <textarea id="chatInput" rows="4" placeholder="Message Mag agent…  Enter send · Shift+Enter or Alt+Enter newline · paste images"></textarea>
-            <div class="compose-bar">
-              <div class="compose-hints">
-                <span class="hint-key">Enter</span> send
-                <span class="hint-sep">·</span>
-                <span class="hint-key">Shift+Enter</span> newline
-                <span class="hint-sep">·</span>
-                <span class="hint-key">Ctrl+V</span> image/text
-                <span class="hint-sep">·</span>
-                <span class="hint-key">Shift+Tab</span> mode
-              </div>
-              <div class="compose-actions">
-                <span class="muted" id="chatQuota" title="DeepSeek Mag-tracked usage">—</span>
-                <span class="muted" id="chatStatus">Ready</span>
-                <input type="text" id="steerInput" placeholder="!steer …" title="Steer the running agent mid-turn (!steer / !pause / !continue / !escape)" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:0.25rem 0.4rem;font-family:var(--mono);font-size:0.85rem;width:9rem" />
-                <button type="button" class="btn ghost" id="btnSteer" title="Send steer to the running agent">Steer</button>
-                <label class="btn ghost compose-file-btn" title="Attach file">
-                  + file
-                  <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />
-                </label>
-                <button type="button" class="btn primary" id="btnChatSend">Send</button>
-              </div>
+          <div class="operator-inbox-dock handoff-inbox-dock" id="handoffInboxDock">
+            <div class="inbox-head">
+              <strong>Handoff inbox</strong>
+              <span class="muted sm">Peer · cloud · BUILD · orchestrator queue</span>
+              <span class="muted sm" id="handoffInboxStatus">—</span>
             </div>
+            <ul class="handoff-inbox-list sm" id="handoffInboxList" aria-live="polite"></ul>
           </div>
+          </details>
+          <details class="desk-system-details">
+            <summary>System details · open only when routing is blocked</summary>
+          <footer class="desk-ops-strip row sm" id="deskOpsStrip" aria-label="System details">
+            <span id="deskOpsMachine" class="desk-ops-chip muted">machine —</span>
+            <span id="chatPreflight" class="desk-ops-chip muted">preflight —</span>
+            <span id="deskOpsLocal" class="desk-ops-chip">local —</span>
+            <span id="deskOpsAutorun" class="desk-ops-chip muted">autorun —</span>
+            <span id="deskOpsStack" class="desk-ops-chip muted">stack —</span>
+            <span id="deskOpsPeers" class="desk-ops-chip muted">peers —</span>
+            <span id="deskOpsGrok" class="desk-ops-chip muted">grok —</span>
+          </footer>
+          </details>
         </div>
         <span class="badge-zero hidden" id="badgeZeroGrok"></span>
         </section>
@@ -307,10 +533,19 @@
       </div>
       <div class="win-body">
         <section id="panel-sessions" class="panel days-merge">
-          <div class="days-split">
+          <nav class="days-subnav row sm" aria-label="Days views">
+            <button type="button" class="btn ghost btn-sm days-sub on" data-days-view="timeline">Timeline</button>
+            <button type="button" class="btn ghost btn-sm days-sub" data-days-view="diary">Diary</button>
+            <button type="button" class="btn ghost btn-sm days-sub" data-days-view="pulse">Pulse</button>
+            <button type="button" class="btn ghost btn-sm days-sub" data-days-view="story">Story so far</button>
+            <button type="button" class="btn ghost btn-sm days-route" data-days-route="verkle">Evidence map</button>
+            <span class="muted sm days-sub-hint">evidence map · daybook · recent change · project arc</span>
+          </nav>
+          <div class="days-view days-view-timeline" id="daysViewTimeline">
+            <div class="days-split">
             <div class="days-list-col">
               <div class="days-list-sticky">
-                <p class="help-bar">Workdays on the left · 3D tree on the right. Big bead = filed day · small = your turns · orange = worker runs · faint blue = Verkle proof chain.</p>
+                <p class="help-bar">Workdays on the left · agent-ready artifacts on the right. Big bead = filed day · small = your turns · orange = worker runs · cyan knot = a portable evidence packet an agent can receive (provenance, not a cryptographic Verkle proof).</p>
                 <div class="days-legend row" id="daysLegend"></div>
                 <div class="stats" id="stats"></div>
               </div>
@@ -320,37 +555,60 @@
               <div class="tap-toolbar sticky-in-pane">
                 <button type="button" class="btn" id="btnTapRebuild">Rebuild graph</button>
                 <button type="button" class="btn ghost" id="btnTapFrame" title="Re-center camera to fill the stage">Frame</button>
-                <label class="toggle-row tap-lattice-toggle">
+                <label class="toggle-row tap-lattice-toggle" title="Proof-chain knots linking filed workdays to continuity anchors">
                   <input type="checkbox" id="tapLatticeToggle" checked />
-                  <span>Verkle lattice</span>
+                  <span>Verkle artifacts</span>
                 </label>
+                <button type="button" class="btn ghost btn-sm" id="btnTapLatticeFocus" title="Frame and emphasize continuity-chain anchors">Chain focus</button>
                 <span id="tapMeta" class="muted"></span>
                 <span class="muted tap-hint">Hover → context rail · click pin · explore sub-beads</span>
               </div>
               <div class="tap-stage days-tap">
                 <div class="tap-canvas-wrap">
                   <canvas id="tapCanvas"></canvas>
+                  <aside class="tap-map-key" aria-label="Persistent map key">
+                    <strong>Map key</strong>
+                    <span><i class="key-dot day"></i> filed workday</span>
+                    <span><i class="key-dot turn"></i> your turn</span>
+                    <span><i class="key-dot worker"></i> agent run</span>
+                    <span><i class="key-dot knot"></i> portable evidence knot</span>
+                    <small>Drag to orbit · wheel/pinch to zoom · click to pin</small>
+                  </aside>
                 </div>
                 <aside id="tapInspect" class="tap-inspect days-rail">
                   <div class="rail-section rail-hover">
-                    <div class="tap-inspect-h">Context (hover)</div>
+                    <div class="tap-inspect-h">Quick reading</div>
                     <div id="tapHoverRail" class="tap-inspect-body rail-body">
-                      <p class="muted">Move over a bead — what / why / source file.</p>
+                      <p class="muted">Move over a point for plain English: what it was, why it matters, and its source.</p>
                     </div>
                   </div>
                   <div class="rail-section rail-pin">
-                    <div class="tap-inspect-h">Pinned</div>
+                    <div class="tap-inspect-h">Pinned evidence · discuss below</div>
                     <div id="tapCaption" class="tap-inspect-body rail-body">
                       <p class="muted">Click a node or day card to pin.</p>
                     </div>
                   </div>
                   <div class="rail-actions row">
                     <button type="button" class="btn primary btn-sm" id="btnDaysOpenDetail">Open day</button>
+                    <button type="button" class="btn ghost btn-sm" id="btnDaysCopyKnot" title="Copy the pinned workday as a portable evidence packet for another agent">Copy knot</button>
+                    <button type="button" class="btn ghost btn-sm" id="btnDaysRouteKnot" title="Launch a background agent with this bounded evidence packet">Hand to agent</button>
                     <button type="button" class="btn ghost btn-sm" id="btnDaysOpenVisual">Visual</button>
                   </div>
                 </aside>
               </div>
             </div>
+            </div>
+          </div>
+          <div class="days-view days-view-diary hidden" id="daysViewDiary">
+            <p class="muted sm">Day-by-day narrative reconstructed from filed residuals.</p>
+            <div id="daysDiaryEmbed" class="days-embed reply-doc sm">Loading diary…</div>
+          </div>
+          <div class="days-view days-view-pulse hidden" id="daysViewPulse">
+            <p class="muted sm">What changed recently, from filed sources.</p>
+            <pre id="daysPulseEmbed" class="chronicle-pre sm">Loading…</pre>
+          </div>
+          <div class="days-view days-view-story hidden" id="daysViewStory">
+            <div id="daysStoryEmbed" class="days-embed reply-doc story-embed">Loading the story so far…</div>
           </div>
         </section>
         <!-- do NOT use class "panel" here — body.cli .win .panel { display:block !important }
@@ -366,7 +624,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -400,7 +658,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -472,7 +730,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -513,15 +771,28 @@
 
     <div class="win" data-win="flow" id="win-flow">
       <div class="win-titlebar">
-        <span class="win-title">Token flow (lab)</span>
+        <span class="win-title">Economics — cost per verified outcome</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
-        <section id="panel-flow" class="panel">
+        <section id="panel-flow" class="panel pane-pad economics-panel">
+                <header class="pane-head economics-head">
+                  <div>
+                    <p class="ideas-kicker">Outcome economics · measured evidence</p>
+                    <h2 class="pane-h">Where intelligence went, what it produced, and why</h2>
+                    <p class="pane-sub">The useful unit is not a token. It is a verified result: a passing test, filed artifact, resolved decision, or proven handoff.</p>
+                    <p class="honesty-note">Current coverage is incomplete. Provider calls are measured; local electricity, subscriptions, human attention, and some host-app usage are not yet joined to outcomes.</p>
+                  </div>
+                </header>
+                <div class="economics-questions" aria-label="How to read this page">
+                  <article class="card"><h3>1 · Route</h3><p>Which seat received the work, and what evidence justified that choice?</p></article>
+                  <article class="card"><h3>2 · Outcome</h3><p>Did it create a verified leaf, or only conversation and retries?</p></article>
+                  <article class="card"><h3>3 · Learning</h3><p>What skill, remedy, or benchmark lets a cheaper seat succeed next time?</p></article>
+                </div>
 <p class="muted" id="flowNote">â€”</p>
                 <div class="stats" id="flowStats"></div>
                 <div id="flowModelBars"></div>
@@ -546,7 +817,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -580,7 +851,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -643,7 +914,7 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
@@ -703,7 +974,7 @@
         <section id="panel-viewports" class="panel">
           <p class="help-bar">
             <strong>Cursor Canvas → Mag.</strong>
-            Synced from external *.canvas.tsx into memory/viewports/ — tables, todos, stats for the desk.
+            Synced manifests · routing network lives on <button type="button" class="btn-link sm" id="btnViewportsToDesk">Desk → Network</button>
           </p>
           <div class="row" style="margin-bottom:0.75rem">
             <button type="button" class="btn ghost" id="btnViewportsRefresh">Refresh</button>
@@ -722,12 +993,26 @@
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
-          <button type="button" class="win-close" title="close">Ã—</button>
+          <button type="button" class="win-close" title="close">×</button>
         </span>
       </div>
       <div class="win-body">
-        <section id="panel-ingest" class="panel">
-<div id="ingestOut"></div>
+        <section id="panel-ingest" class="panel pane-pad library-panel">
+          <header class="pane-head">
+            <div>
+              <p class="ideas-kicker">Library · research · skills · teaching material</p>
+              <h2 class="pane-h">What Mag can draw on</h2>
+              <p class="pane-sub">Each item should explain what it represents, where it came from, which projects or skills use it, and whether its claims have been verified.</p>
+              <p class="honesty-note">A saved link is not learned knowledge. Promotion into routing or model training requires a source-backed knot, a reusable lesson, and an evaluation.</p>
+            </div>
+          </header>
+          <div class="library-legend">
+            <span><b>Source</b> where it came from</span>
+            <span><b>Meaning</b> why it was kept</span>
+            <span><b>Use</b> project or skill it informs</span>
+            <span><b>Trust</b> captured, interpreted, or verified</span>
+          </div>
+          <div id="ingestOut"></div>
         </section>
       </div>
       <div class="win-resize" title="resize"></div>
@@ -819,7 +1104,7 @@
           <header class="ideas-hero">
             <div class="ideas-hero-copy">
               <p class="ideas-kicker">Primary board · Mag as operating system</p>
-              <h2 class="pane-h">Your unfinished business — written down</h2>
+              <h2 class="pane-h">Projects, plans, and unresolved decisions</h2>
               <p class="ideas-lead">
                 <strong>Days</strong> remembers what you worked on.
                 <strong>Ideas</strong> remembers what you still care about after the day ends.
@@ -848,6 +1133,12 @@
 
           <div class="stats ideas-stats" id="ideasStats"></div>
 
+          <div class="ideas-scrum-strip muted sm" id="ideasScrumStrip" hidden>
+            <strong>Sprint</strong>
+            <span id="ideasScrumActive">—</span>
+            <span id="ideasScrumNext">—</span>
+          </div>
+
           <div class="filter-row ideas-filters" id="ideasFilters" role="toolbar" aria-label="Show which cards">
             <button type="button" class="btn ghost chip on" data-filter="open" title="Still needs work">Needs work</button>
             <button type="button" class="btn ghost chip" data-filter="open_loop" title="Open loops / unfinished tensions">Open loops</button>
@@ -869,7 +1160,7 @@
               </p>
               <pre class="pre ideas-pack" id="ideasPack">Pick a card on the left…</pre>
               <div class="row ideas-pack-actions">
-                <button type="button" class="btn primary" id="btnIdeasToChat" disabled>Work this in Chat</button>
+                <button type="button" class="btn primary" id="btnIdeasToChat" disabled>Direct Mag with this brief</button>
                 <button type="button" class="btn ghost" id="btnIdeasCopyPack" disabled>Copy brief</button>
               </div>
               <div class="row ideas-status-actions" id="ideasStatusActions">
@@ -1050,6 +1341,83 @@
         </section>
       </div>
     </div>
+
+    <div class="win" data-win="stack" id="win-stack">
+      <div class="win-titlebar">
+        <span class="win-title">Stack — services · agents · REST outputs</span>
+        <span class="win-ctrls">
+          <button type="button" class="win-min" title="minimize">_</button>
+          <button type="button" class="win-max" title="maximize">□</button>
+          <button type="button" class="win-close" title="close">×</button>
+        </span>
+      </div>
+      <div class="win-body">
+        <section id="panel-stack" class="panel agent-desk-v2 stack-panel pane-pad">
+          <nav class="local-view-nav" aria-label="System views">
+            <button type="button" class="btn ghost btn-sm on" data-open-tab="stack">Health</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="blast">Learning</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="flow">Economics</button>
+            <button type="button" class="btn ghost btn-sm" data-open-tab="board">Provenance</button>
+          </nav>
+          <div class="pane-head">
+            <div>
+              <h2 class="pane-h">Stack</h2>
+              <p class="muted pane-sub" id="stackHeadline">Loading…</p>
+              <p class="honesty-note" id="stackHonesty">Every row cites the REST endpoint Mag probed — not chat heat.</p>
+            </div>
+            <div class="row">
+              <span class="muted sm" id="stackMeta">—</span>
+              <button type="button" class="btn ghost btn-sm" id="btnStackReload">Reload</button>
+            </div>
+          </div>
+          <article class="card repo-readiness-card" id="repoReadinessCard">
+            <div class="repo-readiness-head"><h3>Agent handoff readiness</h3><strong id="repoReadinessVerdict">Checking…</strong></div>
+            <p id="repoReadinessSummary">Branch, upstream, local changes, and worktrees determine whether another agent can safely continue.</p>
+            <ul class="signal-list" id="repoReadinessBlockers"></ul>
+            <p class="muted sm" id="repoReadinessNote"></p>
+          </article>
+          <section class="scheduler-strip" id="schedulerStrip" aria-label="Local GPU scheduler">
+            <div class="scheduler-strip-main">
+              <strong>Local queue</strong>
+              <span class="scheduler-status muted sm" id="schedulerStatus">loading…</span>
+            </div>
+            <div class="scheduler-strip-actions row">
+              <button type="button" class="btn ghost btn-sm" id="btnSchedPause" title="Pause local queue">Pause</button>
+              <button type="button" class="btn ghost btn-sm" id="btnSchedContinue" title="Resume queue">Continue</button>
+              <button type="button" class="btn ghost btn-sm" id="btnSchedTriage" title="DeepSeek reorder when backed up">Triage</button>
+            </div>
+          </section>
+          <section class="unsloth-strip" id="unslothStrip" aria-label="Unsloth Studio GPU">
+            <div class="unsloth-strip-main">
+              <strong>Unsloth</strong>
+              <span class="unsloth-status muted sm" id="unslothStatus">loading…</span>
+              <span class="unsloth-gpu muted sm" id="unslothGpuHint">—</span>
+            </div>
+            <div class="unsloth-strip-actions row">
+              <button type="button" class="btn primary btn-sm" id="btnUnslothStart" title="Start detached unsloth chat">Start chat</button>
+              <button type="button" class="btn ghost btn-sm" id="btnUnslothAgent" title="Start Hermes coding agent against Unsloth">Start agent</button>
+              <button type="button" class="btn ghost btn-sm" id="btnUnslothStop">Stop</button>
+              <button type="button" class="btn ghost btn-sm" id="btnUnslothLog">Log</button>
+            </div>
+            <pre class="unsloth-log muted sm hidden" id="unslothLog" hidden></pre>
+          </section>
+          <div class="stack-grid">
+            <article class="stack-col">
+              <h3 class="stack-col-h">Services</h3>
+              <div id="stackServices" class="stack-cards"></div>
+            </article>
+            <article class="stack-col">
+              <h3 class="stack-col-h">Agents</h3>
+              <div id="stackAgents" class="stack-cards"></div>
+            </article>
+            <article class="stack-col stack-col-wide">
+              <h3 class="stack-col-h">Outputs <span class="muted sm">— as REST/chronicle sees them</span></h3>
+              <ul id="stackOutputs" class="stack-outputs"></ul>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
 </div>
 
 
@@ -1110,7 +1478,7 @@
 
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
-  <script src="/static/windows.js?v=tesuji33"></script>
-  <script src="/static/app.js?v=canvas-viewports-v1"></script>
+  <script src="/static/windows.js?v=dashboard-nav-v37"></script>
+  <script src="/static/app.js?v=dashboard-v58-command-brief"></script>
 </body>
 </html>

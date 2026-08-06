@@ -1,4 +1,4 @@
-# Resource harness lanes — janitor local first; specialist remote scarce; Hermes parked.
+﻿# Resource harness lanes — janitor local first; specialist remote scarce; Hermes parked.
 
 default_lane: L0
 
@@ -8,7 +8,7 @@ lanes:
   L0:
     name: local
     backend: ollama
-    roles: [clerk, worker, critic, biographer]
+    roles: [clerk, orchestrator, worker, critic, biographer]
   L1:
     name: free_remote
     backend: openrouter
@@ -29,6 +29,9 @@ local_models:
   # (qwen3.5:35b was Vast-only; multi-smoke FAIL until this map)
   clerk: gemma:2b
   router: gemma:2b
+  orchestrator: gemma:2b          # repack / scut — too trunc-prone for desk handoff
+  desk_orchestrator: qwen-desk       # probe winner 69 t/s vs gemma4-desk 29 t/s @ 100% GPU (RX 5600 XT)
+  desk_conductor: qwen-desk          # hot-swap conductor seat — same default; change independently
   worker: gemma4:latest
   critic: gemma4:latest
   biographer: gemma4-hermes:latest

@@ -1,13 +1,13 @@
-# Mag v3 — Release notes (planning)
+# Mag v3 — Release notes
 
 **Commitment:** `mag-release-v3-001`  
-**Version:** 3.x — **what we are planning to build** on v2 substrate  
-**As-of:** 2026-08-05  
-**Status:** **Planned / in_progress** — not shipped; branches + run sheet only  
+**Version:** 3.x — loop-built substrate on v2
+**As-of:** 2026-08-06
+**Status:** **Shipped** — all defined gates are green on disk
 **Registry:** `configs/releases.yaml` → `id: v3`  
 **Parent:** v2 (this repo)
 
-**Honesty:** v3 is **agent + operator planning** — substrate (orchestrator, switchboard, pack modes, Chat, factory pilot). Do not call v3 shipped until gates in `releases.yaml` are recorded.
+**Evidence:** v3 graduated only after the factory audit, frozen-build enforcement, behavioral-router preflight, bounded DeepSeek T2 proof, and witness were recorded in `memory/improve/releases/gates.jsonl`.
 
 ---
 
@@ -31,7 +31,7 @@
 
 ---
 
-## Planned deliverables (from run sheet)
+## Shipped deliverables
 
 | Wave | Deliverable | Doc |
 |------|-------------|-----|
@@ -46,7 +46,7 @@
 
 ---
 
-## v3 gates (record when true)
+## v3 gates (recorded green)
 
 ```powershell
 python main.py release record --version v3 --gate deepseek_run --ok
@@ -55,6 +55,8 @@ python main.py release record --version v3 --gate chat_preflight --ok
 ```
 
 See `configs/releases.yaml` → `v3.gates`
+
+Proof artifact: `memory/runs/v3_deepseek_proof.md`. Successful terminal task: `ta79c0045f0` (`deepseek`, T2, frozen contract, exit 0).
 
 ---
 

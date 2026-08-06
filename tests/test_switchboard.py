@@ -13,7 +13,20 @@ def test_tier_allows():
 
     assert tier_allows(holder_tier_max="T2", payload_tier="T2") is True
     assert tier_allows(holder_tier_max="T1", payload_tier="T2") is False
-    assert tier_allows(holder_tier_max="T2", payload_tier="T0") is True
+    assert tier_allows(holder_tier_max="T2", payload_tier="T0") is False
+    assert tier_allows(holder_tier_max="T2", payload_tier="T1") is False
+    assert tier_allows(holder_tier_max="T1", payload_tier="T0") is True
+    assert tier_allows(holder_tier_max="T1", payload_tier="T1") is True
+    assert tier_allows(holder_tier_max="T3", payload_tier="T0") is True
+
+
+def test_remote_drop_refuses_private_tiers():
+    from mag.switchboard import steer_drop
+
+    for tier in ("T0", "T1"):
+        res = steer_drop("operator", "t-fake", "private payload", tier=tier, dry=True)
+        assert res.get("ok") is False
+        assert res.get("error") == "tier_blocked"
 
 
 def test_seat_registry():

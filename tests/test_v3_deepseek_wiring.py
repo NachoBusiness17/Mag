@@ -58,3 +58,23 @@ def test_grove_rest_handler(tmp_path, monkeypatch):
     assert body.get("ok") is True
     assert body.get("count", 0) >= 1
     assert any(n.get("id") == "grove-test-1" for n in body.get("nodes") or [])
+
+
+def test_autorun_rest_handler():
+    from dashboard.rest import h_autorun
+
+    code, body = h_autorun({}, None)
+    assert code == 200
+    assert body.get("ok") is True
+    assert body.get("schema") == "autorun_status.v1"
+    assert "governor" in body
+    assert "autorun" in body
+
+
+def test_handoff_inbox_rest_handler():
+    from dashboard.rest import h_handoff_inbox
+
+    code, body = h_handoff_inbox({"limit": "5"}, None)
+    assert code == 200
+    assert body.get("ok") is True
+    assert body.get("schema") == "handoff_inbox.v1"

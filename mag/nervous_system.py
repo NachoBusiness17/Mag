@@ -194,6 +194,31 @@ def write_face(glance: dict[str, Any]) -> Path:
         lines.append(f"- {loop}")
     if not glance.get("open_loops"):
         lines.append("- _(none extracted)_")
+    dt = glance.get("desk_trust") or {}
+    if dt:
+        lines.extend(
+            [
+                "",
+                "## Desk trust (baseline)",
+                f"- tier: **{dt.get('tier', '?')}** · slow→fast: **{dt.get('slow_to_fast', '?')}**",
+                f"- model: `{dt.get('baseline_score', '?')}` · ui_smoke: `{dt.get('ui_smoke_score', '?')}`",
+                f"- combined: `{dt.get('combined_score', dt.get('baseline_score', '?'))}` · updated: {dt.get('updated', '?')}",
+                "- probe: `python scripts/desk_baseline_probe.py`",
+            ]
+        )
+    al = glance.get("arena_learning") or {}
+    if al:
+        hint = al.get("routing_hint") or {}
+        lines.extend(
+            [
+                "",
+                "## Arena learning (switchboard probes)",
+                f"- active game: **{al.get('active_game')}** · seats ranked: **{al.get('n_seats_ranked', 0)}**",
+                f"- top seat: **{al.get('top_seat') or '?'}** · value: `{al.get('top_value')}`",
+                f"- routing hint: **{hint.get('recommend') or '?'}** — {hint.get('reason') or ''}",
+                f"- league: `{al.get('path')}` · probe: `python main.py arena league`",
+            ]
+        )
     lines.extend(
         [
             "",
@@ -272,6 +297,50 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
     except Exception:
         pass
 
+    desk_trust = _read_json(ROOT / "memory" / "working" / "agent_desk_trust_status.json")
+    if desk_trust:
+        desk_trust = {
+            k: desk_trust[k]
+            for k in (
+                "tier",
+                "slow_to_fast",
+                "fast_to_fast",
+                "baseline_score",
+                "ui_smoke_score",
+                "combined_score",
+                "updated",
+            )
+            if k in desk_trust
+        }
+
+    desk_health: dict[str, Any] | None = None
+    try:
+        from mag.desk_dialogue import desk_health_check
+
+        desk_health = desk_health_check(auto_heal=write)
+    except Exception:
+        pass
+
+    bind_info: dict[str, Any] | None = None
+    try:
+        from config import bind_exposure, read_lab_bind
+
+        pref = read_lab_bind()
+        bind_info = bind_exposure(
+            host="0.0.0.0" if pref.get("lan") else "127.0.0.1",
+            port=8765,
+        )
+    except Exception:
+        pass
+
+    arena_learning: dict[str, Any] | None = None
+    try:
+        from mag.arena_learning import nervous_glance
+
+        arena_learning = nervous_glance()
+    except Exception:
+        pass
+
     body_ok = bool(ollama)
     integral_ok = bool(dash and health.get("status") == "up")
 
@@ -305,6 +374,10 @@ def build_glance(*, write: bool = True) -> dict[str, Any]:
         "open_loops": open_loops,
         "seats": seats_summary,
         "improve_loop": improve_loop,
+        "desk_trust": desk_trust or None,
+        "desk_health": desk_health,
+        "bind": bind_info,
+        "arena_learning": arena_learning,
         "note": (
             "Keys: .env presence ≠ shell; Mag loads dotenv. "
             "status=env-only means Mag python can use if values non-empty. "
@@ -368,6 +441,7 @@ def pack_excerpt(glance: dict[str, Any] | None = None) -> dict[str, Any]:
         "keys_line": ", ".join(key_bits),
         "keys": g.get("keys"),
         "open_loops": (g.get("open_loops") or [])[:6],
+        "desk_trust": g.get("desk_trust"),
         "note": g.get("note"),
         "path": str(FACE_MD),
     }

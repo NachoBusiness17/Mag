@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "dashboard" / "static" / "index.html"
 APP_JS = ROOT / "dashboard" / "static" / "app.js"
+CSS = ROOT / "dashboard" / "static" / "cli.css"
 
 
 def test_mirror_guide_markup_in_index():
@@ -12,7 +13,7 @@ def test_mirror_guide_markup_in_index():
     assert 'id="mirrorGuide"' in html
     assert 'id="mirrorGuideTitle"' in html
     assert 'id="btnMirrorReplay"' in html
-    assert "mirror-intro-v1" in html or "canvas-viewports-v1" in html
+    assert "mirror-intro-v1" in CSS.read_text(encoding="utf-8")
 
 
 def test_mirror_guide_logic_in_app_js():

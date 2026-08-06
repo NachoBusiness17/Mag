@@ -297,7 +297,7 @@ def _lattice_node(
     chain_index: int = 0,
     Q_proxy: float | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Semi-visible Verkle leaf anchor under each day bead."""
+    """Portable Verkle knot artifact anchored beneath its source workday."""
     sid = str(reg.get("session_id") or "")
     if not (reg.get("leaf_hash") or reg.get("verkle_filename") or reg.get("leaf_filename")):
         return [], []
@@ -319,7 +319,7 @@ def _lattice_node(
     lid = f"lattice:{sid[:16]}"
     node = {
         "id": lid,
-        "label": "verkle leaf",
+        "label": "Verkle knot artifact",
         "kind": "lattice",
         "layer": "lattice",
         "core": False,
@@ -336,9 +336,9 @@ def _lattice_node(
             "leaf_file": reg.get("verkle_filename") or reg.get("leaf_filename"),
             "ghost": True,
             **_layman_block(
-                what="Proof bead on Mag's memory chain",
+                what="Portable evidence packet that can be handed to an agent",
                 where=f"memory/biography/knots/{reg.get('verkle_filename') or reg.get('leaf_filename') or '?'}",
-                why="Each filed day gets one Verkle leaf — tamper-evident link in the project history.",
+                why="Packages a filed workday, source path, and commitments so an agent can inherit evidence without the whole conversation.",
             ),
         },
     }
@@ -423,7 +423,7 @@ def build_tapestry_pack() -> dict[str, Any]:
                 **_layman_block(
                     what="Latest hash on Mag's filed memory chain",
                     where="memory/biography/verkle_tip.json",
-                    why="Anchor for all day beads — proves history wasn't rewritten.",
+                    why="Current commitment for filed day records — audit it against the leaf files to detect drift or gaps.",
                 ),
             },
         }

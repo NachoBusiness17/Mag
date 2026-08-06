@@ -1,0 +1,96 @@
+# Coding session loop — desk board scrum (Beta 1 factory pilot)
+# Law: canvas = contract · one loop = one filed artifact · Done → bead
+
+schema: coding_session_loop.v1
+session_id: beta1-factory-build-audit-001
+commitment: ilap-beta1-definition-001
+
+goal: |
+  Ship mag/build_audit.py and first build_audit.v1 JSON on disk (factory_pilot gate).
+  Run entirely as desk loop — Local scouts, DeepSeek teaches/commits, operator executes in Shell.
+
+playbook: code_scout_janitor
+surface: desk
+loop_mode: step  # step | loop — operator uses Step until trust tier ≥ 1
+
+gates:
+  preflight:
+    - id: unit_desk
+      cmd: python -m pytest tests/test_agent_desk_commit.py tests/test_desk_conductor.py -q
+    - id: unit_playbooks
+      cmd: python -c "from mag.local_playbook import list_playbooks; assert any(p.get('id')=='code_scout_janitor' for p in list_playbooks().get('playbooks',[]))"
+    - id: ui_smoke
+      cmd: python scripts/desk_baseline_probe.py --ui-only
+      optional: true
+  session_done:
+    - id: build_audit_module
+      path: mag/build_audit.py
+    - id: build_audit_json
+      glob: memory/factory/build_audit*.json
+    - id: pytest_build
+      cmd: python -m pytest tests/test_build_audit.py -q
+
+scrum:
+  sprint_0_preflight:
+    owner: operator
+    done_when: all preflight gates pass
+  sprint_1_skeleton:
+    owner: local+deepseek
+    desk_task: |
+      Local: append ## Status with file list for build_audit scaffold.
+      DeepSeek: confirm schema build_audit.v1 fields from MAG_FACTORY_PILOT.md.
+    artifact: mag/build_audit.py
+  sprint_2_loop_proof:
+    owner: operator
+    desk_task: One Step cycle — Local canvas commit → DeepSeek validate → Done on canvas.
+    artifact: logs/tesuji_shells.jsonl
+  sprint_3_factory_json:
+    owner: operator+shell
+    desk_task: Run build audit CLI; file JSON; append gate row to canvas.
+    artifact: memory/factory/build_audit-*.json
+
+knowns:
+  - "Beta 1 gate checklist in docs/ref/proposals/ILAP-beta1-definition.md"
+  - "Verkle tip 90 leaves filed (verkle_honest partial pass)"
+  - "Desk conductor + Step mode wired (trust tier 0 — no Loop autorun)"
+  - "Playbook code_scout_janitor ready in configs/local_playbooks.yaml"
+  - "Factory pilot 1 BUILD spec at docs/ref/BUILD-factory-audit-json-EXAMPLE.md"
+  - "ILAP commitment ilap-beta1-definition-001 active"
+  - "mag/build_audit.py shipped (P0) — build-audit + factory-audit CLI"
+  - "Preflight gates pass for beta1-factory-build-audit-001 session"
+  - "P1 wiring: desk_conductor_trail split, handoff inbox, modules.yaml sync"
+
+unknowns:
+  - "First build_audit.v1 JSON on disk — run build-audit after Step validates"
+  - "Desk trust tier 1 — desk_baseline_probe 3x green not verified this session"
+  - "RUN A gates (PRs 8-11) merge status for Beta 1 claim"
+
+current_sprint: sprint_2_loop_proof
+
+desk_sections:
+  goal: true
+  knowns: true
+  unknowns: true
+  current_sprint: true
+  conductor_scratch: true
+  dialogue: true
+  operator_notes: true
+
+done_marker: Done
+bead_on_close: true
+clear_dialogue_on_seed: true
+
+# Steal protocol — LbMAS critic + AgentSwarm verifier + DEBATE steer (arxiv/github patterns)
+steal_protocol:
+  enabled: true
+  steer_threshold: 0.55
+  verifier_before_advance: true
+  observer_live: false  # true or MAG_OBSERVER_LIVE=1 → DeepSeek agent-as-judge
+  provider: deepseek
+
+references:
+  - docs/ref/proposals/ILAP-beta1-definition.md
+  - configs/local_playbooks.yaml
+  - docs/agent_desk_operator_manual.md
+  - docs/ref/STEAL_PROTOCOL_REPOS_INDEX.md
+  - configs/steal_protocol_repos.yaml

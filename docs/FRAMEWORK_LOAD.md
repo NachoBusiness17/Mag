@@ -15,10 +15,12 @@
 ```text
 LOAD Mag framework — read in order:
   1. docs/FRAMEWORK_LOAD.md (this file — navigation + metaphors)
-  2. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md (direction v2 — where we are / going / v3 gate)
-  3. docs/ref/MAG_PROJECT_PROPOSAL.md (full proposal depth — problem, inventory)
-  4. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
-  5. AGENTS.md (python env + commands — do not skip)
+  2. docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md (compass — vision, loop, v1-v10 arc)
+  3. docs/ref/MYCELIAL_SCIENCE_MAP.md (biology ↔ protocol — mycelial science)
+  4. docs/ref/MAG_DIRECTION_ARTIFACT_v2.md (direction v2 — phase gates, v3 entry, v4–v5 mold)
+  5. docs/ref/MAG_PROJECT_PROPOSAL.md (full proposal depth — problem, inventory)
+  6. docs/ref/OPERATOR_CARD.md (FIND · FILE · LOAD — daily doors)
+  7. AGENTS.md (python env + commands — do not skip)
 
 Then run: mag.cmd context-pack (or python main.py context-pack)
 Then: ONE job from queue/todo.md or operator goal.
@@ -62,11 +64,14 @@ Mag is a **private records office** on your computer — not a chat app.
 | # | File | Function |
 |---|------|----------|
 | 0 | **`docs/FRAMEWORK_LOAD.md`** | This navigation map |
-| 1 | **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** | Direction v2 — been / are / going / v3 gate / v4–v5 mold |
-| 2 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal depth |
-| 3 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
-| 4 | **`AGENTS.md`** | Python env law + command cheatsheet |
-| 5 | **`docs/DNA.md`** | What "filed" means — residual constitution |
+| 1 | **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** | **Compass** — vision, agent loop, v1–v10 arc, sovereignty |
+| 2 | **`docs/ref/MYCELIAL_SCIENCE_MAP.md`** | **Biology ↔ protocol** — mycelial science map |
+| 3 | **`docs/ref/MAG_VISION_AUTOMATION.md`** | **Vision** — v2 remainder, loop factory, loop tick spec |
+| 4 | **`docs/ref/MAG_DIRECTION_ARTIFACT_v2.md`** | Direction v2 — phase gates, v3 entry, v4–v5 mold |
+| 4 | **`docs/ref/MAG_PROJECT_PROPOSAL.md`** | Full proposal depth |
+| 5 | **`docs/ref/OPERATOR_CARD.md`** | FIND · FILE · LOAD daily doors |
+| 6 | **`AGENTS.md`** | Python env law + command cheatsheet |
+| 7 | **`docs/DNA.md`** | What "filed" means — residual constitution |
 
 **After read:** `mag.cmd doctor` · `mag.cmd context-pack`
 
@@ -80,7 +85,8 @@ Mag is a **private records office** on your computer — not a chat app.
 | 8 | `memory/bonds_active.md` | Carry to next session |
 | 9 | `memory/improve/SEATS.md` | Who does what (janitor vs consultant) |
 | 10 | `HANDOFF_MAG_AGENT_TODOS.md` | Merge order, rituals, agent queue |
-| 11 | `docs/ref/releases/VERSION_REGISTRY.md` | v1–v5 release notes + graduation gates |
+| 11 | `docs/ref/releases/VERSION_REGISTRY.md` | v1–v10 release notes + graduation gates |
+| 12 | `configs/version_roadmap.yaml` | Machine arc — loop stages, service milestones, tiers |
 
 ### Tier 2 — Role-specific (load if your job needs it)
 
@@ -251,6 +257,10 @@ Chat dies. Files persist.
 | Need | File |
 |------|------|
 | **Start here** | `docs/FRAMEWORK_LOAD.md` |
+| **Compass (vision + loop + arc)** | **`docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md`** |
+| **Mycelial science (biology ↔ protocol)** | **`docs/ref/MYCELIAL_SCIENCE_MAP.md`** |
+| **Future walkthrough (v2→v10)** | **`docs/ref/MAG_FUTURE_WALKTHROUGH.md`** |
+| **Vision (v2→v3 loop factory)** | **`docs/ref/MAG_VISION_AUTOMATION.md`** |
 | Full proposal | `docs/ref/MAG_PROJECT_PROPOSAL.md` |
 | Daily operator | `docs/ref/OPERATOR_CARD.md` |
 | Human how-to | `docs/HOW_TO_MAG_DASHBOARD.md` |

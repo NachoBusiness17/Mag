@@ -25,6 +25,7 @@ if errorlevel 1 (
 echo ==^> pull research clones (mesh + gstd)
 if exist scripts\pull_mesh_comm_repos.cmd call scripts\pull_mesh_comm_repos.cmd
 if exist scripts\pull_gstdcoin_repos.cmd call scripts\pull_gstdcoin_repos.cmd
+if exist scripts\pull_steal_protocol_repos.cmd call scripts\pull_steal_protocol_repos.cmd
 
 echo ==^> mesh deep dive
 if exist scripts\mesh_comm_deep_dive.cmd call scripts\mesh_comm_deep_dive.cmd

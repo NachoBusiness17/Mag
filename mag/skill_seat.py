@@ -64,6 +64,7 @@ def run_gate(skill_id: str, *, path: str = "") -> dict[str, Any]:
         res = run_audit(hints=True)
         res["skill"] = "ponytail"
         res["pass"] = bool(res.get("lean"))
+        _emit_skill_gate(skill_id, res, path=path)
         return res
     if skill_id == "caveman":
         from mag.caveman_audit import run_audit
@@ -72,8 +73,29 @@ def run_gate(skill_id: str, *, path: str = "") -> dict[str, Any]:
         res = run_audit(paths=paths)
         res["skill"] = "caveman"
         res["pass"] = bool(res.get("dense"))
+        _emit_skill_gate(skill_id, res, path=path)
         return res
     return {"ok": False, "error": f"unknown skill: {skill_id}"}
+
+
+def _emit_skill_gate(skill_id: str, res: dict[str, Any], *, path: str = "") -> None:
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "skill_gate",
+            input_data={"skill_seat": skill_id, "path": (path or "")[:200]},
+            action={"gate": f"{skill_id}-audit"},
+            outcome={
+                "pass": bool(res.get("pass")),
+                "findings_n": len(res.get("findings") or res.get("issues") or []),
+            },
+            pattern_tags=[
+                f"{skill_id}_{'pass' if res.get('pass') else 'fail'}",
+            ],
+        )
+    except Exception:
+        pass
 
 
 def skill_status() -> dict[str, Any]:

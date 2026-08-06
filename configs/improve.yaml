@@ -20,8 +20,8 @@ rotation:
   0: [github, huggingface, agent_harness]   # Mon — harness/memory
   1: [reddit, ollama, openclaw, mesh_comm]   # Tue — local + OpenClaw + mesh research
   2: [arxiv, anthropic, openai]             # Wed — papers + labs (bias: process value / TTC / continual / plan search → IJL)
-  3: [openrouter, deepseek, xai]            # Thu — routes/prices
-  4: [google_adk, vast, agent_harness]      # Fri — multi-agent + harness
+  3: [openrouter, deepseek, xai, steal_protocol_repos]            # Thu — routes + steal forest
+  4: [google_adk, vast, agent_harness, agent_platform_repos, agent_bleeding_edge_repos]  # Fri — platform + bleeding-edge forests
   5: [catchup]                              # Sat — re-try failed + internal only
   6: [digest]                               # Sun — playbook digest, no outbound
 
@@ -39,6 +39,39 @@ mesh_comm:
   pull_script: scripts/pull_mesh_comm_repos.sh
   clone_root: mine/raw/mesh_comm
   note: "ILAP + field-steal on clones; Bitchat Bridgefy Briar contracts only"
+
+# Steal protocol — orchestrator / blackboard / cascade research forest
+steal_protocol_repos:
+  tier: A
+  kind_hint: orchestrator
+  local_only: true
+  index: docs/ref/STEAL_PROTOCOL_REPOS_INDEX.md
+  manifest: configs/steal_protocol_repos.yaml
+  pull_script: scripts/pull_steal_protocol_repos.sh
+  clone_root: mine/raw/steal_protocol
+  note: "Desk observer + PO/SM steal; AgentSwarm bMAS Flock C3 MoA"
+
+# Agent platform — coding agents / workspaces / MCP / IDE-as-client
+agent_platform_repos:
+  tier: A
+  kind_hint: agentic_contract
+  local_only: true
+  index: docs/ref/AGENT_PLATFORM_REPOS_INDEX.md
+  manifest: configs/agent_platform_repos.yaml
+  pull_script: scripts/pull_agent_platform_repos.sh
+  clone_root: mine/raw/agent_platform
+  note: "OpenHands SWE-agent Aider jj MCP Continue Melty — platform camp contracts"
+
+# Bleeding-edge — memory / replay / quiet / A2A / specialist economies (sibling forest)
+agent_bleeding_edge_repos:
+  tier: A
+  kind_hint: agentic_contract
+  local_only: true
+  index: docs/ref/AGENT_BLEEDING_EDGE_REPOS_INDEX.md
+  manifest: configs/agent_bleeding_edge_repos.yaml
+  pull_script: scripts/pull_agent_bleeding_edge_repos.sh
+  clone_root: mine/raw/agent_bleeding_edge
+  note: "Letta Mem0 exo agent-replay A2A AgentOps — B1–B7 contracts; no SaaS memory throne"
 
 sources:
   # --- Tier A ---
@@ -265,6 +298,22 @@ deep_dive:
 
 # ILAP v1 — between-version research ritual (docs/ref/MAG_ILAP_PROTOCOL.md)
 # Scout rotation + research-pack + field-steal = research agent (no second orchestrator)
+# Run worth gate — defer truncate when long run may be valuable (symmetric to behavioral)
+# CLI: python main.py run-worth status [--run-id X]
+#      python main.py run-worth mark-good RUN_ID --note "DeepSeek refactor was good"
+run_worth:
+  enabled: true
+  max_steps_bad: 100              # agent_churn hint; not auto-kill alone
+  max_tool_calls_hard: 32         # run_trail default bound (start_run)
+  max_tool_calls_defer: 64        # extend cap when verdict valuable/uncertain
+  worth_valuable: 0.55            # score >= → extend
+  worth_worthless: 0.25             # score <= → block at hard limit
+  hung_timeout_s: 300               # kill hung tasks (~5 min no progress)
+  hung_identical_window: 5          # identical tool streak → hung if no artifacts
+  hung_zero_artifact_s: 180         # no artifact delta this long → worthless/hung
+  velocity_min_per_min: 0.15        # progress velocity floor for valuable
+  defer_extensions_max: 2           # max worth-gate extensions per run
+
 ilap:
   enabled: true
   between_version: true          # run full ILAP before version graduation gates

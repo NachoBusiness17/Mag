@@ -528,6 +528,12 @@ def main() -> int:
                 _log(f"{s['name']}: {s.get('note')}")
         ensure(slots)
         write_state(slots)
+        try:
+            from mag.tripartite_boot import run_coordinated_boot
+
+            run_coordinated_boot(actor="mag_launch", body_slots=slots, seat="mag")
+        except Exception as exc:
+            _log(f"tripartite boot: {exc}")
         if once:
             time.sleep(2)
             ensure(slots)
@@ -538,6 +544,7 @@ def main() -> int:
             wanted = [s["name"] for s in slots if s["wanted"]]
             return 0 if all(alive.get(k) for k in wanted) else 1
         try:
+            loop_tick = 0
             while True:
                 if (ROOT / "state" / "mag_power.off").is_file():
                     _log("power off flag set; supervisor exiting (no respawn)")
@@ -549,6 +556,14 @@ def main() -> int:
                 _sync_dynamic_slots(slots)
                 ensure(slots)
                 write_state(slots)
+                if loop_tick % 12 == 0:
+                    try:
+                        from mag.tripartite_boot import refresh_manifest_body
+
+                        refresh_manifest_body(supervisor_slots=slots)
+                    except Exception:
+                        pass
+                loop_tick += 1
         except KeyboardInterrupt:
             _log("supervisor stopping; terminating children")
             for s in slots:

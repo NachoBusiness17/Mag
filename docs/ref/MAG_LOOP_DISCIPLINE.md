@@ -78,6 +78,28 @@ Escalate or stop; do not let context window be the only brake.
 
 ---
 
+## Run worth gate (v1)
+
+**Before** auto-truncating at `max_tool_calls` or killing a stalled sub-agent, Mag evaluates **worth** — symmetric to behavioral errors and tesuji shells.
+
+| Verdict | Meaning | Action |
+|---------|---------|--------|
+| **valuable** | varied tools, artifacts, velocity | extend `max_tool_calls_defer` |
+| **uncertain** | not enough signal yet | defer truncate (do not assume bad) |
+| **worthless** | low score + identical loops | block at hard limit |
+| **hung** | no heartbeat/step delta, zero artifacts | kill early (orchestrator stall) |
+
+```powershell
+python main.py run-worth status
+python main.py run-worth evaluate RUN_ID
+python main.py run-worth mark-good RUN_ID --note "100-step DeepSeek run was good"
+```
+
+Config: `configs/improve.yaml` → `run_worth` (thresholds, hung_timeout_s, defer cap).  
+Logs: `logs/run_worth.jsonl`, operator overrides → `logs/run_worth_overrides.jsonl`.
+
+---
+
 ## Related commands
 
 ```text

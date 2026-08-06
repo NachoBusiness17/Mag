@@ -68,7 +68,7 @@ def test_enqueue_and_drain_sequential():
         assert q2.get("status") == "queued"
 
         # First drain: no task running -> spawns goal one.
-        r1 = orc.drain_once()
+        r1 = orc.drain_once(force=True)
         assert r1.get("action") == "started", f"expected started: {r1}"
         assert r1.get("goal") == "goal one"
         tid1 = r1["task_id"]
@@ -76,12 +76,12 @@ def test_enqueue_and_drain_sequential():
         assert q1b["status"] == "running" and q1b["task_id"] == tid1
 
         # Second drain while task one is still running -> busy, no spawn.
-        r2 = orc.drain_once()
+        r2 = orc.drain_once(force=True)
         assert r2.get("action") == "busy", f"expected busy: {r2}"
 
         # Task one finishes -> next drain spawns goal two.
         _make_terminal(tid1, "done")
-        r3 = orc.drain_once()
+        r3 = orc.drain_once(force=True)
         assert r3.get("action") == "started", f"expected started: {r3}"
         assert r3.get("goal") == "goal two"
         tid2 = r3["task_id"]
@@ -90,7 +90,7 @@ def test_enqueue_and_drain_sequential():
 
         # Task two finishes -> queue empty.
         _make_terminal(tid2, "done")
-        r4 = orc.drain_once()
+        r4 = orc.drain_once(force=True)
         assert r4.get("action") == "empty", f"expected empty: {r4}"
 
         # queue_status reflects the drained state.
@@ -122,10 +122,10 @@ def test_drain_skips_when_running():
     old_qdir, old_tdir, old_spawn = _isolate()
     try:
         orc.enqueue("only goal", tag="q-test")
-        r1 = orc.drain_once()
+        r1 = orc.drain_once(force=True)
         assert r1.get("action") == "started"
         # A second drain while running must not spawn a duplicate.
-        r2 = orc.drain_once()
+        r2 = orc.drain_once(force=True)
         assert r2.get("action") == "busy", f"expected busy: {r2}"
         entries = orc.list_queue()
         running = [e for e in entries if e.get("status") == "running"]

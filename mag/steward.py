@@ -22,10 +22,56 @@ BUILD_GLOB = "docs/ref/BUILD-*.md"
 RUN_DOC = ROOT / "docs" / "ref" / "MAG_NEXT_CODING_RUN.md"
 
 STEWARD_JOBS = frozenset({
+    "steward-daily",
     "steward-scope",
     "steward-patterns",
     "steward-prompts",
 })
+
+
+def run_steward_daily(*, dry: bool = False) -> dict[str, Any]:
+    """File exactly one bounded, local-only daily maintenance leaf."""
+    day = _now()[:10]
+    out_path = STEWARD_ROOT / "daily" / f"{day}.json"
+    if out_path.is_file() and not dry:
+        try:
+            prior = json.loads(out_path.read_text(encoding="utf-8"))
+            return {**prior, "ok": True, "action": "already_filed", "path": str(out_path)}
+        except (OSError, json.JSONDecodeError):
+            pass
+    by_pattern: dict[str, int] = {}
+    total = 0
+    try:
+        from mag.training_events import stats
+
+        summary = stats()
+        by_pattern = dict(summary.get("by_pattern") or {})
+        total = int(summary.get("total") or 0)
+    except Exception:
+        pass
+    payload = {
+        "schema": "steward_daily.v1",
+        "ok": True,
+        "action": "preview" if dry else "filed",
+        "date": day,
+        "job_id": "steward-daily",
+        "provider": "local-deterministic",
+        "remote_calls": 0,
+        "inputs": {"training_events_total": total, "patterns_seen": len(by_pattern)},
+        "maintenance": {
+            "top_patterns": [
+                {"pattern": name, "events": count}
+                for name, count in sorted(by_pattern.items(), key=lambda row: (-row[1], row[0]))[:8]
+            ],
+            "frozen_builds": len(find_frozen_builds()),
+        },
+        "outcomes": [{"kind": "daily_catalog", "leaf": f"memory/steward/daily/{day}.json", "bounded": True}],
+    }
+    if dry:
+        return payload
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return {**payload, "path": str(out_path)}
 
 
 def _now() -> str:
@@ -303,6 +349,8 @@ def run_job(job_id: str, *, dry: bool = False, **kwargs: Any) -> dict[str, Any]:
         return {"ok": False, "error": f"unknown steward job: {job_id}"}
     if job_id == "steward-scope":
         return run_steward_scope(dry=dry, **kwargs)
+    if job_id == "steward-daily":
+        return run_steward_daily(dry=dry)
     if job_id == "steward-patterns":
         return run_steward_patterns(dry=dry)
     return {"ok": False, "error": "not implemented", "job": job_id}
@@ -342,9 +390,10 @@ def fill_steward_queue(*, max_jobs: int = 2) -> list[dict[str, Any]]:
             )
             break
 
-    if not ran_today("steward-patterns"):
+    daily_path = STEWARD_ROOT / "daily" / f"{_now()[:10]}.json"
+    if not daily_path.is_file():
         candidates.append(
-            ("steward-patterns", "[steward] steward-patterns — daily event digest")
+            ("steward-daily", "[steward] steward-daily — bounded local maintenance leaf")
         )
 
     for job_id, goal in candidates[:max_jobs]:

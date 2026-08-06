@@ -6,6 +6,8 @@ Train in republic; import weights via promote. T0/T1 never export.
 from __future__ import annotations
 
 import json
+import hashlib
+import copy
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +34,12 @@ VALID_PATTERNS = frozenset({
     "ilap_cycle",
     "research_dive",
     "steal_compose",
+    "three_body_episode",
+    "tesuji_shell",
+    "run_worth",
+    "arena_match",
+    "desk_episode",
+    "desk_teaching",
 })
 
 
@@ -99,13 +107,23 @@ def read_events(*, limit: int = 500, pattern: str | None = None) -> list[dict[st
 
 def _redact_t2(row: dict[str, Any]) -> dict[str, Any]:
     """Strip fields that should not leave operator disk on export."""
-    out = dict(row)
-    if not out.get("exportable", True):
+    out = copy.deepcopy(row)
+    if not out.get("exportable", True) or str(out.get("tier_max") or "T2").upper() in {"T0", "T1"}:
         return {}
     goal = str((out.get("input") or {}).get("goal") or "")
     if len(goal) > 400:
         (out.setdefault("input", {}))["goal"] = goal[:400] + "…"
     return out
+
+
+def _green(row: dict[str, Any]) -> bool:
+    outcome = row.get("outcome") or {}
+    return (
+        outcome.get("success") is True
+        or outcome.get("filed") is True
+        or str(outcome.get("status") or "").lower() == "done"
+        or str(outcome.get("verdict") or "").lower() in {"pass", "passed", "green"}
+    )
 
 
 def export_jsonl(
@@ -116,13 +134,29 @@ def export_jsonl(
     limit: int = 5000,
 ) -> dict[str, Any]:
     rows = read_events(limit=limit, pattern=pattern)
-    exported = [_redact_t2(r) for r in rows if r.get("exportable", True)]
+    join_keys = {"run_id", "task_id", "queue_id", "build_slug", "commitment", "session_id"}
+    eligible = [r for r in rows if _green(r) and any((r.get("join") or {}).get(k) for k in join_keys)]
+    exported = [_redact_t2(r) for r in eligible]
     exported = [r for r in exported if r]
     out_path = dest or (ROOT / "memory" / "training" / "export" / f"orch_train_{_now()[:10]}.jsonl")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         for row in exported:
             f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    manifest = {
+        "schema": "training_export_manifest.v1",
+        "source_schema": SCHEMA,
+        "tier_max": tier_max,
+        "n_read": len(rows),
+        "n_green_joined": len(eligible),
+        "n_exported": len(exported),
+        "excluded": len(rows) - len(exported),
+        "sha256": digest,
+        "path": str(out_path),
+    }
+    manifest_path = out_path.with_suffix(".manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return {
         "ok": True,
         "schema": SCHEMA,
@@ -130,6 +164,8 @@ def export_jsonl(
         "n_read": len(rows),
         "n_exported": len(exported),
         "path": str(out_path),
+        "manifest_path": str(manifest_path),
+        "sha256": digest,
     }
 
 

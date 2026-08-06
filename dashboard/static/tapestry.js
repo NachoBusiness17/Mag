@@ -19,7 +19,7 @@ const KIND_HEX = {
   turn: PALETTE.accent2,
   subsession: 0x7cffc8,
   run: 0xff9f43,
-  lattice: 0x3d5a80,
+  lattice: 0x33d6ff,
   theme: PALETTE.accent,
   doc: PALETTE.residual,
   hierarchy: PALETTE.accent2,
@@ -27,7 +27,7 @@ const KIND_HEX = {
   affinity: PALETTE.accent,
   thread: 0x7cffc8,
   run_edge: 0xff9f43,
-  lattice_chain: 0x3d5a80,
+  lattice_chain: 0x33d6ff,
   spatial: 0x6ea8fe,
   residual: PALETTE.warn,
   unknown: PALETTE.muted,
@@ -39,7 +39,7 @@ const KIND_LABEL = {
   turn: "Summary bullet",
   subsession: "Operator turn",
   run: "Orchestrator run",
-  lattice: "Verkle leaf",
+  lattice: "Verkle knot artifact",
   theme: "Theme cluster",
   doc: "Project doc",
 };
@@ -77,7 +77,7 @@ function baseRadiusForKind(kind) {
     case "run":
       return 0.14;
     case "lattice":
-      return 0.11;
+      return 0.16;
     case "doc":
       return 0.2;
     default:
@@ -244,6 +244,7 @@ export class TapestryView {
     this._spin = 0.012; // slow; pauses on interaction
     this._drag = false;
     this.showLattice = true;
+    this.latticeFocus = false;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -417,8 +418,9 @@ export class TapestryView {
 
     const box = new THREE.Box3();
     if (this.nodeMeshes && this.nodeMeshes.size) {
-      for (const mesh of this.nodeMeshes.values()) {
-        box.expandByObject(mesh);
+      const wanted = new Set(nodes.map((n) => n.id));
+      for (const [id, mesh] of this.nodeMeshes) {
+        if (wanted.has(id)) box.expandByObject(mesh);
       }
     } else {
       for (const n of nodes) {
@@ -537,7 +539,7 @@ export class TapestryView {
         color: col,
         transparent: true,
         opacity: isLattice
-          ? Math.min(0.35, 0.08 + 0.25 * Math.min(1, w))
+          ? Math.min(0.72, 0.38 + 0.34 * Math.min(1, w))
           : Math.min(0.75, 0.12 + 0.55 * Math.min(1, w)),
       });
       const line = new THREE.Line(geo, mat);
@@ -558,7 +560,7 @@ export class TapestryView {
           : n.kind === "session"
             ? colorForS(n.S ?? 0)
             : new THREE.Color(KIND_HEX[n.kind] || KIND_HEX.unknown);
-      const emissiveBoost = Number(visual.emissive) || (isGhost ? 0.15 : 0.4);
+      const emissiveBoost = Number(visual.emissive) || (isGhost ? 0.62 : 0.4);
       const geo = geometryForVisual(visual, baseR);
       const mesh = new THREE.Mesh(
         geo,
@@ -566,11 +568,11 @@ export class TapestryView {
           color: col,
           emissive: col,
           emissiveIntensity: emissiveBoost,
-          metalness: isGhost ? 0.35 : 0.15,
-          roughness: isGhost ? 0.55 : 0.4,
+          metalness: isGhost ? 0.18 : 0.15,
+          roughness: isGhost ? 0.32 : 0.4,
           transparent: isGhost,
-          opacity: isGhost ? 0.32 + 0.12 * (1 - (temp ?? 0.3)) : 1,
-          wireframe: isGhost && visual.shape === "torus_knot",
+          opacity: isGhost ? 0.7 + 0.12 * (1 - (temp ?? 0.3)) : 1,
+          wireframe: false,
         })
       );
       mesh.position.set(n.x || 0, n.y || 0, n.z || 0);
@@ -633,7 +635,7 @@ export class TapestryView {
         <li><span class="dot theme"></span> Theme (dodecahedron)</li>
         <li><span class="dot turn"></span> Turn / ask</li>
         <li><span class="dot doc"></span> Doc / tip</li>
-        <li class="muted">Verkle lattice = torus-knot chain (toggle) · color = temperature</li>
+        <li class="muted">Verkle knot = portable agent context backed by a filed source · the lattice shows relationships between knots</li>
       </ul>
       <p class="muted">Drag to orbit · scroll to zoom · spin pauses while you move.</p>
     `;
@@ -713,7 +715,26 @@ export class TapestryView {
 
   setLatticeVisible(on) {
     this.showLattice = !!on;
+    if (!this.showLattice) this.latticeFocus = false;
     if (this.pack) this.setPack(this.pack);
+  }
+
+  setLatticeFocus(on) {
+    this.latticeFocus = !!on && this.showLattice;
+    for (const [, mesh] of this.nodeMeshes) {
+      const lattice = mesh.userData?.kind === "lattice";
+      mesh.material.transparent = true;
+      mesh.material.opacity = this.latticeFocus ? (lattice ? 1 : 0.07) : lattice ? 0.78 : 1;
+      mesh.material.emissiveIntensity = this.latticeFocus ? (lattice ? 1.15 : 0.05) : lattice ? 0.62 : 0.4;
+    }
+    for (const line of this.edgeLines) {
+      line.material.opacity = this.latticeFocus
+        ? line.userData?.lattice ? 0.9 : 0.035
+        : line.userData?.lattice ? 0.58 : 0.5;
+    }
+    const nodes = this.pack?.connections?.nodes || [];
+    const framed = this.latticeFocus ? nodes.filter((n) => n.kind === "lattice") : nodes;
+    if (framed.length) this.fitCamera(framed);
   }
 
   focusSession(sessionId) {
@@ -753,8 +774,8 @@ export class TapestryView {
         (sid && msid === sid);
       const isLattice = m.kind === "lattice";
       if (isLattice && !this.showLattice) continue;
-      mesh.material.emissiveIntensity = sameTree ? (isLattice ? 0.35 : 0.95) : isLattice ? 0.08 : 0.12;
-      mesh.material.opacity = sameTree ? (isLattice ? 0.55 : 1) : isLattice ? 0.12 : 0.22;
+      mesh.material.emissiveIntensity = sameTree ? (isLattice ? 0.95 : 0.95) : isLattice ? 0.28 : 0.12;
+      mesh.material.opacity = sameTree ? (isLattice ? 0.95 : 1) : isLattice ? 0.38 : 0.22;
       mesh.material.transparent = true;
     }
   }

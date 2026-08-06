@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mag Cast</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0a0e14; color: #e6edf3; }
+    body { margin: 0; padding: 1.25rem; line-height: 1.45; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.35rem; }
+    .muted { color: #8b949e; font-size: 0.9rem; }
+    .headline { font-size: 1.1rem; margin: 1rem 0; }
+    .events { margin-top: 1rem; }
+    .event { padding: 0.35rem 0; border-top: 1px solid #21262d; }
+    .pulse { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #3fb950; margin-right: 0.35rem; }
+    .pulse.thinking { background: #d29922; animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+  </style>
+</head>
+<body>
+  <h1>Mag Cast</h1>
+  <div class="muted" id="status">Loading…</div>
+  <div class="headline" id="headline">—</div>
+  <div class="muted" id="desk">—</div>
+  <div class="events" id="events"></div>
+  <script>
+    async function tick() {
+      try {
+        const r = await fetch("/api/v1/display", { cache: "no-store" });
+        const j = await r.json();
+        const lp = j.local_pulse || {};
+        const dot = lp.thinking ? "thinking" : "idle";
+        document.getElementById("status").innerHTML =
+          `<span class="pulse ${dot}"></span>${j.status || "—"} · ${j.ts || ""}`;
+        document.getElementById("headline").textContent = j.headline || "—";
+        const d = j.desk || {};
+        const goal = d.goal ? `Goal: ${d.goal}` : "";
+        const tail = (d.dialogue_tail || []).slice(-2).join(" · ");
+        document.getElementById("desk").textContent = [goal, tail].filter(Boolean).join(" · ") || "—";
+        document.getElementById("events").innerHTML = (j.events || [])
+          .map((e) => `<div class="event">${e}</div>`)
+          .join("");
+      } catch (e) {
+        document.getElementById("status").textContent = String(e.message || e);
+      }
+    }
+    tick();
+    setInterval(tick, 15000);
+  </script>
+</body>
+</html>

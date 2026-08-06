@@ -36,6 +36,8 @@ def _trail(goal: str, phase: str, route: dict[str, Any]) -> None:
         "seat": route.get("seat"),
         "provider": route.get("provider"),
         "depth": route.get("depth"),
+        "source": "l_conductor",
+        "trail": "conductor_trail.jsonl",
     }
     with CONDUCTOR_TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -94,6 +96,43 @@ def _case_law_hints(goal: str, *, limit: int = 2) -> list[str]:
     return [h for _, h in hints[:limit]]
 
 
+def phase_policy(
+    goal: str,
+    *,
+    phase: str | None = None,
+    base: dict[str, Any] | None = None,
+    force_seat: str | None = None,
+) -> dict[str, Any]:
+    """Pure, provider-free conductor policy used by runtime and evals."""
+    phase = phase or detect_phase(goal)
+    base = dict(base or {})
+    overlay: dict[str, Any] = {"phase": phase}
+    if phase == "plan" and not force_seat:
+        overlay["conductor_note"] = "Scarce architect seat — spec only, no implementation"
+        if base.get("seat") not in ("grok_tui", "human", "defer"):
+            overlay["suggested_seat"] = "grok_tui"
+    elif phase == "build":
+        from mag.factory_gate import check_frozen_build
+
+        gate = check_frozen_build(goal)
+        overlay["factory_gate"] = gate
+        if gate.get("ok"):
+            overlay["conductor_note"] = "Factory floor — frozen spec verified; one branch"
+            overlay["suggested_seat"] = "agent"
+        else:
+            overlay["conductor_note"] = gate.get("reason")
+            overlay["suggested_seat"] = "defer"
+    elif phase == "audit":
+        overlay["conductor_note"] = "Inspector — framework gates only; no feature creep"
+        overlay["suggested_seat"] = "defer"
+    elif phase == "defer":
+        overlay["conductor_note"] = "Human gate or pause — do not autorun"
+        overlay["suggested_seat"] = "defer"
+    else:
+        overlay["conductor_note"] = "Execute through the cheapest capable routed seat"
+    return overlay
+
+
 def conduct(
     goal: str,
     *,
@@ -101,6 +140,7 @@ def conduct(
     force_seat: str | None = None,
     force_provider: str | None = None,
     dry: bool = False,
+    mesh: bool = True,
 ) -> dict[str, Any]:
     from mag.router import route
 
@@ -114,25 +154,14 @@ def conduct(
     hints = _case_law_hints(goal)
 
     # Phase overlays — research heuristics, not learned weights yet
-    overlay: dict[str, Any] = {"phase": phase, "case_law_hints": hints}
+    overlay = phase_policy(goal, phase=phase, base=base, force_seat=force_seat)
+    overlay["case_law_hints"] = hints
     try:
         from mag.skill_seat import pick_skill_for_goal
 
         overlay["skill_seat"] = pick_skill_for_goal(goal)
     except Exception:
         overlay["skill_seat"] = None
-    if phase == "plan" and not force_seat:
-        overlay["conductor_note"] = "Scarce architect seat — spec only, no implementation"
-        if base.get("seat") not in ("grok_tui", "human", "defer"):
-            overlay["suggested_seat"] = "grok_tui"
-    elif phase == "build":
-        overlay["conductor_note"] = "Factory floor — frozen spec required; one branch"
-        overlay["suggested_seat"] = "agent"
-    elif phase == "audit":
-        overlay["conductor_note"] = "Inspector — framework gates only; no feature creep"
-        overlay["suggested_seat"] = "defer"
-    elif phase == "defer":
-        overlay["conductor_note"] = "Human gate or pause — do not autorun"
 
     out = {
         "schema": "conductor.v1",
@@ -144,6 +173,8 @@ def conduct(
         "dry": dry,
     }
     try:
+        if not mesh:
+            raise RuntimeError("mesh lookup skipped")
         from mag.switchboard import route_intent
 
         mesh_route = route_intent(goal, dry=dry)

@@ -185,11 +185,35 @@ def ask(
     session_id: str | None = None,
     use_llm: bool = True,
     speak: bool = True,
+    peer_context: str | None = None,
+    desk_canvas: str | None = None,
 ) -> dict[str, Any]:
     q = (question or "").strip()
     if not q:
         return {"ok": False, "error": "empty question"}
     ctx, sources = gather_context(session_id, question=q)
+    peer = (peer_context or "").strip()
+    canvas = (desk_canvas or "").strip()
+    if canvas:
+        ctx = f"## Shared desk canvas (operator + agents)\n{canvas[:6000]}\n\n{ctx}"
+        sources.insert(
+            0,
+            {
+                "id": "S0",
+                "path": "memory/working/agent_desk.md",
+                "label": "shared desk canvas",
+            },
+        )
+    if peer:
+        ctx = f"## Peer agent lane (read-only — other seat on same desk)\n{peer[:8000]}\n\n{ctx}"
+        sources.insert(
+            0,
+            {
+                "id": "Sx",
+                "path": "(live peer lane)",
+                "label": "remote agent transcript excerpt",
+            },
+        )
     if not ctx.strip():
         return {
             "ok": False,
@@ -225,9 +249,10 @@ MEMORY:
 USER:
 {q}
 
-Reply as Mag: short plain sentences. Cite [S#] when using MEMORY. If truly missing: NOT_IN_STORE.
-Do not output a research-brief template. Do not restate the system rules.
-"""
+Reply in plain markdown with sections when helpful: ### TL;DR, ### What I read, ### What I think, ### Next, ### Open.
+Be introspective — say what surprised you and what you don't know. Short prose, not walls.
+Reply as Mag: cite [S#] when using MEMORY. If truly missing: NOT_IN_STORE.
+Do not output a research-brief template. Do not restate the system rules."""
     answer = ""
     used_llm = False
     err = None

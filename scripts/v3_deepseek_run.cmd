@@ -40,22 +40,20 @@ echo [3/7] v3-status...
 
 REM --- 2. Boot stack ---
 echo [4/7] power start...
-"%PY%" main.py power start --json > "%TEMP%\mag_ds_start.json" 2>&1
-findstr /C:"\"ok\": true" "%TEMP%\mag_ds_start.json" >nul || set "FAIL=1"
+"%PY%" main.py power start --json > "%TEMP%\mag_ds_start.json" 2>&1 || set "FAIL=1"
 
 REM --- 3. Register Cursor peer ---
 echo [5/7] seat register...
 "%PY%" main.py seats register --seat cursor --goal "v3 deepseek run" --json > "%TEMP%\mag_ds_seat.json" 2>&1
 
-REM --- 4. Queue + drain one DeepSeek goal ---
+REM --- 4. Run one bounded DeepSeek goal directly. A release proof must not
+REM accidentally drain an older unrelated queue entry.
 set "GOAL=%*"
-if "%GOAL%"=="" set "GOAL=[build] v3 wiring smoke — list queue/todo.md open items and file summary to memory/working.md"
+if "%GOAL%"=="" set "GOAL=[build] execute frozen queue/handoff/BUILD-v3-deepseek-proof.md exactly"
 
-echo [6/7] queue + drain (DeepSeek)...
+echo [6/7] frozen DeepSeek run...
 echo   Goal: %GOAL%
-"%PY%" main.py orchestrator queue add "%GOAL%" --provider deepseek --tag v3-deepseek-run
-"%PY%" main.py orchestrator drain --once --json > "%TEMP%\mag_ds_drain.json" 2>&1
-findstr /C:"task_id" "%TEMP%\mag_ds_drain.json" >nul || set "FAIL=1"
+"%PY%" main.py orchestrator run "%GOAL%" --provider deepseek --tag v3-deepseek-run --timeout 300 --wait > "%TEMP%\mag_ds_run.json" 2>&1 || set "FAIL=1"
 
 echo [7/7] improve-loop + spider...
 "%PY%" main.py improve-loop cycle --json > "%TEMP%\mag_ds_il.json" 2>&1

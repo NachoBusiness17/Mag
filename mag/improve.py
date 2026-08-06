@@ -467,6 +467,7 @@ def _mag_internal_candidates(day: str) -> list[dict[str, Any]]:
     # Behavioral-error awareness: mine behavioral leaves + decisions log +
     # seat crash log so the overseeing agent learns from recurring seat errors.
     rows.extend(_behavioral_candidates(day))
+    rows.extend(_tesuji_shell_candidates(day))
     return rows
 
 
@@ -657,6 +658,81 @@ def _behavioral_candidates(day: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _tesuji_shell_candidates(day: str) -> list[dict[str, Any]]:
+    """Mine tesuji-shell leaves + live log — emergent wins compete with error themes."""
+    rows: list[dict[str, Any]] = []
+
+    daily_dir = ROOT / "memory" / "improve" / "daily"
+    if daily_dir.is_dir():
+        for leaf in sorted(daily_dir.glob("*-tesuji-shells.md")):
+            try:
+                text = leaf.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            wins: list[str] = []
+            for m in re.finditer(r"^#{2,3}\s+(W\d+)\s*[—\-–]\s*(.+)$", text, re.M):
+                wins.append(f"{m.group(1)}: {m.group(2).strip()}")
+            if not wins or (len(wins) == 1 and wins[0].startswith("W0:")):
+                continue
+            claim = f"Tesuji shells leaf {leaf.stem}: {len(wins)} emergent wins"
+            detail = "; ".join(wins[:6])
+            rows.append(
+                {
+                    "schema": SCHEMA,
+                    "id": _candidate_id(claim, str(leaf)),
+                    "date": day,
+                    "kind": "tesuji",
+                    "claim": claim,
+                    "detail": detail[:600],
+                    "source": "mag_internal",
+                    "source_urls": [str(leaf)],
+                    "local_feasible": "true",
+                    "status": "new",
+                    "created": _utc_now().isoformat(),
+                }
+            )
+
+    shells_path = ROOT / "logs" / "tesuji_shells.jsonl"
+    if shells_path.is_file():
+        try:
+            samples: list[str] = []
+            maps: dict[str, int] = {}
+            for line in shells_path.read_text(encoding="utf-8", errors="replace").splitlines()[-40:]:
+                if not line.strip():
+                    continue
+                try:
+                    sh = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                mt = str(sh.get("maps_to") or "")
+                if mt:
+                    maps[mt] = maps.get(mt, 0) + 1
+                if len(samples) < 4:
+                    samples.append(str(sh.get("what") or "")[:80])
+            if samples:
+                claim = f"Tesuji shells log: {len(samples)}+ recent emergent wins"
+                map_s = "; ".join(f"{k}×{v}" for k, v in sorted(maps.items(), key=lambda x: -x[1])[:4])
+                rows.append(
+                    {
+                        "schema": SCHEMA,
+                        "id": _candidate_id(claim, str(shells_path)),
+                        "date": day,
+                        "kind": "tesuji",
+                        "claim": claim,
+                        "detail": (" · ".join(samples) + (f" · maps: {map_s}" if map_s else ""))[:600],
+                        "source": "mag_internal",
+                        "source_urls": [str(shells_path)],
+                        "local_feasible": "true",
+                        "status": "new",
+                        "created": _utc_now().isoformat(),
+                    }
+                )
+        except Exception:
+            pass
+
+    return rows
+
+
 def scout(*, dry: bool = False) -> dict[str, Any]:
     cfg = load_config()
     if not cfg.get("enabled", True):
@@ -664,6 +740,7 @@ def scout(*, dry: bool = False) -> dict[str, Any]:
     paths = ensure_dirs(cfg)
     day = _day_str()
     behavioral_leaf = None
+    tesuji_leaf = None
     if not dry:
         try:
             from mag.behavioral_synth import synthesize_behavioral_leaf
@@ -671,6 +748,12 @@ def scout(*, dry: bool = False) -> dict[str, Any]:
             behavioral_leaf = synthesize_behavioral_leaf(day)
         except Exception:
             behavioral_leaf = None
+        try:
+            from mag.tesuji_shell import synthesize_tesuji_shell_leaf
+
+            tesuji_leaf = synthesize_tesuji_shell_leaf(day)
+        except Exception:
+            tesuji_leaf = None
     keys = _weekday_keys(cfg)
     budgets = cfg.get("budgets") or {}
     max_cand = int(budgets.get("candidates_per_day") or 25)

@@ -93,6 +93,15 @@ Outputs:
 | A10 | **Subagent isolation** | OpenAI parallel sandboxes | orchestrator spawn + container — **not host roam** | done |
 | A11 | **Human-in-loop on irreversible** | Agency shape | L3 gate + `operator_active` pause | done (#10) |
 | A12 | **Eval / promote gate** | Mag improve | `promote --apply` — never auto lanes | done |
+| P1 | **Headless JSON events** | OpenHands CLI/Server | autorun card event stream from `agent_cli` trail | open |
+| P2 | **Test-gated report-back** | Aider + SWE-agent | `post_run_eval` after `heavy_code` | partial |
+| P3 | **Workspace per seat** | jj workspace / git worktree | spawn bind + prune on fail\|done | open |
+| B3 | **Trail replay / agent blame** | OH traj-viz + agent-replay | residual JSONL scrubber over autorun trail | open |
+| B5 | **Quiet agent batch/PR** | Mag L3 + Sweep patterns | batch questions + promote (not stream) | partial |
+| B6 | **Hierarchical memory contracts** | Letta + Mem0 | FKB + residual layers — reject SaaS memory throne | open |
+
+**GitHub forest:** `docs/ref/AGENT_PLATFORM_REPOS_INDEX.md` · pull `scripts\pull_agent_platform_repos.cmd`  
+**Bleeding-edge forest:** `docs/ref/AGENT_BLEEDING_EDGE_REPOS_INDEX.md` · pull `scripts\pull_agent_bleeding_edge_repos.cmd`
 
 ### Explicit non-steals
 

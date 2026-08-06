@@ -105,4 +105,5 @@ def test_rest_route_smoke():
     code, body = h_route({}, {"goal": "doctor health", "launch": False})
     assert code == 200
     assert body.get("ok") is True
-    assert body.get("schema") == "route.v2"
+    assert body.get("schema") == "mag_intent.v1"
+    assert (body.get("decision") or {}).get("route")

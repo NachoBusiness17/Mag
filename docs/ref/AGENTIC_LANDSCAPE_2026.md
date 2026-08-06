@@ -231,8 +231,17 @@ Already in `configs/improve.yaml`:
 - `agent_memory` tier A URLs (HF memory thread, OpenClaw docs, Anthropic harness essay)
 - `agent_harness` tier B (OpenHarness, ADK blog, scaling agents paper)
 - Wednesday rotation: arxiv + anthropic + openai
+- **Friday:** `agent_platform_repos` + `agent_bleeding_edge_repos` — platform camp + bleeding-edge (memory/replay/A2A)
 
-**v2 action:** add improve candidate kind `agentic_contract` when scout finds harness pattern — map via this doc.
+**GitHub steal map (platform camp):** `docs/ref/AGENT_PLATFORM_REPOS_INDEX.md`  
+**Manifest / pull:** `configs/agent_platform_repos.yaml` · `scripts/pull_agent_platform_repos.cmd`  
+**Bleeding-edge (B1–B7):** `docs/ref/AGENT_BLEEDING_EDGE_REPOS_INDEX.md` · `configs/agent_bleeding_edge_repos.yaml` · `scripts/pull_agent_bleeding_edge_repos.cmd`  
+**Sibling (blackboard):** `docs/ref/STEAL_PROTOCOL_REPOS_INDEX.md`  
+**Sibling (mesh):** `docs/ref/MESH_COMM_REPOS_INDEX.md` (exo pairs here — not Mag DNA)
+
+**Brief pointers (verified):** Letta/Mem0 → FKB+residual (reject SaaS memory throne); quiet agents → L3+promote; WitGen ≠ agent witness (zk IR false friend); pytest/`post_run_eval` before Lean.
+
+**v2 action:** add improve candidate kind `agentic_contract` when scout finds harness pattern — map via this doc + P1–P10 + B1–B7.
 
 ---
 

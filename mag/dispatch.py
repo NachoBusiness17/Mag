@@ -131,13 +131,8 @@ def dispatch(
     if fp in REMOTE_PROVIDERS:
         if not force_seat:
             seat = "remote"
-        # Operator opted into remote; don't leave tier T1 (never_remote) blocking API
-        if tier in ("T0", "T1") and not any(
-            k in (goal or "").lower()
-            for k in ("secret", "password", ".env", "private", "data/raw", "intimate")
-        ):
-            tier = "T2"
-            job = job if job not in ("recall",) else "remote_desk"
+        # Explicit provider selection chooses a worker, not a privacy waiver.
+        # Classified T0/T1 work remains private and is refused by chat_provider.
 
     # Compose: seat purity when a run is open (no mid-run thrash)
     run_gate: dict[str, Any] | None = None

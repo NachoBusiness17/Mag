@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+agents/pytest-*/
 .mypy_cache/
 .ruff_cache/
 *.bak
@@ -18,6 +19,7 @@ __pycache__/
 !.env.example
 
 # runtime state
+.mag_active_env
 state/
 state/**/*
 !state/.gitkeep
@@ -64,6 +66,12 @@ memory/improve/**
 !memory/improve/releases/
 !memory/improve/releases/README.md
 memory/improve/releases/gates.jsonl
+!memory/improve/growth/
+!memory/improve/growth/steer.yaml.example
+memory/improve/growth/steer.yaml
+memory/improve/growth/*.jsonl
+memory/improve/growth/*-growth.md
+memory/improve/growth/*-model-snapshot.json
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -74,6 +82,10 @@ memory/story/**
 memory/runs/**
 !memory/runs/.gitkeep
 !memory/runs/README.md
+memory/factory/**
+memory/steward/**
+memory/training/**
+!memory/training/README.md
 memory/handoff/**
 !memory/handoff/.gitkeep
 !memory/handoff/ACTIVATION.md
@@ -126,6 +138,7 @@ watch/mag.pid
 
 _tmp*
 *.tmp.txt
+scripts/_*.py
 
 # OS
 .DS_Store

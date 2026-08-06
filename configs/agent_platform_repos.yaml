@@ -1,0 +1,215 @@
+# Agent platform research forest — coding agents / workspace / tool bus
+# Schema: agent_platform_repos.v1
+# Clones: mine/raw/agent_platform/ (gitignored) — refresh: scripts/pull_agent_platform_repos.cmd
+# Index: docs/ref/AGENT_PLATFORM_REPOS_INDEX.md
+
+schema: agent_platform_repos.v1
+as_of: "2026-08-05"
+dest_default: mine/raw/agent_platform
+
+tags:
+  - agent_platform
+  - headless_agent
+  - worktree
+  - test_gated
+  - mcp
+  - ide_client
+  - intent_diff
+  - kanban_ops
+  - terminal_agent
+
+law:
+  never_default_seat: true
+  steal_contracts_only: true
+  never_second_orchestrator: true
+  tier_max_research: T2
+
+# Wave 1 — shallow clone by default
+repos:
+  - id: openhands
+    path: OpenHands/OpenHands
+    url: https://github.com/OpenHands/OpenHands.git
+    mag_slot: headless_events_ops_dashboard
+    steal_focus: headless_jsonl, agent_server_rest, automations, canvas_status
+    contracts: [P1, P8]
+
+  - id: swe-agent
+    path: SWE-agent/SWE-agent
+    url: https://github.com/SWE-agent/SWE-agent.git
+    mag_slot: aci_test_gated_loop
+    steal_focus: aci_grammar, issue_patch_test, tool_discipline
+    contracts: [P2, P6]
+
+  - id: aider
+    path: Aider-AI/aider
+    url: https://github.com/Aider-AI/aider.git
+    mag_slot: lint_test_git_turn
+    steal_focus: repomap, lint_test_gate, auto_commit_trail
+    contracts: [P2, P4]
+
+  - id: jj
+    path: jj-vcs/jj
+    url: https://github.com/jj-vcs/jj.git
+    mag_slot: workspace_isolation
+    steal_focus: jj_workspace, change_based_vcs
+    contracts: [P3, P9]
+
+  - id: litellm
+    path: BerriAI/litellm
+    url: https://github.com/BerriAI/litellm.git
+    mag_slot: seat_economics_router_ideas
+    steal_focus: proxy_fallback, budgets, provider_table
+    contracts: [P7]
+
+  - id: mcp-python
+    path: modelcontextprotocol/python-sdk
+    url: https://github.com/modelcontextprotocol/python-sdk.git
+    mag_slot: mcp_bridge_surface
+    steal_focus: tool_schema, server_patterns
+    contracts: [P6]
+
+  - id: continue
+    path: continuedev/continue
+    url: https://github.com/continuedev/continue.git
+    mag_slot: ide_thin_client
+    steal_focus: ide_to_agent_client, context_providers
+    contracts: [P10]
+
+  - id: melty
+    path: meltylabs/melty
+    url: https://github.com/meltylabs/melty.git
+    mag_slot: chat_equals_commit
+    steal_focus: message_to_git_commit, task_state_machine
+    contracts: [P4, P5]
+
+  - id: pearai-sub
+    path: trypear/pearai-submodule
+    url: https://github.com/trypear/pearai-submodule.git
+    mag_slot: continue_fork_surface
+    steal_focus: ai_editor_surface, continue_fork_contracts
+    contracts: [P10]
+
+  # Wave 1b — worktree ops / terminal agents / kanban control planes (2026 trench)
+  - id: mini-swe-agent
+    path: SWE-agent/mini-swe-agent
+    url: https://github.com/SWE-agent/mini-swe-agent.git
+    mag_slot: minimal_bash_agent_loop
+    steal_focus: bash_only_loop, litellm_model, docker_env, supersedes_swe_agent
+    contracts: [P2, P6]
+
+  - id: opencode
+    path: anomalyco/opencode
+    url: https://github.com/anomalyco/opencode.git
+    mag_slot: terminal_plan_build_seats
+    steal_focus: plan_vs_build_seats, subagents, headless_ci, agents_md
+    contracts: [P1, P5, P10]
+
+  - id: agent-worktree
+    path: nekocode/agent-worktree
+    url: https://github.com/nekocode/agent-worktree.git
+    mag_slot: worktree_run_lifecycle
+    steal_focus: wt_run_headless, on_success_merge, prune_on_fail, env_inject
+    contracts: [P3]
+
+  - id: worktree-pilot
+    path: WorktreePilot/worktree-pilot
+    url: https://github.com/WorktreePilot/worktree-pilot.git
+    mag_slot: worktree_ports_cleanup
+    steal_focus: task_worktree_ports, logs_metadata, safe_cleanup
+    contracts: [P3, P8]
+
+  - id: agetor
+    path: alamops/agetor
+    url: https://github.com/alamops/agetor.git
+    mag_slot: kanban_worktree_control_plane
+    steal_focus: card_per_agent, worktree_isolation, mcp_approvals, harness_aliases
+    contracts: [P3, P5, P8]
+
+  - id: cline
+    path: cline/cline
+    url: https://github.com/cline/cline.git
+    mag_slot: plan_act_ide_agent
+    steal_focus: plan_and_act, mcp_tools, ide_extension_client
+    contracts: [P5, P10]
+
+  - id: cline-kanban
+    path: cline/kanban
+    url: https://github.com/cline/kanban.git
+    mag_slot: parallel_agent_ops_ui
+    steal_focus: card_worktree, diff_review, auto_commit_chains, agent_hooks
+    contracts: [P3, P8]
+
+  - id: openharness
+    path: mifunedev/openharness
+    url: https://github.com/mifunedev/openharness.git
+    mag_slot: sandbox_worktree_factory
+    steal_focus: docker_sandbox, worktrees_skill, cron_unattended, multi_agent_cli
+    contracts: [P1, P3]
+
+  - id: runmaestro
+    path: RunMaestro/Maestro
+    url: https://github.com/RunMaestro/Maestro.git
+    mag_slot: fleet_ops_dashboard
+    steal_focus: multi_agent_fleet, git_worktrees, playbooks, mcp_passthrough
+    contracts: [P3, P8]
+
+  # Wave 1c — SDK harness references (steal contracts; never second orchestrator)
+  - id: google-adk
+    path: google/adk-python
+    url: https://github.com/google/adk-python.git
+    mag_slot: typed_session_status_enum
+    steal_focus: session_state_machine, workflow_runtime, task_api_handoffs, a2a
+    contracts: [P1, P5]
+    note: Landscape A1/ADK — status enum + typed outputs only
+
+  - id: openai-agents
+    path: openai/openai-agents-python
+    url: https://github.com/openai/openai-agents-python.git
+    mag_slot: sessions_guardrails_handoffs
+    steal_focus: sessions, guardrails, handoffs, tracing
+    contracts: [P1, P5, P6]
+    note: Landscape A1/A3/A4 — contracts into Mag router, not SDK as DNA
+
+# Wave 2 — document only; pull with MAG_AGENT_PLATFORM_WAVE2=1
+wave2_repos:
+  - id: void
+    path: voideditor/void
+    url: https://github.com/voideditor/void.git
+    note: archived_vscode_fork_huge
+    contracts: [P5, P10]
+
+  - id: aide
+    path: codestoryai/aide
+    url: https://github.com/codestoryai/aide.git
+    note: archived_vscode_fork
+    contracts: [P5]
+
+  - id: sidecar
+    path: codestoryai/sidecar
+    url: https://github.com/codestoryai/sidecar.git
+    note: aide_companion_harness
+    contracts: [P2, P6]
+
+  - id: sapling
+    path: facebook/sapling
+    url: https://github.com/facebook/sapling.git
+    note: stacked_diff_research_large
+    contracts: [P9]
+
+  - id: opentree
+    path: axelgar/opentree
+    url: https://github.com/axelgar/opentree.git
+    note: tmux_worktree_dashboard
+    contracts: [P3, P8]
+
+  - id: emd-maestro
+    path: emdgroup/maestro
+    url: https://github.com/emdgroup/maestro.git
+    note: kanban_acp_tauri_overlap_runmaestro
+    contracts: [P3, P8]
+
+  - id: kankanban
+    path: Knwar/kankanban
+    url: https://github.com/Knwar/kankanban.git
+    note: claude_kanban_mcp_worktrees
+    contracts: [P3, P8]

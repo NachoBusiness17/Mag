@@ -22,7 +22,7 @@ if [[ -z "${DEEPSEEK_API_KEY:-}" ]]; then
 fi
 echo "[OK] DeepSeek key present"
 
-GOAL="${*:-[build] v3 wiring smoke — list queue/todo.md open items and file summary to memory/working.md}"
+GOAL="${*:-[build] execute frozen queue/handoff/BUILD-v3-deepseek-proof.md exactly}"
 
 echo "[1/7] doctor..."
 "$PY" main.py doctor >/dev/null
@@ -39,10 +39,9 @@ echo "[4/7] power start..."
 echo "[5/7] seat register..."
 "$PY" main.py seats register --seat cursor --goal "v3 deepseek run" --json >/dev/null
 
-echo "[6/7] queue + drain..."
+echo "[6/7] frozen DeepSeek run..."
 echo "  Goal: $GOAL"
-"$PY" main.py orchestrator queue add "$GOAL" --provider deepseek --tag v3-deepseek-run
-"$PY" main.py orchestrator drain --once --json | grep -q task_id
+"$PY" main.py orchestrator run "$GOAL" --provider deepseek --tag v3-deepseek-run --timeout 300 --wait | grep -q '"status": "done"'
 
 echo "[7/7] improve-loop + spider..."
 "$PY" main.py improve-loop cycle --json | grep -q improve_loop

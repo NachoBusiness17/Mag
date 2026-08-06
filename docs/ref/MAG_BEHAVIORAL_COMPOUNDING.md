@@ -74,6 +74,7 @@ Every loop emits `mag_training_event.v1`:
 | `spider_signal` | stall/orphan/autorun burst |
 | `promote_gate` | human approved habit |
 | `release_milestone` | version graduation gate recorded |
+| `tesuji_shell` | emergent win / brilliant move filed by operator or seat |
 
 **v4 add:** `run_proposal` — conductor outputs suggested next RUN row + confidence + evidence links.
 
@@ -228,6 +229,7 @@ v5: learn which lessons become law
 | RUN B factory-audit-json | first `factory_cycle` training chain |
 | `deprecation_registry.yaml` + resonance hook | resurrection candidates |
 | Conductor `next_run` field (research) | surface steps to agents |
+| `growth-cycle run` (`mag/growth_cycle.py`) | explicit three-body loop: probe → behavioral synth → scout/candidates → improve cycle → `three_body_episode` + human report |
 | Grove factory-shift node kind | human talk layer |
 | Saturday ritual: review resurrection candidates | talk + L3 gate |
 
@@ -246,6 +248,54 @@ v5: learn which lessons become law
 ## 9. One paragraph for your LLM
 
 > Mag learns behaviorally by **filing episodes** (trails, training events, FKB, factory audits), **scoring patterns** (improve scout, resonance, conductor), and **promoting habits** (RUN steps, template clauses, grove poems) through **human L3 gates**. Deprecated ideas stay in registry with resurrection triggers — resonance surfaces them when soil rhymes. v4 auto-**drafts** next steps; v5 auto-**amends** procedure — neither silently rewrites law. Talk happens via Office, pack, grove, and brief — not chat scroll.
+
+---
+
+## 10. Tesuji shells — emergent wins (symmetric path)
+
+**Errors** flow: `logs/behavioral_events.jsonl` → `*-behavioral.md` → scout `kind=risk`.  
+**Wins** flow: `logs/tesuji_shells.jsonl` → `*-tesuji-shells.md` → scout `kind=tesuji`.
+
+Log when something **surprised you** — a move neither operator nor agent planned that worked:
+
+```powershell
+python main.py tesuji-shell log "Peer brief surfaced mesh pattern" ^
+  --surprise "emerged from coordination, not plan" ^
+  --maps-to skill:mesh-comm
+python main.py tesuji-shell synth
+python main.py tesuji-shell status
+```
+
+| Artifact | Role |
+|----------|------|
+| `logs/tesuji_shells.jsonl` | append-only episodes |
+| `memory/improve/daily/{date}-tesuji-shells.md` | daily leaf (W1..Wn) |
+| `memory/training/events.jsonl` | `pattern=tesuji_shell` |
+| context-pack L0 | `[TESUJI SHELLS — emergent wins to repeat]` when behavioral pack inject on |
+
+**maps_to** prefixes: `remedy:ID`, `skill:id`, `tesuji:path` — weekly roll-up clusters repeats (stub in leaf; promote when ≥3×).
+
+Python: `from mag.tesuji_shell import log_tesuji_shell`
+
+---
+
+## 11. Run worth — long runs before bad classification
+
+**Errors** assume failure; **worth gate** assumes *we do not know yet* when a run is long.
+
+| Artifact | Role |
+|----------|------|
+| `mag/run_worth.py` | score + classify + gate_before_truncate |
+| `logs/run_worth.jsonl` | defer/block/hung decisions |
+| `logs/run_worth_overrides.jsonl` | operator `mark-good` (long run was valuable) |
+| `configs/improve.yaml` → `run_worth` | thresholds |
+
+Integration: `run_trail.append_event` (max_tool_calls), `orchestrator` stall kill (hung vs defer).
+
+```powershell
+python main.py run-worth evaluate 20260805T120000Z-my-run-abc123
+python main.py run-worth mark-good RUN_ID --note "early DeepSeek improvement"
+```
 
 ---
 

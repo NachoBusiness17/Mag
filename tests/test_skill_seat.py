@@ -27,7 +27,29 @@ def test_ponytail_gate():
 
     res = run_gate("ponytail")
     assert res.get("skill") == "ponytail"
-    assert "lean" in res or "pass" in res
+    assert "pass" in res
+
+
+def test_skill_gate_emits_training_event(tmp_path, monkeypatch):
+    import mag.training_events as te
+    from mag.skill_seat import run_gate
+
+    events = tmp_path / "memory" / "training" / "events.jsonl"
+    events.parent.mkdir(parents=True)
+    monkeypatch.setattr(te, "EVENTS_PATH", events)
+
+    def fake_audit(**_kw):
+        return {"lean": True, "findings": []}
+
+    import mag.ponytail_audit as pa
+
+    monkeypatch.setattr(pa, "run_audit", fake_audit)
+    run_gate("ponytail")
+    lines = [ln for ln in events.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) == 1
+    row = __import__("json").loads(lines[0])
+    assert row.get("pattern") == "skill_gate"
+    assert "ponytail_pass" in (row.get("pattern_tags") or [])
 
 
 def test_caveman_audit_runs():
@@ -40,5 +62,5 @@ def test_caveman_audit_runs():
 def test_conductor_skill_overlay():
     from mag.conductor import conduct
 
-    res = conduct("[build] implement frozen spec on branch", dry=True)
+    res = conduct("[build] implement frozen spec on branch", dry=True, mesh=False)
     assert res.get("overlay", {}).get("skill_seat") in ("ponytail", "caveman", None)

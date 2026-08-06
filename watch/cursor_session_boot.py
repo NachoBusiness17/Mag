@@ -92,6 +92,13 @@ def main() -> int:
     except Exception:
         pass
 
+    try:
+        from mag.tripartite_boot import run_coordinated_boot
+
+        run_coordinated_boot(actor="cursor", seat="cursor", task_id=rec.get("task_id"))
+    except Exception:
+        pass
+
     _log("boot_ok", task_id=rec.get("task_id"), cwd=cwd)
     return 0
 

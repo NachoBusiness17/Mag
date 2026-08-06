@@ -426,6 +426,26 @@ def build_context_pack(
     except Exception:
         pass
 
+    tesuji_excerpt = ""
+    try:
+        from mag.preferences import inject_behavioral_pack
+        if inject_behavioral_pack():
+            from mag.tesuji_shell import latest_leaf_excerpt
+
+            leaf = latest_leaf_excerpt(max_wins=3)
+            if leaf.get("wins"):
+                lines = ["[TESUJI SHELLS — emergent wins to repeat (file-backed)]"]
+                for w in leaf["wins"]:
+                    lines.append(f"- {w['id']}: {w['title']}")
+                    if w.get("surprise"):
+                        lines.append(f"  surprise: {w['surprise'][:140]}")
+                    if w.get("maps_to") and w["maps_to"] != "unmapped":
+                        lines.append(f"  maps_to: {w['maps_to']}")
+                lines.append(f"source: {leaf.get('path', 'memory/improve/daily/')}")
+                tesuji_excerpt = "\n".join(lines)[:900]
+    except Exception:
+        pass
+
     coordination_excerpt = ""
     if cfg.get("include_coordination", True):
         try:
@@ -434,6 +454,22 @@ def build_context_pack(
             coordination_excerpt = format_activity_excerpt(limit=6, max_chars=900)
         except Exception:
             coordination_excerpt = ""
+        try:
+            from mag.tripartite_boot import format_tripartite_excerpt
+
+            trip = format_tripartite_excerpt(max_chars=700)
+            if trip:
+                coordination_excerpt = (coordination_excerpt + "\n\n" + trip).strip()
+        except Exception:
+            pass
+        try:
+            from mag.peer_handoff import format_latest_brief
+
+            peer = format_latest_brief()
+            if peer and peer not in coordination_excerpt:
+                coordination_excerpt = (coordination_excerpt + "\n\n" + peer).strip()[:1600]
+        except Exception:
+            pass
 
     soft_goal = " ".join(
         [
@@ -452,6 +488,8 @@ def build_context_pack(
                 behavioral_excerpt = (behavioral_excerpt + "\n\n" + tips_block).strip()[:1400]
     except Exception:
         pass
+    if tesuji_excerpt:
+        behavioral_excerpt = (behavioral_excerpt + "\n\n" + tesuji_excerpt).strip()[:1800]
     mirror_voice_excerpt = ""
     clue_chain_excerpt = ""
     if cfg.get("include_mirror_clue", True):
@@ -718,7 +756,9 @@ def format_context_pack_text(
     parts = [policy, bonds, skills, build_block, scope_block, trail, task, heat]
     text = "\n".join("\n".join(x) for x in parts)
     if len(text) > max_chars:
-        parts = [policy, bonds, skills, trail, task]  # drop L4 heat
+        # The frozen BUILD and scope are the worker's actual contract; never
+        # discard them while retaining contextual history.
+        parts = [policy, build_block, scope_block, bonds, skills, trail, task]  # drop L4 heat
         text = "\n".join("\n".join(x) for x in parts)
     if len(text) > max_chars:
         brief = (p.get("brief") or "")[:800]
@@ -732,7 +772,7 @@ def format_context_pack_text(
             "\n".join((p.get("open_loops") or [])[:5] or ["(none)"]),
         ]
         text = "\n".join(
-            "\n".join(x) for x in [policy, bonds, skills, trail, task_small]
+            "\n".join(x) for x in [policy, build_block, scope_block, bonds, skills, trail, task_small]
         )
     if len(text) > max_chars:
         text = text[: max_chars - 20] + "\n…(pack clipped)"

@@ -10,6 +10,13 @@ Runs are one goal + one seat for minutes–hours.
 | `{run_id}/trail.jsonl` | `mag_trail_event.v1` — append-only events + optional `core` |
 | `{run_id}/progress.md` | Artifact handoff (initializer + cores) — warm pre-leaf |
 | `related_runs.jsonl` | Closed-run cards → bonds (lattice edge, not tip) |
+| `build_audit/{slug}.json` | `build_audit.v1` — factory audit verdict (RUN B pilot) |
+
+```text
+python main.py build-audit --slug factory-audit-json --verdict pass
+```
+
+Also mirrored at `memory/factory/build_audit-{slug}.json` for desk session gates.
 
 ```text
 python main.py trail start "goal" --seat local --proactivity narrow

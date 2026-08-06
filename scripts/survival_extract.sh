@@ -15,6 +15,7 @@ git pull origin "$BRANCH" || true
 
 "${ROOT}/scripts/pull_mesh_comm_repos.sh"
 [[ -x "${ROOT}/scripts/pull_gstdcoin_repos.sh" ]] && "${ROOT}/scripts/pull_gstdcoin_repos.sh" || true
+[[ -x "${ROOT}/scripts/pull_steal_protocol_repos.sh" ]] && "${ROOT}/scripts/pull_steal_protocol_repos.sh" || true
 "${ROOT}/scripts/mesh_comm_deep_dive.sh"
 "$PY" "${ROOT}/scripts/_survival_bag.py"
 "$PY" main.py context-pack --mode full || true

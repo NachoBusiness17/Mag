@@ -1,0 +1,9 @@
+# Copy to steer.yaml to steer the growth cycle.
+# CLI: python main.py growth-cycle run | status
+# Autopilot: set auto: true or MAG_GROWTH_CYCLE=1
+
+auto: false          # true → governor_autorun runs growth cycle each fill
+pause: false         # true → skip scout + drain (mining summary only)
+max_improve: 2       # improve candidates queued per cycle
+frontier: true       # false → skip L1 probe (local-only mode)
+notes: ""            # included in daily growth report

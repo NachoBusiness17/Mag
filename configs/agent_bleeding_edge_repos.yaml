@@ -1,0 +1,189 @@
+# Bleeding-edge agent research forest — memory / replay / mesh / markets / quiet / witnesses
+# Schema: agent_bleeding_edge_repos.v1
+# Clones: mine/raw/agent_bleeding_edge/ (gitignored) — refresh: scripts/pull_agent_bleeding_edge_repos.cmd
+# Index: docs/ref/AGENT_BLEEDING_EDGE_REPOS_INDEX.md
+# Sibling to agent_platform (coding IDE/platform camp) — do not merge forests.
+
+schema: agent_bleeding_edge_repos.v1
+as_of: "2026-08-05"
+dest_default: mine/raw/agent_bleeding_edge
+
+tags:
+  - agent_os_mesh
+  - memory_hierarchy
+  - trajectory_replay
+  - agent_observability
+  - specialist_markets
+  - quiet_agent
+  - late_chunking
+  - a2a_protocol
+  - witness_eval
+
+law:
+  never_default_seat: true
+  steal_contracts_only: true
+  never_second_orchestrator: true
+  never_chat_as_dna: true
+  reject_saas_memory_throne: true
+  max_auto_pull_gb: 0
+  tier_max_research: T2
+
+# Wave 1 — shallow clone by default (verified public artifacts only)
+repos:
+  - id: exo
+    path: exo-explore/exo
+    url: https://github.com/exo-explore/exo.git
+    license: Apache-2.0
+    mag_slot: mesh_comm_gstd_research
+    steal_focus: p2p_mdns_cluster, local_frontier_inference_mesh
+    contracts: [B1]
+    note: Agent-OS style local mesh; not Mag DNA — pairs with MESH_COMM / GSTD
+
+  - id: letta
+    path: letta-ai/letta
+    url: https://github.com/letta-ai/letta.git
+    license: Apache-2.0
+    mag_slot: hierarchical_memory_contracts
+    steal_focus: core_vs_archival_memory, self_editing_memory, agent_state
+    contracts: [B6, B7]
+    note: MemGPT lineage (cpacker/MemGPT → letta-ai/letta). Reject SaaS memory throne.
+
+  - id: mem0
+    path: mem0ai/mem0
+    url: https://github.com/mem0ai/mem0.git
+    license: Apache-2.0
+    mag_slot: org_memory_layer_contracts
+    steal_focus: memory_add_search_update, user_agent_scopes
+    contracts: [B6, B7]
+    note: Map to FKB + residual + improve promote — never cloud memory as DNA
+
+  - id: oh-traj-viz
+    path: OpenHands/trajectory-visualizer
+    url: https://github.com/OpenHands/trajectory-visualizer.git
+    license: check_upstream
+    mag_slot: trail_replay_ui
+    steal_focus: trajectory_timeline, action_observation_scrubber
+    contracts: [B3]
+    note: Pairs with OpenHands clone in agent_platform forest
+
+  - id: agent-replay
+    path: clay-good/agent-replay
+    url: https://github.com/clay-good/agent-replay.git
+    license: MIT
+    mag_slot: local_time_travel_debug
+    steal_focus: sqlite_traces, replay_fork, regression_gate
+    contracts: [B3, B5]
+    note: Local-first SQLite — Mag-aligned; small star count, strong contract fit
+
+  - id: agentops
+    path: AgentOps-AI/agentops
+    url: https://github.com/AgentOps-AI/agentops.git
+    license: MIT
+    mag_slot: seat_ops_economics
+    steal_focus: cost_tracking, session_spans, framework_hooks
+    contracts: [B4]
+    note: Observability SDK — steal span/cost grammar; reject their cloud as throne
+
+  - id: phoenix
+    path: arize-ai/phoenix
+    url: https://github.com/arize-ai/phoenix.git
+    license: check_upstream
+    mag_slot: eval_observability_ui
+    steal_focus: trace_ui, eval_datasets, local_otel
+    contracts: [B3, B4]
+    note: Self-hostable observability; complements quiet-agent / PR-not-stream ops
+
+  - id: a2a
+    path: a2aproject/A2A
+    url: https://github.com/a2aproject/A2A.git
+    license: Apache-2.0
+    mag_slot: inter_agent_protocol_research
+    steal_focus: agent_card, task_lifecycle, opaque_interop
+    contracts: [B4]
+    note: Linux Foundation A2A — watch vs Mag pack+trail; never chat-as-DNA
+
+  - id: mcp-agent
+    path: lastmile-ai/mcp-agent
+    url: https://github.com/lastmile-ai/mcp-agent.git
+    license: Apache-2.0
+    mag_slot: mcp_workflow_patterns
+    steal_focus: mcp_workflow_compositions, agent_as_mcp_client
+    contracts: [B4, B1]
+    note: Complements modelcontextprotocol/python-sdk in agent_platform
+
+  - id: late-chunking
+    path: jina-ai/late-chunking
+    url: https://github.com/jina-ai/late-chunking.git
+    license: Apache-2.0
+    mag_slot: retrieval_chunk_contracts
+    steal_focus: late_chunking_eval, chunked_pooling
+    contracts: [B6]
+    note: Paper/code companion — feed FKB/retrieval research, not DNA
+
+  - id: zep
+    path: getzep/zep
+    url: https://github.com/getzep/zep.git
+    license: Apache-2.0
+    mag_slot: long_term_memory_reference
+    steal_focus: session_memory_api, knowledge_graph_examples
+    contracts: [B6]
+    note: Examples/integrations tree; reject hosted Zep as Mag throne
+
+  - id: sweep
+    path: sweepai/sweep
+    url: https://github.com/sweepai/sweep.git
+    license: check_upstream
+    mag_slot: agent_blame_ide_patterns
+    steal_focus: issue_to_pr_loop, jetbrains_agent_surface
+    contracts: [B3, B5]
+    note: Coding assistant — PR-shaped output (quiet paradigm cousin)
+
+# Wave 2 / watch — document only; pull with MAG_BLEEDING_EDGE_WAVE2=1
+wave2_repos:
+  - id: agentlens
+    path: agentlens-hq/agentlens
+    url: https://github.com/agentlens-hq/agentlens.git
+    note: tiny_star_count_mit_diagnose_cli
+    contracts: [B3]
+
+  - id: agentlens-observe
+    path: tranhoangtu-it/agentlens
+    url: https://github.com/tranhoangtu-it/agentlens.git
+    note: self_hosted_obs_name_collision
+    contracts: [B3]
+
+  - id: agent-bazaar-stellar
+    path: Allen-Saji/agent-bazaar
+    url: https://github.com/Allen-Saji/agent-bazaar.git
+    note: zero_stars_x402_demo_watch
+    contracts: [B4]
+
+  - id: agent-bazaar-solana
+    path: Agent-Bazaar/Agent-Bazaar
+    url: https://github.com/Agent-Bazaar/Agent-Bazaar.git
+    note: crypto_commerce_layer_watch
+    contracts: [B4]
+
+  - id: fixie-sdk
+    path: fixie-ai/fixie-sdk
+    url: https://github.com/fixie-ai/fixie-sdk.git
+    note: saas_platform_sdk_not_marketplace
+    contracts: [B4]
+
+  - id: lean4
+    path: leanprover/lean4
+    url: https://github.com/leanprover/lean4.git
+    note: formal_witness_p3_huge
+    contracts: [B2]
+
+  - id: tlaplus
+    path: tlaplus/tlaplus
+    url: https://github.com/tlaplus/tlaplus.git
+    note: spec_model_check_p3
+    contracts: [B2]
+
+  - id: plan9port
+    path: 9fans/plan9port
+    url: https://github.com/9fans/plan9port.git
+    note: 9p_direction_only_no_fuse_now
+    contracts: [B1]

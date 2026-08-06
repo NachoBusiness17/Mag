@@ -220,4 +220,11 @@ def run_boot(*, ensure: bool = False, light: bool = False) -> dict[str, Any]:
         }
         f.write(json.dumps(slim, default=str) + "\n")
 
+    try:
+        from mag.tripartite_boot import run_coordinated_boot
+
+        report["tripartite"] = run_coordinated_boot(actor="boot", seat="mag")
+    except Exception:
+        pass
+
     return report

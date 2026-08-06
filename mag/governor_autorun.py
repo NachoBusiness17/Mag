@@ -258,6 +258,13 @@ def enqueue_routed(goal: str, *, tag: str = "", depth: str | None = None) -> dic
         tag=tag or f"route-{route.get('depth', 'job')}",
     )
     rec["route"] = route
+    if rec.get("ok"):
+        try:
+            from mag.tripartite_boot import weave_route
+
+            weave_route(goal=goal, route=route, tag=tag)
+        except Exception:
+            pass
     return rec
 
 
@@ -277,6 +284,21 @@ def fill_queue(
         "steward": [],
         "skipped": [],
     }
+
+    try:
+        from mag.desk_dialogue import read_trust_status
+
+        trust = read_trust_status()
+        tier = int(trust.get("tier") or 0)
+        if tier < 1 and str(trust.get("slow_to_fast") or "").lower() == "fail":
+            filled["trust_blocked"] = True
+            filled["trust_reason"] = (
+                f"desk trust tier {tier} — slow→fast fail; pass desk baseline before unmanned fill"
+            )
+            filled["trust_probe"] = "python scripts/desk_baseline_probe.py"
+            return filled
+    except Exception:
+        pass
 
     try:
         from mag.autopilot import _top_improve_candidates
@@ -654,6 +676,16 @@ def autorun_once(*, fill: bool = True, dry: bool = False) -> dict[str, Any]:
         result["detail"] = "orchestrator task running"
 
     _trail_autorun_once(result)
+    try:
+        from mag.tripartite_boot import weave_autorun_tick
+
+        weave_autorun_tick(
+            action=str(result.get("action") or "tick"),
+            fill_total=int((result.get("fill") or {}).get("total_queued") or 0),
+            drain_action=str((result.get("drain") or {}).get("action") or ""),
+        )
+    except Exception:
+        pass
     return result
 
 
@@ -661,12 +693,20 @@ def autorun_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
     """Drainer main loop — intelligent fill/plan/execute."""
     fill_every = int(os.environ.get("MAG_AUTORUN_FILL_EVERY", "12") or "12")
     autopilot_every = int(os.environ.get("MAG_AUTOPILOT_EVERY", "0") or "0")
+    growth_every = int(os.environ.get("MAG_GROWTH_CYCLE_EVERY", "0") or "0")
     tick = 0
 
     def _dim(s: str) -> str:
         if sys.stdout.isatty():
             return "\033[2m" + s + "\033[0m"
         return s
+
+    try:
+        from mag.tripartite_boot import maybe_boot_on_autorun_start
+
+        maybe_boot_on_autorun_start()
+    except Exception:
+        pass
 
     while True:
         try:
@@ -704,6 +744,35 @@ def autorun_loop(interval_s: float = 5.0, *, once: bool = False) -> None:
                 )
             except Exception as e:
                 print(_dim(f"  [autopilot] error: {e}"), flush=True)
+
+        if growth_every > 0 and tick % growth_every == 0:
+            try:
+                from mag.growth_cycle import maybe_run_growth_cycle
+
+                gc = maybe_run_growth_cycle()
+                if gc:
+                    print(
+                        _dim(
+                            f"  [growth-cycle] ok={gc.get('ok')} report={str(gc.get('report_path', '?'))[:60]}"
+                        ),
+                        flush=True,
+                    )
+            except Exception as e:
+                print(_dim(f"  [growth-cycle] error: {e}"), flush=True)
+        elif tick == 0:
+            try:
+                from mag.growth_cycle import maybe_run_growth_cycle
+
+                gc = maybe_run_growth_cycle()
+                if gc:
+                    print(
+                        _dim(
+                            f"  [growth-cycle] ok={gc.get('ok')} report={str(gc.get('report_path', '?'))[:60]}"
+                        ),
+                        flush=True,
+                    )
+            except Exception as e:
+                print(_dim(f"  [growth-cycle] error: {e}"), flush=True)
 
         if once:
             return

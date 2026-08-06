@@ -110,36 +110,9 @@ def h_fleet_triad(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, d
     """Always-on triad (engine / scribe / dashboard) from the supervisor state
     file + live pid checks. Lets the board show the persistent agents next to
     the one-shot fleet."""
-    import os
-    from config import ROOT
+    from mag.stack import build_fleet_triad
 
-    state_path = ROOT / "state" / "mag_launch.json"
-    roles = [
-        ("backend", "Backend", "FastAPI tool service - 127.0.0.1:8000"),
-        ("engine", "Engineer", "the Mag seat / planner"),
-        ("scribe", "Scribe", "synthesis_agent.py - running commentary"),
-        ("dashboard", "Dashboard", "this board - 127.0.0.1:8765"),
-        ("mirror", "Mirror desk", "Sovereign Mirror strike - 127.0.0.1:8743"),
-        ("drainer", "Drainer", "optional queue auto-advance"),
-    ]
-    out = []
-    try:
-        st = json.loads(state_path.read_text(encoding="utf-8"))
-        pids = st.get("pids") or {}
-        notes = st.get("notes") or {}
-        health = st.get("health") or {}
-    except Exception:
-        pids, notes, health = {}, {}, {}
-    for key, label, desc in roles:
-        pid = pids.get(key)
-        alive = _pid_alive(pid)
-        out.append({
-            "key": key, "label": label, "desc": desc,
-            "pid": pid, "alive": alive,
-            "health": health.get(key),
-            "note": notes.get(key, ""),
-        })
-    return 200, {"ok": True, "triad": out}
+    return 200, {"ok": True, "triad": build_fleet_triad()}
 
 
 def h_chronicle(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1203,7 +1176,7 @@ def h_coordination_post(_p: dict[str, str], body: dict[str, Any] | None) -> tupl
 
 def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Unified routing decision — classify + seat + provider + honest failure."""
-    from mag.router import route
+    from mag.operating_protocol import build_envelope
 
     data = dict(body or {})
     goal = str(data.get("goal") or data.get("question") or "").strip()
@@ -1212,12 +1185,15 @@ def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]
     depth = str(data.get("depth") or "").strip() or None
     force_seat = str(data.get("force_seat") or "").strip() or None
     force_provider = str(data.get("force_provider") or "").strip() or None
-    res = route(
+    source = str(data.get("source") or data.get("actor") or "dashboard")
+    envelope = build_envelope(
         goal,
+        source=source,
         depth=depth,
         force_seat=force_seat,
         force_provider=force_provider,
     )
+    res = (envelope.get("decision") or {}).get("route") or {}
     launch = data.get("launch", False)
     if isinstance(launch, str):
         launch = launch.lower() not in ("0", "false", "no")
@@ -1233,8 +1209,38 @@ def h_route(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]
             background=bool(data.get("background")),
             session_id=str(data.get("session_id") or "").strip() or None,
         )
-        return (200 if exec_res.get("ok") else 500), {"route": res, "execution": exec_res}
-    return 200, res
+        return (200 if exec_res.get("ok") else 500), {"protocol": envelope, "route": res, "execution": exec_res}
+    return 200, envelope
+
+
+def h_verkle_knot(p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Return an agent-ready knot, or deliberately hand it to the router."""
+    from mag.verkle_artifact import build_agent_knot
+
+    packet = build_agent_knot(str(p.get("id") or ""))
+    if not packet.get("ok"):
+        return 404, packet
+    data = dict(body or {})
+    if str(data.get("action") or "").lower() != "route":
+        return 200, packet
+    from mag.coordination import coordinate
+
+    goal = str(data.get("goal") or (packet.get("routing") or {}).get("suggested_goal") or "").strip()
+    evidence = packet.get("evidence") or {}
+    bounded_goal = (
+        goal
+        + "\n\nVERKLE KNOT EVIDENCE\n"
+        + json.dumps({"identity": packet.get("identity"), "meaning": packet.get("meaning"), "evidence": evidence}, default=str)[:6000]
+    )
+    result = coordinate(
+        bounded_goal,
+        seat=str(data.get("seat") or "verkle-knot"),
+        actor="dashboard-verkle-knot",
+        launch=True,
+        background=data.get("background", True) is not False,
+        session_id=str((packet.get("identity") or {}).get("session_id") or "") or None,
+    )
+    return (200 if result.get("ok") else 500), {"ok": bool(result.get("ok")), "knot": packet, "execution": result}
 
 
 def h_decide(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1276,6 +1282,95 @@ def h_coordinate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, 
     )
     code = 200 if res.get("ok") else 500
     return code, res
+
+
+def h_autorun(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Governor/autorun status for Office card + desk ops strip."""
+    from mag.autorun_status import autorun_dashboard_status
+
+    return 200, autorun_dashboard_status()
+
+
+def h_handoff_inbox(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Peer/cloud/BUILD handoffs + orchestrator queue + coding scrum."""
+    from mag.handoff_inbox import build_inbox
+
+    limit = int(_p.get("limit") or "20")
+    return 200, build_inbox(limit=max(1, min(limit, 50)))
+
+
+def h_coding_session(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Run coding-session sprint to completion or POST {action: run|status}."""
+    from mag.coding_session_loop import load_config, session_status
+    from mag.coding_session_runner import run_until_done
+
+    data = dict(body or {})
+    action = str(data.get("action") or _p.get("action") or "status").strip().lower()
+    if action == "status":
+        cfg = load_config()
+        st = session_status(config=cfg)
+        try:
+            from mag.coding_session_orchestrator import assess_sprint_status
+
+            st["orchestrator"] = assess_sprint_status(config=cfg)
+        except Exception:
+            pass
+        return 200, st
+    if action == "run":
+        try:
+            max_ticks = int(data.get("max_ticks") or 50)
+        except (TypeError, ValueError):
+            max_ticks = 50
+        track = data.get("track")
+        track = str(track).strip() if track else None
+        note = str(data.get("note") or "")
+        dry = bool(data.get("dry"))
+        out = run_until_done(
+            max_ticks=max(1, min(max_ticks, 200)),
+            track=track,
+            note=note,
+            dry=dry,
+        )
+        code = 200 if out.get("ok") is not False else (422 if out.get("phase") == "preflight_fail" else 500)
+        return code, out
+    return _err(400, "action must be run or status")
+
+
+def h_coding_session_get(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    return h_coding_session(_p, {"action": "status"})
+
+
+def h_factory_machine(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """POST {action: run|status} — full factory machine or lightweight status."""
+    from mag.factory_machine import factory_machine_run, factory_machine_status
+
+    data = dict(body or {})
+    action = str(data.get("action") or _p.get("action") or "status").strip().lower()
+    if action == "status":
+        return 200, factory_machine_status()
+    if action == "run":
+        try:
+            max_ticks = int(data.get("max_ticks") or 50)
+        except (TypeError, ValueError):
+            max_ticks = 50
+        track = data.get("track")
+        track = str(track).strip() if track else None
+        note = str(data.get("note") or "")
+        dry = bool(data.get("dry"))
+        out = factory_machine_run(
+            branch_prefix=str(data.get("branch_prefix") or "mag/run"),
+            note=note,
+            max_ticks=max(1, min(max_ticks, 200)),
+            track=track,
+            dry=dry,
+        )
+        code = 200 if out.get("ok") is not False else (422 if out.get("phase") == "preflight_fail" else 500)
+        return code, out
+    return _err(400, "action must be run or status")
+
+
+def h_factory_machine_get(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    return h_factory_machine(_p, {"action": "status"})
 
 
 def h_drainer_status(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1487,6 +1582,222 @@ def h_nervous(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]
     return 200, build_glance(write=True)
 
 
+def h_display(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """TV-safe ambient display — chronicle + nervous + desk (Roku / wall clients)."""
+    from mag.display import build_display_payload
+
+    limit = 8
+    try:
+        limit = max(1, min(20, int(_p.get("limit") or "8")))
+    except ValueError:
+        pass
+    return 200, build_display_payload(event_limit=limit)
+
+
+def h_stack(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Agent stack — services, fleet, REST-sourced outputs (desk-like viewport)."""
+    from mag.stack import build_stack_payload
+
+    feed_limit = 24
+    agent_limit = 30
+    try:
+        feed_limit = max(5, min(60, int(_p.get("limit") or "24")))
+        agent_limit = max(5, min(80, int(_p.get("agents") or "30")))
+    except ValueError:
+        pass
+    return 200, build_stack_payload(feed_limit=feed_limit, agent_limit=agent_limit)
+
+
+def h_repo_readiness(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Read-only git/worktree handoff gate; never fetches or changes refs."""
+    from mag.repo_readiness import repo_readiness
+
+    return 200, repo_readiness()
+
+
+def h_local_scheduler(p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Local GPU task scheduler — queue depth, steer, triage."""
+    from mag.local_scheduler import deepseek_triage, run_exclusive, status, steer
+
+    if not body:
+        return 200, status()
+    action = str(body.get("action") or body.get("cmd") or "").strip().lower()
+    if action == "steer":
+        cmd = str(body.get("cmd") or body.get("text") or body.get("steer") or "")
+        return 200, steer(cmd)
+    if action == "triage":
+        return 200, deepseek_triage(dry=bool(body.get("dry")))
+    if action == "desk":
+        return 200, run_exclusive(kind="desk", payload=body.get("payload") or body, label="desk")
+    return 400, {"ok": False, "error": "use action steer|triage|desk or GET for status"}
+
+
+def h_local_pulse(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Local model pulse — CPU + Ollama process signal for thinking display."""
+    from mag.local_pulse import build_local_pulse
+
+    return 200, build_local_pulse()
+
+
+def h_agent_arena(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Agent arena — seat vs seat games (chess POC + TextArena probes). GET status · POST action."""
+    from mag.agent_arena import handle_action, status
+
+    if body is None:
+        if _p.get("games") in ("1", "true", "yes"):
+            from mag import arena_adapter as aa
+
+            return 200, aa.list_games()
+        if _p.get("league") in ("1", "true", "yes"):
+            from mag.arena_learning import league_snapshot
+
+            return 200, {
+                "ok": True,
+                **league_snapshot(
+                    game=_p.get("game") or "chess",
+                    probe_type=_p.get("probe_type") or None,
+                ),
+            }
+        if _p.get("strategies") in ("1", "true", "yes"):
+            from mag.arena_strategies import list_strategies
+
+            return 200, list_strategies()
+        return 200, status()
+    out = handle_action(body)
+    code = 200 if out.get("ok", True) else 400
+    return code, out
+
+
+def h_routing_network(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Routing network — switchboard mesh + multi-seat concert plans."""
+    from mag.routing_concert import (
+        build_concert_plan,
+        conductor_review_plan,
+        run_concert,
+        status as concert_status,
+    )
+
+    if body is None:
+        if _p.get("mesh") in ("1", "true", "yes"):
+            from mag.switchboard import mesh
+
+            return 200, mesh(include_seats=True)
+        if _p.get("peers") in ("1", "true", "yes"):
+            from mag.switchboard import peers
+
+            return 200, {"ok": True, "peers": peers(live_only=False)}
+        return 200, concert_status()
+
+    action = str(body.get("action") or "plan").strip().lower()
+    goal = str(body.get("goal") or body.get("question") or "").strip()
+
+    if action in ("route", "route_intent"):
+        from mag.switchboard import route_intent
+
+        if not goal:
+            return _err(400, "goal required")
+        dry = body.get("dry") in (True, "1", 1, "true", "yes")
+        return 200, route_intent(goal, dry=dry)
+
+    if action == "plan":
+        if not goal:
+            return _err(400, "goal required")
+        conductor = str(body.get("conductor") or body.get("conductor_seat") or "deepseek")
+        return 200, build_concert_plan(goal, conductor_seat=conductor)
+
+    if action in ("conductor", "conductor_review", "deepseek_review"):
+        plan = body.get("plan")
+        if not plan and goal:
+            plan = build_concert_plan(goal)
+        if not isinstance(plan, dict):
+            return _err(400, "plan required")
+        out = conductor_review_plan(plan)
+        code = 200 if out.get("ok") else 500
+        return code, out
+
+    if action in ("run", "concert", "execute"):
+        plan = body.get("plan")
+        if not plan and goal:
+            plan = build_concert_plan(goal)
+        if not isinstance(plan, dict):
+            return _err(400, "plan required")
+        dry = body.get("dry") in (True, "1", 1, "true", "yes")
+        out = run_concert(plan, dry=dry, max_steps=int(body.get("max_steps") or 6))
+        return 200, out
+
+    if action == "mesh":
+        from mag.switchboard import mesh
+
+        return 200, mesh(include_seats=body.get("seats") is not False)
+
+    if action in ("author_playbook", "teach_playbook"):
+        from mag.local_playbook import frontier_author_playbook
+
+        domain = str(body.get("domain") or "routing")
+        goal = str(body.get("goal") or body.get("question") or "")
+        if not goal:
+            return _err(400, "goal required")
+        return 200, frontier_author_playbook(
+            domain=domain,
+            goal=goal,
+            playbook_id=str(body.get("playbook_id") or ""),
+        )
+
+    if action in ("playbooks", "list_playbooks"):
+        from mag.local_playbook import list_playbooks
+
+        return 200, list_playbooks()
+
+    return _err(400, f"unknown action: {action}")
+
+
+def h_unsloth(p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Unsloth Studio GPU seat — status (GET) or start/stop/chat (POST)."""
+    from mag.unsloth_seat import build_unsloth_payload, unsloth_chat, unsloth_start, unsloth_stop
+
+    log_lines = 0
+    try:
+        log_lines = max(0, min(80, int(p.get("log") or p.get("tail") or "0")))
+    except ValueError:
+        pass
+
+    if not body:
+        return 200, build_unsloth_payload(log_lines=log_lines)
+
+    action = str(body.get("action") or body.get("cmd") or "").strip().lower()
+    if action == "start":
+        return 200, unsloth_start(
+            mode=str(body.get("mode") or "chat"),
+            model=str(body.get("model") or ""),
+            agent=str(body.get("agent") or "hermes"),
+            register_seat=body.get("register_seat", True) is not False,
+        )
+    if action == "stop":
+        return 200, unsloth_stop()
+    if action == "chat":
+        res = unsloth_chat(
+            model=str(body.get("model") or ""),
+            prompt=str(body.get("prompt") or body.get("text") or ""),
+            timeout=float(body.get("timeout") or 120),
+        )
+        code = 200 if res.get("ok") else 422
+        return code, res
+    return 400, {"ok": False, "error": f"unknown action {action!r} — use start|stop|chat"}
+
+
+def h_brain(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Unified brain API — pulse, decide, slow_wake, steer, breadcrumbs, dispatch."""
+    from mag.brain import brain_act, brain_pulse
+
+    if body is None:
+        return 200, brain_pulse()
+    code = 200
+    out = brain_act(body)
+    if not out.get("ok") and out.get("error"):
+        code = 400 if "required" in str(out.get("error")) else 422
+    return code, out
+
+
 def h_grove(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
     """Tesuji Grove — poem skill tree nodes (v3-012)."""
     from mag.grove import build, list_nodes
@@ -1636,6 +1947,171 @@ def h_post_catch_up(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int,
     return 200, catch_up()
 
 
+def h_agent_desk(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.agent_desk import (
+        append_desk_section,
+        commit_operator_intent,
+        desk_snapshot,
+        ensure_desk_template,
+        read_desk,
+        set_desk_goal,
+        write_desk,
+    )
+
+    if body is None:
+        return 200, desk_snapshot()
+    if body.get("ensure_template"):
+        return 200, ensure_desk_template()
+    commit = body.get("commit_intent")
+    if isinstance(commit, dict):
+        return 200, commit_operator_intent(
+            goal=str(commit.get("goal") or body.get("set_goal") or "").strip(),
+            note=str(commit.get("note") or commit.get("operator_note") or "").strip(),
+            author=str(commit.get("author") or "operator").strip(),
+        )
+    if body.get("set_goal") is not None:
+        return 200, set_desk_goal(str(body.get("set_goal") or ""))
+    append = body.get("append")
+    if isinstance(append, dict):
+        sec = str(append.get("section") or append.get("heading") or "Notes")
+        txt = str(append.get("text") or append.get("body") or "")
+        author = str(append.get("author") or "operator")
+        return 200, append_desk_section(sec, txt, author=author)
+    text = body.get("text")
+    if text is None:
+        return 200, read_desk()
+    return 200, write_desk(str(text))
+
+
+def h_desk_orchestrate(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.desk_orchestrator import orchestrate
+
+    data = body or {}
+    q = str(data.get("question") or data.get("q") or "").strip()
+    if not q:
+        return 400, {"ok": False, "error": "question required"}
+    canvas = str(data.get("desk_canvas") or data.get("canvas") or "").strip() or None
+    peer = str(data.get("peer_context") or "").strip() or None
+    remote_live = str(data.get("remote_live") or "").strip() or None
+    return 200, orchestrate(
+        q,
+        desk_canvas=canvas,
+        peer_context=peer,
+        remote_live=remote_live,
+        include_peer_lane=bool(data.get("include_peer_lane", True)),
+        session_id=str(data.get("session_id") or "desk-local"),
+    )
+
+
+def h_desk_dialogue(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    from mag.desk_dialogue import (
+        DESK_LOCAL_ROLE,
+        _desk_local_model,
+        desk_steering_enabled,
+        dialogue_turn,
+        handoff_loop,
+        meta_discuss,
+        ping_pong,
+        post_desk_steer,
+        read_cursor,
+        read_first_user_model,
+        read_operator_manual,
+        read_trust_status,
+        refresh_local_desk,
+        slow_wake,
+        wipe_board,
+    )
+
+    if body is None:
+        if (_p.get("manual") or "").lower() in ("1", "true", "yes"):
+            return 200, read_operator_manual()
+        if (_p.get("user_model") or "").lower() in ("1", "true", "yes"):
+            return 200, read_first_user_model()
+        if (_p.get("conductor") or "").lower() in ("1", "true", "yes"):
+            from mag.desk_conductor import conductor_glance
+
+            return 200, conductor_glance()
+        return 200, {
+            "ok": True,
+            "cursor": read_cursor(),
+            "manual": "docs/agent_desk_operator_manual.md",
+            "user_model": "docs/agent_desk_first_user_model.md",
+            "trust": read_trust_status(),
+            "desk_api": "handoff_loop.v1",
+            "local_model": _desk_local_model(),
+            "local_role": DESK_LOCAL_ROLE,
+            "steering_enabled": desk_steering_enabled(),
+            "scheduler": __import__("mag.local_scheduler", fromlist=["status"]).status(),
+            "timings": __import__("mag.desk_timing", fromlist=["last_by_speaker"]).last_by_speaker(),
+            "timing_row": __import__("mag.desk_timing", fromlist=["format_timing_row"]).format_timing_row(),
+        }
+    if body.get("wipe_board") or body.get("wipe"):
+        return 200, wipe_board()
+    if body.get("reset_dialogue") or body.get("reset"):
+        from mag.desk_dialogue import reset_dialogue
+
+        return 200, reset_dialogue(clear_canvas_dialogue=bool(body.get("clear_dialogue")))
+    if body.get("refresh_local"):
+        return 200, refresh_local_desk(clear_dialogue=bool(body.get("clear_dialogue", True)))
+    steer_ctx = body.get("steer") or body.get("steer_context")
+    if steer_ctx is not None and str(steer_ctx).strip():
+        ctx = str(steer_ctx).strip()
+        low = ctx.lower()
+        if low.startswith("!") or os.environ.get("MAG_SCHEDULER_STEER", "1") not in ("0", "false", "no"):
+            from mag.local_scheduler import steer as sched_steer
+
+            return 200, sched_steer(ctx if ctx.startswith("!") else f"!steer {ctx}")
+        return 200, post_desk_steer(ctx)
+
+    from mag.local_scheduler import run_exclusive
+
+    def _desk(body: dict[str, Any]) -> dict[str, Any]:
+        return run_exclusive(kind="desk", payload=body, label=_desk_label(body))
+
+    def _desk_label(b: dict[str, Any]) -> str:
+        if b.get("slow_wake"):
+            return "slow_wake"
+        if b.get("handoff_loop") or b.get("handoffs"):
+            return "handoffs"
+        if b.get("meta_discuss"):
+            return "meta"
+        sp = str(b.get("speaker") or "")
+        return sp or "desk"
+
+    if body.get("conductor_tick") or body.get("conductor"):
+        from mag.desk_conductor import conductor_tick
+
+        def _run(_payload: dict[str, Any]) -> dict[str, Any]:
+            return conductor_tick(
+                auto_act=bool(body.get("auto_act") or body.get("keepalive")),
+                operator_note=str(body.get("operator_note") or body.get("note") or ""),
+                conductor_prompt=str(
+                    body.get("conductor_prompt") or body.get("prompt") or body.get("conductor_note") or ""
+                ),
+                advise=bool(body.get("advise", True)),
+            )
+
+        return 200, run_exclusive(kind="desk", payload=body, label="conductor", executor=_run)
+    if body.get("meta_discuss") or body.get("meta_ping"):
+        return 200, _desk(body)
+    if body.get("slow_wake") or body.get("wake_on_edit"):
+        return 200, _desk(body)
+    if body.get("handoff_loop") or body.get("handoffs"):
+        return 200, _desk(body)
+    if body.get("ping_pong") or body.get("pingpong"):
+        return 200, _desk(body)
+    speaker = str(body.get("speaker") or body.get("from") or "").strip().lower()
+    note = str(body.get("operator_note") or body.get("message") or body.get("q") or body.get("note") or "")
+    canvas = str(body.get("desk_canvas") or body.get("canvas") or "").strip() or None
+    if speaker == "local":
+        return 200, _desk(body)
+    if not speaker:
+        return 200, _desk(body)
+    body = dict(body)
+    body.setdefault("speaker", speaker)
+    return 200, _desk(body)
+
+
 def h_post_ask(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     from mag.ask import ask as mag_ask
 
@@ -1645,7 +2121,23 @@ def h_post_ask(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, di
         return 400, {"ok": False, "error": "question required"}
     sid = (data.get("session_id") or data.get("session") or "").strip() or None
     use_llm = bool(data.get("use_llm", True))
-    return 200, mag_ask(q, session_id=sid, use_llm=use_llm)
+    peer = str(data.get("peer_context") or data.get("peer_lane") or "").strip() or None
+    canvas = str(data.get("desk_canvas") or data.get("canvas") or "").strip() or None
+    if not peer and data.get("include_peer_lane"):
+        from mag.agent_desk import REMOTE_SESSION, peer_lane_excerpt
+
+        peer = peer_lane_excerpt(REMOTE_SESSION) or None
+    if not canvas and data.get("include_desk_canvas"):
+        from mag.agent_desk import read_desk
+
+        canvas = (read_desk().get("text") or "").strip() or None
+    return 200, mag_ask(
+        q,
+        session_id=sid,
+        use_llm=use_llm,
+        peer_context=peer,
+        desk_canvas=canvas,
+    )
 
 
 def h_post_dispatch(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -1672,6 +2164,14 @@ def h_post_dispatch(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[in
         return 200, res if isinstance(res, dict) else {"ok": True, "result": res}
     except Exception as e:
         return 500, {"ok": False, "error": str(e)}
+
+
+def h_agent_live(p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """Polling fallback: live turn phase for dashboard agent sessions."""
+    from mag.agent_cli import get_live_turn
+
+    session_id = str(p.get("session_id") or "dashboard").strip() or "dashboard"
+    return 200, get_live_turn(session_id)
 
 
 def h_post_agent(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
@@ -2185,6 +2685,12 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             # --- Body / router ---
             "GET /api/v1/health": "Is the lab up?",
             "GET /api/v1/nervous": "Containment glance (no secrets)",
+            "GET /api/v1/brain": "Multi-agent OS brain pulse (proprioception + desk + breadcrumbs)",
+            "POST /api/v1/brain": "Brain actions: decide|route|dispatch|slow_wake|steer|breadcrumb",
+            "GET /api/v1/stack": "Agent stack — services, fleet, REST outputs",
+            "GET /api/v1/unsloth": "Unsloth Studio GPU seat — install/running state",
+            "POST /api/v1/unsloth": "Unsloth actions: start|stop|chat",
+            "GET /api/v1/display": "TV-safe ambient pulse (Roku / wall clients)",
             "GET /api/v1/grove": "Tesuji Grove nodes ?limit=20&refresh=1",
             "GET /api/v1/status": "Router: providers, quota, honesty",
             "GET /api/v1/providers": "Provider status",
@@ -2197,7 +2703,15 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "GET /api/v1/tapestry": "3D connection graph pack",
             "POST /api/v1/tapestry/rebuild": "Rebuild tapestry from residual",
             "POST /api/v1/dispatch": "Classify seat + run (pack-first)",
-            "POST /api/v1/ask": "Local biographer ask",
+            "POST /api/v1/desk-orchestrate": "Local gemma:2b orchestrator (canvas + peer lane)",
+            "POST /api/v1/desk-dialogue": "Turn-based Local↔DeepSeek dialogue on canvas (no tools)",
+            "GET /api/v1/coding-session": "Coding session status + orchestrator scrum",
+            "POST /api/v1/coding-session": "Run sprint {action: run|status, track?, max_ticks?, note?}",
+            "GET /api/v1/factory-machine": "Factory machine status (last run, branch, retro path)",
+            "POST /api/v1/factory-machine": "Full machine {action: run|status, note?, branch_prefix?}",
+            "GET /api/v1/agent-desk": "Shared desk canvas + peer lane excerpt",
+            "POST /api/v1/agent-desk": "Save shared desk canvas {text}",
+            "POST /api/v1/ask": "Local biographer ask (optional peer_context, desk_canvas)",
             "POST /api/v1/catch-up": "Watch + amend live board",
             "POST /api/v1/export": "PDF/visual from residual",
             "GET /api/v1/blast": "Background improve plant",
@@ -2265,6 +2779,31 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/overview", h_overview),
     ("GET", "/api/v1/nervous", h_nervous),
     ("GET", "/api/nervous", h_nervous),
+    ("GET", "/api/v1/brain", h_brain),
+    ("POST", "/api/v1/brain", h_brain),
+    ("GET", "/api/brain", h_brain),
+    ("POST", "/api/brain", h_brain),
+    ("GET", "/api/v1/stack", h_stack),
+    ("GET", "/api/stack", h_stack),
+    ("GET", "/api/v1/repo-readiness", h_repo_readiness),
+    ("GET", "/api/v1/local-pulse", h_local_pulse),
+    ("GET", "/api/local-pulse", h_local_pulse),
+    ("GET", "/api/v1/arena", h_agent_arena),
+    ("POST", "/api/v1/arena", h_agent_arena),
+    ("GET", "/api/arena", h_agent_arena),
+    ("POST", "/api/arena", h_agent_arena),
+    ("GET", "/api/v1/routing-network", h_routing_network),
+    ("POST", "/api/v1/routing-network", h_routing_network),
+    ("GET", "/api/v1/local-scheduler", h_local_scheduler),
+    ("POST", "/api/v1/local-scheduler", h_local_scheduler),
+    ("GET", "/api/local-scheduler", h_local_scheduler),
+    ("POST", "/api/local-scheduler", h_local_scheduler),
+    ("GET", "/api/v1/unsloth", h_unsloth),
+    ("POST", "/api/v1/unsloth", h_unsloth),
+    ("GET", "/api/unsloth", h_unsloth),
+    ("POST", "/api/unsloth", h_unsloth),
+    ("GET", "/api/v1/display", h_display),
+    ("GET", "/api/display", h_display),
     ("GET", "/api/v1/grove", h_grove),
     ("GET", "/api/grove", h_grove),
     ("GET", "/api/v1/lattice-history", h_lattice_history),
@@ -2296,10 +2835,16 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/brief", h_brief_latest),
     ("GET", "/api/v1/visual/latest", lambda p, b: h_visual({**p, "id": "latest"}, b)),
     ("POST", "/api/v1/catch-up", h_post_catch_up),
+    ("POST", "/api/v1/desk-orchestrate", h_desk_orchestrate),
+    ("POST", "/api/v1/desk-dialogue", h_desk_dialogue),
+    ("GET", "/api/v1/desk-dialogue", h_desk_dialogue),
+    ("GET", "/api/v1/agent-desk", h_agent_desk),
+    ("POST", "/api/v1/agent-desk", h_agent_desk),
     ("POST", "/api/v1/ask", h_post_ask),
     ("POST", "/api/v1/dispatch", h_post_dispatch),
     ("POST", "/api/v1/agent", h_post_agent),
     ("POST", "/api/agent", h_post_agent),
+    ("GET", "/api/v1/agent/live", h_agent_live),
     ("POST", "/api/v1/agent/upload", h_post_agent_upload),
     ("POST", "/api/agent/upload", h_post_agent_upload),
     ("GET", "/api/v1/context-pack", h_context_pack),
@@ -2347,6 +2892,16 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/route", h_route),
     ("POST", "/api/v1/decide", h_decide),
     ("GET", "/api/v1/decide", h_decide),
+    ("GET", "/api/v1/verkle-knots/{id}", h_verkle_knot),
+    ("POST", "/api/v1/verkle-knots/{id}", h_verkle_knot),
+    ("GET", "/api/v1/autorun", h_autorun),
+    ("GET", "/api/autorun", h_autorun),
+    ("GET", "/api/v1/handoff-inbox", h_handoff_inbox),
+    ("GET", "/api/handoff-inbox", h_handoff_inbox),
+    ("GET", "/api/v1/coding-session", h_coding_session_get),
+    ("POST", "/api/v1/coding-session", h_coding_session),
+    ("GET", "/api/v1/factory-machine", h_factory_machine_get),
+    ("POST", "/api/v1/factory-machine", h_factory_machine),
     ("GET", "/api/v1/drainer", h_drainer_status),
     ("POST", "/api/v1/drainer", h_drainer_toggle),
     ("GET", "/api/v1/workspace/tree", h_workspace_tree),

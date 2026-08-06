@@ -95,6 +95,9 @@ def run_integral(
     with_dashboard: bool = False,
     host: str = "127.0.0.1",
     port: int = 8765,
+    with_cast: bool = False,
+    cast_lan: bool = False,
+    cast_port: int = 8766,
 ) -> None:
     """One process: Mag run_loop (owns watch thread) + optional dashboard.
 
@@ -141,7 +144,28 @@ def run_integral(
             run_dashboard(host=host, port=port)
 
         threading.Thread(target=_dash, name="mag-dashboard", daemon=True).start()
-        print(f"  dashboard http://{host}:{port}/")
+        from config import print_bind_banner
+
+        print_bind_banner(host=host, port=port)
+
+    if with_cast:
+        from config import resolve_bind_host
+
+        cast_host = resolve_bind_host(
+            lan=cast_lan,
+            port=cast_port,
+            service="cast",
+        )
+
+        def _cast() -> None:
+            from mag.cast_server import run as run_cast
+
+            run_cast(host=cast_host, port=cast_port)
+
+        threading.Thread(target=_cast, name="mag-cast", daemon=True).start()
+        from config import print_bind_banner
+
+        print_bind_banner(host=cast_host, port=cast_port, service="cast")
 
     # Daemon chain imported AFTER the dashboard thread is up, and guarded:
     # a missing lib / broken import here logs a warning and keeps the server

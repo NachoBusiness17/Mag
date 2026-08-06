@@ -41,6 +41,8 @@ Not praise — **contract quarry**. Grouped by what to steal.
 | **OpenClaw** | improve.yaml sources | promote memory, long-run personal agent | improve promote + residual | chat as memory |
 | **Cursor swarm economics** | cursor.com/blog/agent-swarm-model-economics | cheap workers + scarce frontier | seat economics table | their IDE lock-in |
 | **GitHub agentic workflows** | community discussions 186451 | CI-step agents | routing_smoke + pytest evaluator | GH Actions as brain |
+| **OpenHands / SWE-agent / Aider** | `AGENT_PLATFORM_REPOS_INDEX.md` | headless events, ACI, lint/test gate | autorun + `post_run_eval` + trail | their orchestrator as DNA |
+| **jj / Melty / Continue** | same index | workspace isolation, chat=commit, IDE client | worktree prune, desk turn→knot | VS Code fork product |
 
 ### B. Memory / persistence (fight or steal narrow)
 

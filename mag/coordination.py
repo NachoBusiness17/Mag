@@ -120,18 +120,18 @@ def read_activity(*, limit: int = 40) -> list[dict[str, Any]]:
                 rows.append(o)
         except json.JSONDecodeError:
             continue
-    # Latest row per activity id wins (fixes stale "running" in feed)
+    # Latest appended row per activity id wins. File order is the authoritative
+    # tie-breaker because Windows can emit identical timestamps for fast events.
     by_id: dict[str, dict[str, Any]] = {}
-    for r in rows:
+    ordered: list[dict[str, Any]] = []
+    for r in reversed(rows):
         aid = str(r.get("id") or "")
-        if aid:
-            prev = by_id.get(aid)
-            if not prev or str(r.get("ts") or "") >= str(prev.get("ts") or ""):
-                by_id[aid] = r
-        else:
-            by_id[f"_row_{len(by_id)}"] = r
-    merged = sorted(by_id.values(), key=lambda x: str(x.get("ts") or ""), reverse=True)
-    return merged[:limit]
+        key = aid or f"_row_{len(by_id)}"
+        if key in by_id:
+            continue
+        by_id[key] = r
+        ordered.append(r)
+    return ordered[:limit]
 
 
 def activity_summary(*, limit: int = 12) -> dict[str, Any]:
