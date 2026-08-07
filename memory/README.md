@@ -22,3 +22,8 @@ After clone:
 | `runs/README.md` | Run trail convention |
 
 Everything else under `memory/` is gitignored and created at runtime.
+
+## Data layers (law)
+
+See `docs/ref/DATA_LAYERS.md` (USER / TRAIN / FRAMEWORK) and `docs/ref/SPORES.md` (direction for forks).
+Live soil under this folder stays local; only listed seeds ship in git.
