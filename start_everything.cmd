@@ -73,7 +73,7 @@ echo       Mirror desk is up.
 :open_browsers
 echo.
 echo [4/4] Opening desks in browser...
-start "" http://127.0.0.1:8765
+start "" http://127.0.0.1:8765/?tab=chat
 if not defined MAG_NO_MIRROR start "" http://127.0.0.1:8743/
 
 echo.

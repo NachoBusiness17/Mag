@@ -1,0 +1,35 @@
+schema: mag_retrieval_policy.v1
+generation_rule: never_collapse_layers
+obligations:
+  historical_event:
+    - provenance
+  quotation:
+    - source_reference
+  controversial_claim:
+    - opposing_interpretation
+  psychological_theory:
+    - historiography
+  political_event:
+    - historical_context
+  game_action:
+    - legal_actions
+    - scene_state
+  narrate:
+    - scene_context
+    - events_from_engine
+  rules_ruling:
+    - ruleset_id
+    - rule_atom
+  world_fact:
+    - datasheet_id_or_engine
+  structure_step:
+    - acceptance
+    - non_goals
+local_default_sources:
+  - datasheet.json
+  - misconceptions.yaml
+  - retrieval_policy.yaml
+  - local_prompt.md
+never_default_to_local:
+  - master.md
+note: Semantic obligations — not keyword if campaigns then ethics

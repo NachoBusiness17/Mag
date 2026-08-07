@@ -1,0 +1,630 @@
+{
+  "schema": "mag_datasheet.v1",
+  "module_id": "dnd_classic_stub",
+  "rows": [
+    {
+      "id": "room:road_to_keep",
+      "layer": "fact",
+      "claim": "Dusty Road to the Keep: A rutted road climbs toward a stone keep. Raven calls. Mixed tracks.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:road_to_keep:north",
+      "layer": "fact",
+      "claim": "From road_to_keep north leads to keep_gate",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:road_to_keep:east",
+      "layer": "fact",
+      "claim": "From road_to_keep east leads to farm_edge",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:road_to_keep:south",
+      "layer": "fact",
+      "claim": "From road_to_keep south leads to woods_trail",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:road_to_keep:0",
+      "layer": "interpretation",
+      "claim": "Overturned cart \u2014 blood, no bodies.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "hook:road_to_keep:1",
+      "layer": "interpretation",
+      "claim": "Keep chimney smoke is too black.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:keep_gate",
+      "layer": "fact",
+      "claim": "Keep Gatehouse: Iron-bound gates ajar. One torch. Stone scraped recently.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:keep_gate:south",
+      "layer": "fact",
+      "claim": "From keep_gate south leads to road_to_keep",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:keep_gate:north",
+      "layer": "fact",
+      "claim": "From keep_gate north leads to courtyard",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:keep_gate:down",
+      "layer": "fact",
+      "claim": "From keep_gate down leads to cellar_hatch",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:keep_gate:0",
+      "layer": "interpretation",
+      "claim": "Empty guard post; dice on the table.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "hook:keep_gate:1",
+      "layer": "interpretation",
+      "claim": "A toy sword in the mud.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:courtyard",
+      "layer": "fact",
+      "claim": "Inner Courtyard: Well, stables, doors to hall and barracks. The quiet is wrong.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:courtyard:south",
+      "layer": "fact",
+      "claim": "From courtyard south leads to keep_gate",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:courtyard:west",
+      "layer": "fact",
+      "claim": "From courtyard west leads to great_hall",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:courtyard:east",
+      "layer": "fact",
+      "claim": "From courtyard east leads to barracks",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:courtyard:0",
+      "layer": "interpretation",
+      "claim": "Well rope cut halfway.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "hook:courtyard:1",
+      "layer": "interpretation",
+      "claim": "Barracks barred from inside.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:great_hall",
+      "layer": "fact",
+      "claim": "Great Hall: Cold hearth, banners, a cave map pinned with a dagger.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:great_hall:east",
+      "layer": "fact",
+      "claim": "From great_hall east leads to courtyard",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:great_hall:north",
+      "layer": "fact",
+      "claim": "From great_hall north leads to lord_solar",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:great_hall:0",
+      "layer": "interpretation",
+      "claim": "Map marks caves under the hill.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "hook:great_hall:1",
+      "layer": "interpretation",
+      "claim": "Goblin-script under a table.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:barracks",
+      "layer": "fact",
+      "claim": "Barracks: Bunks, half-empty racks. Signs of a short fight.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:barracks:west",
+      "layer": "fact",
+      "claim": "From barracks west leads to courtyard",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:barracks:0",
+      "layer": "interpretation",
+      "claim": "One bunk still warm.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:lord_solar",
+      "layer": "fact",
+      "claim": "Lord's Solar: Private chamber. Journal open: they came from below.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:lord_solar:south",
+      "layer": "fact",
+      "claim": "From lord_solar south leads to great_hall",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:lord_solar:down",
+      "layer": "fact",
+      "claim": "From lord_solar down leads to cellar_hatch",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:lord_solar:0",
+      "layer": "interpretation",
+      "claim": "Unfinished journal line.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "hook:lord_solar:1",
+      "layer": "interpretation",
+      "claim": "Key with a cave sigil.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:cellar_hatch",
+      "layer": "fact",
+      "claim": "Cellar / Cave Mouth: Stairs open into natural cave. Cold air. Distant chatter.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:cellar_hatch:up",
+      "layer": "fact",
+      "claim": "From cellar_hatch up leads to keep_gate",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:cellar_hatch:deeper",
+      "layer": "fact",
+      "claim": "From cellar_hatch deeper leads to cave_fork",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:cellar_hatch:0",
+      "layer": "interpretation",
+      "claim": "Torch stubs. Something small lives here.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:cave_fork",
+      "layer": "fact",
+      "claim": "Cave Fork: Left wet and narrow; right wider with claw marks.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:cave_fork:back",
+      "layer": "fact",
+      "claim": "From cave_fork back leads to cellar_hatch",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:cave_fork:left",
+      "layer": "fact",
+      "claim": "From cave_fork left leads to wet_crawl",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "exit:cave_fork:right",
+      "layer": "fact",
+      "claim": "From cave_fork right leads to claw_hall",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:cave_fork:0",
+      "layer": "interpretation",
+      "claim": "Noise echoes \u2014 choose carefully.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:wet_crawl",
+      "layer": "fact",
+      "claim": "Wet Crawl: Tight crawl opens to a pool chamber.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:wet_crawl:back",
+      "layer": "fact",
+      "claim": "From wet_crawl back leads to cave_fork",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:wet_crawl:0",
+      "layer": "interpretation",
+      "claim": "Metal glints under the water.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:claw_hall",
+      "layer": "fact",
+      "claim": "Claw-Marked Hall: Old pillars. Goblin camp. A captive near the fire.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:claw_hall:back",
+      "layer": "fact",
+      "claim": "From claw_hall back leads to cave_fork",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:claw_hall:0",
+      "layer": "interpretation",
+      "claim": "Captive merchant. Crate with keep seal.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:farm_edge",
+      "layer": "fact",
+      "claim": "Edge of Farmland: Burned outbuilding. Trampled fields.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:farm_edge:west",
+      "layer": "fact",
+      "claim": "From farm_edge west leads to road_to_keep",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:farm_edge:0",
+      "layer": "interpretation",
+      "claim": "Note: to the caves under the keep.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    },
+    {
+      "id": "room:woods_trail",
+      "layer": "fact",
+      "claim": "Woods Trail: Twisting path \u2014 ambush country.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "scene_state"
+      ]
+    },
+    {
+      "id": "exit:woods_trail:north",
+      "layer": "fact",
+      "claim": "From woods_trail north leads to road_to_keep",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 1.0,
+      "requires": [
+        "legal_actions"
+      ]
+    },
+    {
+      "id": "hook:woods_trail:0",
+      "layer": "interpretation",
+      "claim": "Boots mixed with animal tracks.",
+      "evidence_level": "engine",
+      "source_type": "module",
+      "source_ref": "dnd_classic_stub",
+      "confidence": 0.7,
+      "requires": [
+        "scene_context"
+      ]
+    }
+  ]
+}

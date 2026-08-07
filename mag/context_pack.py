@@ -396,6 +396,14 @@ def build_context_pack(
         agent_state_excerpt = f"(agent_state: {e})"
         agent_state_meta = {"error": str(e)}
 
+    continuity_excerpt = ""
+    try:
+        cont = ROOT / "memory" / "working" / "OPERATOR_CONTINUITY.md"
+        if cont.is_file():
+            continuity_excerpt = cont.read_text(encoding="utf-8", errors="replace")[:2200]
+    except Exception as e:
+        continuity_excerpt = f"(continuity: {e})"
+
     nervous: dict[str, Any] = {}
     try:
         from mag.nervous_system import pack_excerpt
@@ -523,6 +531,7 @@ def build_context_pack(
         "tip": tip_badge,
         "agent_state": agent_state_excerpt,
         "agent_state_meta": agent_state_meta,
+        "continuity": continuity_excerpt,
         "health": {
             "status": s.get("status"),
             "live_stale": (s.get("recording") or {}).get("live_stale"),
@@ -665,6 +674,13 @@ def format_context_pack_text(
             "### L0b Agent state (versioned self — Verkle agent tip)",
             p.get("agent_state") or "(none)",
         ])
+        if p.get("continuity"):
+            policy.extend([
+                "",
+                "### L0-continuity (goals · gaps · eject · smokes — cold Grok must use this)",
+                "path: memory/working/OPERATOR_CONTINUITY.md",
+                p.get("continuity"),
+            ])
     if p.get("directives") and mode in ("plan", "full"):
         policy.extend([
             "",

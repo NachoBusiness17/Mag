@@ -1,0 +1,8 @@
+schema: mag_provenance.v1
+sources:
+  -
+    type: module
+    path: memory/game_modules/dnd_classic_stub.v1.json
+    module_id: dnd_classic_stub
+revision: 1
+ts: "2026-08-07T02:31:45.462869+00:00"

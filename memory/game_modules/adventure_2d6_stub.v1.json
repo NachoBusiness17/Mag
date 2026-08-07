@@ -1,0 +1,70 @@
+{
+  "schema": "mag_game_module.v1",
+  "module_id": "adventure_2d6_stub",
+  "aliases": ["2d6", "two d six", "adventure system", "b2-rules"],
+  "title": "2d6 Adventure Stub (non-5e generalization test)",
+  "license_note": "Original Mag stub for B2 play benchmark — not a commercial RPG.",
+  "system": "2d6-adventure-lite",
+  "start_room": "crossroads",
+  "resolution": {
+    "dice": "2d6",
+    "pass_on": 7,
+    "note": "Total ≥7 succeeds at ordinary tasks; combat is opposed 2d6+mod"
+  },
+  "player_start": {
+    "name": "Wanderer",
+    "archetype": "traveler",
+    "hp": 10,
+    "hp_max": 10,
+    "ac": 12,
+    "attack_bonus": 1,
+    "damage": "1d6",
+    "traits": ["curious"],
+    "inventory": ["walking stick", "waterskin"]
+  },
+  "rooms": {
+    "crossroads": {
+      "id": "crossroads",
+      "name": "Dusty Crossroads",
+      "desc": "Four ways. A post with carved notches — someone counts journeys, not kills.",
+      "exits": {"north": "hill_shrine", "east": "market_ruin", "west": "river_ford"},
+      "hooks": ["A riddle scratched on the post: what walks without feet when the map is true?"]
+    },
+    "hill_shrine": {
+      "id": "hill_shrine",
+      "name": "Hill Shrine",
+      "desc": "Broken stones. Wind. A bowl for coins long stolen.",
+      "exits": {"south": "crossroads"},
+      "hooks": ["Notches match the crossroads post — same counter."]
+    },
+    "market_ruin": {
+      "id": "market_ruin",
+      "name": "Market Ruin",
+      "desc": "Stalls collapsed. One stall still shaded.",
+      "exits": {"west": "crossroads"},
+      "encounter": {
+        "id": "stray_dog",
+        "name": "Hungry Dog",
+        "hp": 5,
+        "hp_max": 5,
+        "ac": 12,
+        "attack_bonus": 2,
+        "damage": "1d4"
+      },
+      "hooks": ["The dog guards a child's satchel."]
+    },
+    "river_ford": {
+      "id": "river_ford",
+      "name": "River Ford",
+      "desc": "Shallow water. Stones placed for small feet.",
+      "exits": {"east": "crossroads"},
+      "hooks": ["Upstream: smoke. Downstream: singing."]
+    }
+  },
+  "event_tables": {
+    "rest_safe": [
+      {"id": "stars", "w": 3, "text": "Stars wheel. You mark another notch on a stick."},
+      {"id": "dream", "w": 1, "text": "You dream of a post that writes itself."}
+    ]
+  }
+}

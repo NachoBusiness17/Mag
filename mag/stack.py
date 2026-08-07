@@ -16,6 +16,7 @@ TRIAD_ROLES = (
     ("engine", "Engineer", "the Mag seat / planner"),
     ("scribe", "Scribe", "synthesis_agent.py - running commentary"),
     ("dashboard", "Dashboard", "this board - 127.0.0.1:8765"),
+    ("lab", "Integral lab", "watch + companion heartbeat (no dashboard)"),
     ("mirror", "Mirror desk", "Sovereign Mirror strike - 127.0.0.1:8743"),
     ("drainer", "Drainer", "optional queue auto-advance"),
 )

@@ -67,14 +67,52 @@ skills:
     pack_excerpt: true
     note: "Plan/doc agent skill — terse specs; run caveman-audit on output."
 
+  - id: tabletop-dnd
+    when: [dnd, dungeon, campaign, play, classic, tabletop]
+    path: docs/ref/skills/tabletop-dnd.md
+    pack_excerpt: true
+    note: "Engine-first campaign; classic keep stub; constrained narrate."
+
+  - id: mag-arena
+    when: [chess, arena, game, play, benchmark, multi_domain, game_theory]
+    path: "~/.grok/skills/mag-arena/SKILL.md"
+    pack_excerpt: true
+    note: "Games as high-fidelity multi-agent mirrors; chess + tabletop + packs."
+
+  - id: mag-checkin
+    when: [checkin, freeze, structure, multi_seat, offload]
+    path: "~/.grok/skills/mag-checkin/SKILL.md"
+    pack_excerpt: true
+    note: "Freeze + network probe + structure orchestra → local_usable."
+
+  - id: mag-route
+    when: [route, handoff, dispatch, dont_burn_grok]
+    path: "~/.grok/skills/mag-route/SKILL.md"
+    pack_excerpt: true
+    note: "After plan freeze: FILE scut to Mag seats."
+
+  - id: skill-ecosystem
+    when: [skills, skill_map, cursor, agentskills]
+    path: docs/ref/SKILL_ECOSYSTEM_MAP.md
+    pack_excerpt: true
+    note: "External skill taxonomy → Mag map; enhance don't catalog-dump."
+
 job_to_skills:
-  scut: []
+  scut: [mag-route]
   recall: [sovereign-mag]
   public_summarize: []
-  hard_code: [ponytail-ladder, sovereign-mag, run-trail-lattice, patch-verify]
+  hard_code: [ponytail-ladder, sovereign-mag, run-trail-lattice, patch-verify, mag-route]
   hard_reason: [caveman-prose, sovereign-mag, strike-chord]
-  research: [feature-compose, memory-verkle]
+  research: [feature-compose, memory-verkle, skill-ecosystem]
   improve: [feature-compose, model-tesuji, memory-verkle]
-  plan: [caveman-prose, memory-verkle]
+  plan: [caveman-prose, memory-verkle, mag-checkin]
   audit: [ponytail-ladder, patch-verify]
   default: [memory-verkle, ponytail-ladder]
+  play: [tabletop-dnd, mag-arena]
+  dnd: [tabletop-dnd, mag-arena]
+  campaign: [tabletop-dnd, mag-arena]
+  chess: [mag-arena]
+  arena: [mag-arena]
+  checkin: [mag-checkin, mag-route]
+  route: [mag-route, sovereign-mag]
+  freeze: [mag-checkin]

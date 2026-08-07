@@ -19,6 +19,7 @@
 | **Identify** | Name a **key feature** as a *contract* or *mechanism*, not a brand or bench score |
 | **Evaluate** | Same / differ / data honesty / local cost / capture risk |
 | **Steal** | Port the **contract** into Mag files/code — without their weights, UI, or throne |
+| **Honest origin** | Same day: fill **`STEAL_TESUJI.md`** (like / love / grateful / inside us) — no anonymous ports |
 | **Enhance** | Adapt to *our* constraints: local-first, residual DNA, scarce Grok, L3 human |
 | **Compose** | Wire steals so they **reinforce each other** — one system, not a junk drawer |
 

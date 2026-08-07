@@ -11,3 +11,4 @@ PyYAML>=6.0
 pytest>=8.0
 chess>=1.10
 textarena>=0.7.0  # arena probes — also pulls chess if missing
+faster-whisper>=1.0.0  # local voice STT — no speaker enroll; CPU int8 on home box

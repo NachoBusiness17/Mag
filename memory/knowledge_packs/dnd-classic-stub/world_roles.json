@@ -1,0 +1,44 @@
+[
+  {
+    "world_role": "rules_clerk",
+    "mag_seat": "local",
+    "may": "cite legal_actions and dice outcomes",
+    "must_not": "invent rooms, NPCs, or exits"
+  },
+  {
+    "world_role": "scene_painter",
+    "mag_seat": "local_narrate",
+    "may": "paint scene_context only",
+    "must_not": "change HP, inventory, or map"
+  },
+  {
+    "world_role": "chronicler",
+    "mag_seat": "local",
+    "may": "FILE log tails and freezes",
+    "must_not": "rewrite past engine events"
+  },
+  {
+    "world_role": "module_author",
+    "mag_seat": "deepseek",
+    "may": "FILE local_usable packs and modules",
+    "must_not": "live-DM every player turn on remote"
+  },
+  {
+    "world_role": "contract_trail",
+    "mag_seat": "kimi",
+    "may": "check layer purity and obligations",
+    "must_not": "become system of record"
+  },
+  {
+    "world_role": "judge",
+    "mag_seat": "grok_tui",
+    "may": "benchmark, steal, unstick",
+    "must_not": "multi-file scut after plan freeze"
+  },
+  {
+    "world_role": "player",
+    "mag_seat": "human",
+    "may": "act and L3 consent",
+    "must_not": "\u2014"
+  }
+]

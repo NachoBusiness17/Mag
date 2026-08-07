@@ -14,6 +14,7 @@ from mag.coordination import DEPTH_ROUTES, VALID_DEPTHS, _clip
 
 DEPTH_JOB_MAP: dict[str, str] = {
     "scut": "scut",
+    "conversation": "default",
     "simple_code": "default",
     "heavy_code": "hard_code",
     "plan": "hard_reason",
@@ -149,6 +150,57 @@ def classify_depth(goal: str, *, depth: str | None = None) -> dict[str, Any]:
         )
     ):
         depth = "plan"
+    # Life / ideas dig — not code. Before scut/simple_code so Bernays ≠ simple_code.
+    elif any(
+        k in g
+        for k in (
+            "talk about",
+            "talk to you about",
+            "want to talk",
+            "about life",
+            "propaganda",
+            "philosophy",
+            "berna",
+            "edward bernays",
+            "who benefits",
+            "what do you think about",
+            "tell me about",
+            "curious about",
+            "meaning of",
+            "ideas about",
+        )
+    ) or (
+        n >= 20
+        and not any(
+            k in g
+            for k in (
+                "implement",
+                "refactor",
+                "pytest",
+                "deploy",
+                "pull request",
+                "bios",
+                "sam settings",
+                "fix lint",
+            )
+        )
+        and any(
+            k in g
+            for k in (
+                "life",
+                "people",
+                "society",
+                "culture",
+                "history",
+                "politics",
+                "media",
+                "power",
+                "freedom",
+                "attention",
+            )
+        )
+    ):
+        depth = "conversation"
     elif any(
         k in g
         for k in (
@@ -167,8 +219,15 @@ def classify_depth(goal: str, *, depth: str | None = None) -> dict[str, Any]:
             "biograph",
             "quota",
             "providers",
+            "hear me",
+            "can you hear",
+            "hello",
+            "good morning",
+            "good night",
+            "thank you",
+            "thanks",
         )
-    ) or (n < 80 and "?" in g):
+    ) or (n < 80 and "?" in g) or (n < 36 and any(k in g for k in ("hey", "hi ", "hi,", "yo "))):
         depth = "scut"
     elif any(
         k in g

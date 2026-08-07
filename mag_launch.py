@@ -42,8 +42,28 @@ from config import bind_host  # noqa: E402
 
 BIND = bind_host()
 
-CHECK_S = 5
+CHECK_S = 5  # default; overridden by configs/temperature_stacks.yaml loops
 MUTEX_NAME = "Local\\MAGResourceHarnessSupervisor"
+
+
+def _check_interval_s() -> float:
+    try:
+        from mag.temperature_stack import loop_timings
+
+        return max(2.0, float(loop_timings().get("supervisor_check_s") or CHECK_S))
+    except Exception:
+        return float(CHECK_S)
+
+
+def _lifecycle_every_ticks(check_s: float) -> int:
+    """How many supervisor ticks between lifecycle auto_reconcile passes."""
+    try:
+        from mag.temperature_stack import loop_timings
+
+        every = float(loop_timings().get("lifecycle_reconcile_every_s") or 60)
+        return max(1, int(round(every / max(check_s, 1.0))))
+    except Exception:
+        return max(1, int(round(60 / max(CHECK_S, 1))))
 
 
 def _python_exe() -> str:
@@ -165,6 +185,14 @@ def build_slots() -> list[dict]:
             "wanted": True,
             "proc": None,
             "health_url": "http://127.0.0.1:8765/",
+        },
+        # Integral Mag loop (watch + companion heartbeat). Dashboard stays a
+        # separate slot so UI survives lab restarts; lab uses --no-dashboard.
+        {
+            "name": "lab",
+            "cmd": [PY, str(ROOT / "main.py"), "lab", "--no-dashboard"],
+            "wanted": True,
+            "proc": None,
         },
     ]
     if _mirror_wanted():
@@ -552,17 +580,30 @@ def main() -> int:
                         if s.get("proc") is not None and s["proc"].poll() is None:
                             _kill_pid(s["proc"].pid)
                     break
-                time.sleep(CHECK_S)
+                check_s = _check_interval_s()
+                life_every = _lifecycle_every_ticks(check_s)
+                time.sleep(check_s)
                 _sync_dynamic_slots(slots)
                 ensure(slots)
                 write_state(slots)
-                if loop_tick % 12 == 0:
+                if loop_tick % life_every == 0:
                     try:
                         from mag.tripartite_boot import refresh_manifest_body
 
                         refresh_manifest_body(supervisor_slots=slots)
                     except Exception:
                         pass
+                    # Adjustable: temperature_stacks.yaml loops.lifecycle_reconcile_every_s
+                    try:
+                        from mag.lifecycle import auto_reconcile
+
+                        ar = auto_reconcile()
+                        if ar and ar.get("applied"):
+                            _log(f"lifecycle auto_reconcile applied={ar.get('applied')}")
+                        elif ar and ar.get("action") == "noop":
+                            pass
+                    except Exception as exc:
+                        _log(f"lifecycle auto_reconcile: {exc}")
                 loop_tick += 1
         except KeyboardInterrupt:
             _log("supervisor stopping; terminating children")

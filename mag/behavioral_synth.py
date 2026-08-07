@@ -74,6 +74,15 @@ def synthesize_behavioral_leaf(day: str | None = None) -> dict[str, Any]:
             "disable_thinking on DeepSeek; escalate after 2 retries.",
         ))
 
+    if kind_counts.get("operator_behavior", 0):
+        themes.append((
+            "T0b",
+            "Operator thrash / phase catch",
+            f"{kind_counts['operator_behavior']} operator_behavior events. "
+            "Architecture notes under memory/improve/behavior/ — return to Play Ladder R0; "
+            "do not open a new front to fix thrash.",
+        ))
+
     if kind_counts.get("tool_fail", 0):
         themes.append((
             "T3",

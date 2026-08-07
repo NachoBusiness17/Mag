@@ -1,0 +1,23 @@
+# Mag browser / computer-use seat (OpenClaw or Playwright later)
+# Only pre-approved hosts and window titles. Residual stays local.
+schema: mag_browser_env.v1
+enabled: false
+mode: allowlist
+driver: none   # none | openclaw | playwright
+hosts:
+  - chat.openai.com
+  - chatgpt.com
+  - claude.ai
+  - grok.x.ai
+  - x.com
+  - github.com
+  - localhost
+  - 127.0.0.1
+windows:
+  - title_contains: ChatGPT
+  - title_contains: Claude
+  - title_contains: Grok
+  - title_contains: GitHub
+notes: >
+  Flip enabled when a driver is installed. Mag routes goals; this seat
+  only opens allowlisted web surfaces (ChatGPT-style computer use, gated).

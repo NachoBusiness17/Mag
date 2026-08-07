@@ -1,0 +1,213 @@
+{
+  "schema": "mag_game_module.v1",
+  "module_id": "dnd_classic_stub",
+  "aliases": ["classic", "the classic one", "classic dnd", "b2-shaped", "keep", "tavern"],
+  "title": "The Guttered Lantern → Classic Keep (homage stub)",
+  "license_note": "Original Mag structure. SRD tools for monsters/spells. Not B2 text.",
+  "system": "5e-srd-lite",
+  "start_room": "tavern_lantern",
+  "area_tag": "hub",
+  "player_start": {
+    "name": "Adventurer",
+    "archetype": "fighter",
+    "hp": 12,
+    "hp_max": 12,
+    "ac": 14,
+    "attack_bonus": 4,
+    "damage": "1d8+2",
+    "traits": ["brave"],
+    "inventory": ["torch", "rations", "few coins"]
+  },
+  "rooms": {
+    "tavern_lantern": {
+      "id": "tavern_lantern",
+      "name": "The Guttered Lantern",
+      "desc": "Low beams, sticky tables, a fire that argues with the damp. The barkeep polishes the same mug. Door to the road. Stairs up to rooms. Smell of broth, wet wool, old stories.",
+      "area": "Village edge under the keep's shadow",
+      "environment": "Evening lamp-light; rain threatens; safe-ish hub",
+      "area_tag": "hub",
+      "exits": {"out": "road_to_keep", "north": "road_to_keep", "up": "tavern_loft"},
+      "hooks": [
+        "Rumor: keep chimney smokes black — wrong for weather.",
+        "A stranger maps wet rings on the table and will not look up.",
+        "Barkeep: first drink free if you promise to come back breathing."
+      ],
+      "tags": ["tavern", "hub", "safe"]
+    },
+    "tavern_loft": {
+      "id": "tavern_loft",
+      "name": "Lantern Loft",
+      "desc": "Creaking boards, thin mattresses, a window toward the keep. Someone snored here recently.",
+      "area": "Above the common room",
+      "environment": "Quiet; rain on roof; private enough to rest",
+      "area_tag": "hub",
+      "exits": {"down": "tavern_lantern"},
+      "hooks": ["A bootprint of mud shaped like a keep-stone."],
+      "tags": ["tavern", "rest"]
+    },
+    "road_to_keep": {
+      "id": "road_to_keep",
+      "name": "Dusty Road to the Keep",
+      "desc": "A rutted road climbs toward a stone keep. Raven calls. Mixed tracks. Behind you: tavern lamp-glow.",
+      "area": "Between village and keep",
+      "environment": "Open sky; wind; threshold energy",
+      "area_tag": "road",
+      "exits": {"north": "keep_gate", "east": "farm_edge", "south": "woods_trail", "back": "tavern_lantern", "tavern": "tavern_lantern"},
+      "hooks": ["Overturned cart — blood, no bodies.", "Keep chimney smoke is too black."]
+    },
+    "keep_gate": {
+      "id": "keep_gate",
+      "name": "Keep Gatehouse",
+      "desc": "Iron-bound gates ajar. One torch. Stone scraped recently.",
+      "exits": {"south": "road_to_keep", "north": "courtyard", "down": "cellar_hatch"},
+      "hooks": ["Empty guard post; dice on the table.", "A toy sword in the mud."]
+    },
+    "courtyard": {
+      "id": "courtyard",
+      "name": "Inner Courtyard",
+      "desc": "Well, stables, doors to hall and barracks. The quiet is wrong.",
+      "exits": {"south": "keep_gate", "west": "great_hall", "east": "barracks"},
+      "hooks": ["Well rope cut halfway.", "Barracks barred from inside."]
+    },
+    "great_hall": {
+      "id": "great_hall",
+      "name": "Great Hall",
+      "desc": "Cold hearth, banners, a cave map pinned with a dagger.",
+      "exits": {"east": "courtyard", "north": "lord_solar"},
+      "hooks": ["Map marks caves under the hill.", "Goblin-script under a table."],
+      "flags_on_enter": ["saw_cave_map"]
+    },
+    "barracks": {
+      "id": "barracks",
+      "name": "Barracks",
+      "desc": "Bunks, half-empty racks. Signs of a short fight.",
+      "exits": {"west": "courtyard"},
+      "encounter": {
+        "id": "goblin_scout",
+        "srd_ref": "goblin",
+        "name": "Goblin Scout",
+        "hp": 7,
+        "hp_max": 7,
+        "ac": 15,
+        "attack_bonus": 4,
+        "damage": "1d6+2"
+      },
+      "hooks": ["One bunk still warm."]
+    },
+    "lord_solar": {
+      "id": "lord_solar",
+      "name": "Lord's Solar",
+      "desc": "Private chamber. Journal open: they came from below.",
+      "exits": {"south": "great_hall", "down": "cellar_hatch"},
+      "hooks": ["Unfinished journal line.", "Key with a cave sigil."],
+      "loot": ["cave_key"]
+    },
+    "cellar_hatch": {
+      "id": "cellar_hatch",
+      "name": "Cellar / Cave Mouth",
+      "desc": "Stairs open into natural cave. Cold air. Distant chatter.",
+      "exits": {"up": "keep_gate", "deeper": "cave_fork"},
+      "hooks": ["Torch stubs. Something small lives here."]
+    },
+    "cave_fork": {
+      "id": "cave_fork",
+      "name": "Cave Fork",
+      "desc": "Left wet and narrow; right wider with claw marks.",
+      "exits": {"back": "cellar_hatch", "left": "wet_crawl", "right": "claw_hall"},
+      "hooks": ["Noise echoes — choose carefully."]
+    },
+    "wet_crawl": {
+      "id": "wet_crawl",
+      "name": "Wet Crawl",
+      "desc": "Tight crawl opens to a pool chamber.",
+      "exits": {"back": "cave_fork"},
+      "hooks": ["Metal glints under the water."]
+    },
+    "claw_hall": {
+      "id": "claw_hall",
+      "name": "Claw-Marked Hall",
+      "desc": "Old pillars. Goblin camp. A captive near the fire.",
+      "exits": {"back": "cave_fork"},
+      "encounter": {
+        "id": "goblin_band",
+        "srd_ref": "goblin",
+        "name": "Goblin Band",
+        "hp": 14,
+        "hp_max": 14,
+        "ac": 15,
+        "attack_bonus": 4,
+        "damage": "1d6+2"
+      },
+      "hooks": ["Captive merchant. Crate with keep seal."],
+      "flags_on_clear": ["freed_merchant_opportunity"]
+    },
+    "farm_edge": {
+      "id": "farm_edge",
+      "name": "Edge of Farmland",
+      "desc": "Burned outbuilding. Trampled fields.",
+      "exits": {"west": "road_to_keep"},
+      "hooks": ["Note: to the caves under the keep."]
+    },
+    "woods_trail": {
+      "id": "woods_trail",
+      "name": "Woods Trail",
+      "desc": "Twisting path — ambush country.",
+      "area": "Tree-line off the keep road",
+      "environment": "Dappled dark; twigs; ambush weather",
+      "area_tag": "woods",
+      "exits": {"north": "road_to_keep"},
+      "hooks": ["Boots mixed with animal tracks."]
+    }
+  },
+  "event_tables": {
+    "tavern_rumor": [
+      {"w": 30, "id": "black_smoke", "text": "Rumor: the keep's smoke is wrong — black in clean weather. Something below is burning secrets."},
+      {"w": 25, "id": "missing_guard", "text": "Rumor: three guards went to the gatehouse and only two shadows came back."},
+      {"w": 20, "id": "woods_tax", "text": "Rumor: bandits in the woods tax travelers with poetry and knives."},
+      {"w": 15, "id": "cave_song", "text": "Rumor: at night a thin song rises from under the hill. Not human. Not kind."},
+      {"w": 10, "id": "merchant_debt", "text": "Rumor: a merchant will pay in favors if you free someone from the caves."}
+    ],
+    "tavern_drink": [
+      {"w": 40, "id": "ale", "text": "The ale is honest: bitter, brown, fortifying. HP feels slightly braver."},
+      {"w": 30, "id": "broth", "text": "Broth that has known better vegetables. Warmth returns to your hands."},
+      {"w": 20, "id": "mystery", "text": "A free mug of something purple. The barkeep will not make eye contact."},
+      {"w": 10, "id": "water", "text": "Water. Revolutionary. The locals stare."}
+    ],
+    "random_road": [
+      {"w": 40, "id": "none", "text": "The road holds its breath. No fight — only wind."},
+      {"w": 30, "id": "bandit", "text": "A trail bandit steps from the ditch, smiling without kindness.", "encounter": {"id": "trail_bandit", "name": "Trail Bandit", "hp": 8, "hp_max": 8, "ac": 13, "attack_bonus": 3, "damage": "1d6+1"}},
+      {"w": 20, "id": "wolf", "text": "A lean wolf blocks the ruts, deciding if you are food or weather.", "encounter": {"id": "lean_wolf", "name": "Lean Wolf", "hp": 6, "hp_max": 6, "ac": 12, "attack_bonus": 3, "damage": "1d4+1"}},
+      {"w": 10, "id": "goblin", "text": "A goblin scout freezes mid-sneak, then commits to violence.", "encounter": {"id": "goblin_scout", "name": "Goblin Scout", "hp": 7, "hp_max": 7, "ac": 15, "attack_bonus": 4, "damage": "1d6+2"}}
+    ],
+    "random_woods": [
+      {"w": 35, "id": "none", "text": "Leaves. Silence. Your own pulse."},
+      {"w": 35, "id": "bandit", "text": "Brush parts — a bandit with leaf-litter in their hair.", "encounter": {"id": "brush_bandit", "name": "Brush Bandit", "hp": 7, "hp_max": 7, "ac": 12, "attack_bonus": 3, "damage": "1d6"}},
+      {"w": 20, "id": "boar", "text": "A boar decides you are an insult.", "encounter": {"id": "angry_boar", "name": "Angry Boar", "hp": 10, "hp_max": 10, "ac": 11, "attack_bonus": 4, "damage": "1d6+2"}},
+      {"w": 10, "id": "goblin", "text": "Goblin laughter — then a thrown rock with opinions.", "encounter": {"id": "goblin_scout", "name": "Goblin Scout", "hp": 7, "hp_max": 7, "ac": 15, "attack_bonus": 4, "damage": "1d6+2"}}
+    ],
+    "rest_safe": [
+      {"w": 50, "id": "quiet", "text": "The night is quiet. Almost too quiet."},
+      {"w": 30, "id": "omen", "text": "You dream of the keep falling — wake with a debt of courage."},
+      {"w": 20, "id": "thief", "text": "Something small steals a ration while you sleep.", "lose": "rations"}
+    ],
+    "greedy_merchant": [
+      {"w": 60, "id": "bill", "text": "The merchant you saved invoices you for 'hero services and rope.'", "flag": "debt_to_merchant"},
+      {"w": 40, "id": "grateful", "text": "The merchant swears a favor — once.", "flag": "merchant_favor"}
+    ],
+    "curveball_color": [
+      {"w": 25, "id": "privy_bush", "text": "You duck behind a bush for a heroic bathroom break. A raven judges you. Dignity: optional. Progress: intact."},
+      {"w": 20, "id": "rock_flirt", "text": "You monologue at a rock. The rock remains emotionally unavailable. Somewhere, a bard takes notes."},
+      {"w": 15, "id": "power_nap", "text": "You power-nap for four minutes. Dream: the keep files a noise complaint. You wake stickier, not wiser."},
+      {"w": 15, "id": "yell_void", "text": "You yell your plan into the void. The void replies with wind. Nearby wildlife unfollows you."},
+      {"w": 15, "id": "dance_trail", "text": "You invent a victory dance early. A squirrel drops a nut in pity. No HP lost. Reputation among rodents: mixed."},
+      {"w": 10, "id": "meditate", "text": "You meditate on the meaning of quests. Insight: maybe just walk north. Body still here. Mind slightly smug."}
+    ],
+    "curveball_divert": [
+      {"w": 30, "id": "bandit_shove", "text": "Bandits pop from the scrub: 'Trail tax — or back on the road, hero.' They herd you like a confused sheep. Destination unchanged; dignity not.", "effect": "stay"},
+      {"w": 25, "id": "wolf_stare", "text": "Wolves shadow your off-path hustle, too polite to eat you, too hungry to let you improvise geography. You rethink the trail.", "effect": "stay"},
+      {"w": 20, "id": "merchant_yell", "text": "A merchant on a mule hollers: 'That way's bandits and bad Yelp! Keep to the ruts!' You are peer-pressured by capitalism.", "effect": "stay"},
+      {"w": 15, "id": "signpost", "text": "A crooked sign appears mid-ditch: 'NO SHORTCUTS — BY ORDER OF NARRATIVE.' You respect the font.", "effect": "stay"},
+      {"w": 10, "id": "ambush_fight", "text": "Your clever detour walks straight into an ambush. Surprise: the story had budget for one fight.", "effect": "encounter", "encounter": {"id": "trail_bandit", "name": "Trail Bandit", "hp": 8, "hp_max": 8, "ac": 13, "attack_bonus": 3, "damage": "1d6+1"}}
+    ]
+  }
+}

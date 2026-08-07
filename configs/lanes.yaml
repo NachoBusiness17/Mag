@@ -25,27 +25,46 @@ lanes:
     backend: wait
 
 local_models:
-  # Home PC 2026-07-31: ollama list = gemma:2b, gemma4, gemma4-hermes, nomic-embed-text
-  # (qwen3.5:35b was Vast-only; multi-smoke FAIL until this map)
+  # Home PC envelope 2026-08-06 — RX 5600 XT ~6GB VRAM · 64GB RAM · AMD (no CUDA)
+  # Doctrine: scut=2b · desk/voice/chat=qwen-desk · worker=gemma4 short bursts only
+  # Never stack two 8B models. OLLAMA_MAX_LOADED_MODELS=1 · CONTEXT=8k (not 65k)
   clerk: gemma:2b
   router: gemma:2b
-  orchestrator: gemma:2b          # repack / scut — too trunc-prone for desk handoff
-  desk_orchestrator: qwen-desk       # probe winner 69 t/s vs gemma4-desk 29 t/s @ 100% GPU (RX 5600 XT)
-  desk_conductor: qwen-desk          # hot-swap conductor seat — same default; change independently
-  worker: gemma4:latest
-  critic: gemma4:latest
-  biographer: gemma4-hermes:latest
+  orchestrator: gemma:2b             # repack / scut
+  desk_orchestrator: qwen-desk:latest  # 69 t/s probe winner on this GPU
+  desk_conductor: qwen-desk:latest
+  voice: gemma:2b                    # Mag Voice; override MAG_VOICE_LOCAL_MODEL
+  worker: gemma4:latest              # short bursts only — sequential load
+  critic: qwen-desk:latest           # was gemma4 — avoid dual 8B with worker
+  biographer: qwen-desk:latest       # was gemma4-hermes — 8B+think kills latency
   embed: nomic-embed-text
 
-# Prefer clerk hot; avoid stacking large models on small VRAM
+# Prefer clerk/desk hot; never keep worker+biographer both resident on 6GB
 load_policy:
   mode: sequential
   prefer_keep_worker_hot: false
+  max_resident: 1
+  note: "Unload 8B when switching to voice/desk; prefer qwen-desk resident"
 
 # Hermes: optional lab only (see memory/improve/SEATS.md). Not auto-routed.
 hermes:
   parked: true
   note: "Explicit via hermes only; 8B+64k hybrid on 6GB is slow; Mag CLI needs bash-safe paths"
+
+# Hardware envelope (home) — skills/models operate inside this, not Vast 70B map
+hardware_envelope:
+  as_of: "2026-08-06"
+  system_ram_gb: 64
+  gpu: "AMD Radeon RX 5600 XT"
+  vram_gb_approx: 6
+  cuda: false
+  ollama_context: 8192
+  ollama_max_loaded: 1
+  voice_model: gemma:2b
+  desk_model: qwen-desk:latest
+  worker_model: gemma4:latest
+  escalate: [deepseek, grok_tui]
+  never_local: ["35b+", "70b", "full 65k context on 8B"]
 
 grok_budget:
   max_escalations_per_day: 8

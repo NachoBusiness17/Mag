@@ -20,7 +20,9 @@ from config import ROOT, STATE_DIR
 SCHEMA = "shared_activity.v1"
 ACTIVITY_PATH = STATE_DIR / "shared_activity.jsonl"
 
-VALID_DEPTHS = frozenset({"overview", "plan", "heavy_code", "simple_code", "scut"})
+VALID_DEPTHS = frozenset(
+    {"overview", "plan", "heavy_code", "simple_code", "scut", "conversation"}
+)
 
 DEPTH_ROUTES: dict[str, dict[str, Any]] = {
     "overview": {
@@ -52,6 +54,14 @@ DEPTH_ROUTES: dict[str, dict[str, Any]] = {
         "provider": "ollama",
         "tier": "L0",
         "token_hint": "Local janitor / short dispatch — preserve remote tokens.",
+    },
+    "conversation": {
+        "seat": "local",
+        "mode": "dispatch",
+        "launch": True,
+        "provider": "ollama",
+        "tier": "L0",
+        "token_hint": "Life/ideas dig — local speak + optional scout; fidelity escalate uses brief.",
     },
     "scut": {
         "seat": "local",

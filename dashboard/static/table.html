@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mag Table — system test</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0e14;
+      --panel: #0d1117;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --green-bg: #0d2818;
+      --blue: #58a6ff;
+      --purple: #d2a8ff;
+      --amber: #e3b341;
+      --you: #161b22;
+      font-family: system-ui, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header.bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 1rem;
+      padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); background: #0d1117;
+    }
+    header.bar h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+    header.bar .tag { font-size: 0.72rem; color: var(--amber); border: 1px solid #bb8009; border-radius: 999px; padding: 0.15rem 0.55rem; }
+    .meta { display: flex; flex-wrap: wrap; gap: 0.45rem 0.85rem; font-size: 0.78rem; color: var(--muted); }
+    .meta b { color: var(--text); font-weight: 600; }
+    .nav { margin-left: auto; display: flex; gap: 0.75rem; font-size: 0.85rem; }
+    .main {
+      flex: 1; display: grid; grid-template-columns: minmax(280px, 38%) 1fr;
+      min-height: 0; max-height: calc(100vh - 7.5rem);
+    }
+    @media (max-width: 820px) {
+      .main { grid-template-columns: 1fr; max-height: none; }
+      .canvas-col { max-height: 42vh; }
+      .chat-col { min-height: 40vh; }
+    }
+    .canvas-col, .chat-col {
+      display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border);
+    }
+    .chat-col { border-right: none; }
+    .pane-h {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--purple); font-weight: 600;
+    }
+    .pane-h span.sub { color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+    .ascii-map {
+      flex: 0 0 auto; min-height: 14rem; margin: 0; padding: 0.65rem 0.75rem;
+      background: #000; border-bottom: 1px solid var(--border);
+      font-family: ui-monospace, "Cascadia Mono", "Consolas", "Courier New", monospace;
+      font-size: 13px; line-height: 1.15; letter-spacing: 0.02em;
+      color: #3fb950; white-space: pre; overflow: auto;
+    }
+    .ascii-map .map-title { color: #e3b341; font-size: 0.75rem; margin-bottom: 0.35rem; font-family: system-ui, sans-serif; letter-spacing: 0; white-space: normal; }
+    .canvas-body {
+      flex: 1; overflow-y: auto; padding: 0.65rem 0.75rem; font-size: 0.82rem; line-height: 1.45;
+      background: var(--panel); min-height: 8rem;
+    }
+    .sec { color: var(--muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 0.65rem 0 0.25rem; }
+    .sec:first-child { margin-top: 0; }
+    .room-title { font-size: 1.05rem; font-weight: 600; color: #fff; margin: 0 0 0.25rem; }
+    .hook { color: var(--amber); font-size: 0.85rem; margin: 0.35rem 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
+    .chip {
+      font: inherit; font-size: 0.78rem; border: 1px solid var(--border); background: #21262d;
+      color: var(--text); border-radius: 999px; padding: 0.3rem 0.65rem; cursor: pointer;
+    }
+    .chip:hover { border-color: var(--blue); }
+    .chip.guest { border-color: #a371f7; background: #1a1028; }
+    .chip.primary { background: #238636; border-color: #2ea043; }
+    .empty { color: var(--muted); font-size: 0.85rem; }
+    .log {
+      flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.55rem;
+      background: #080b10;
+    }
+    .bubble { padding: 0.65rem 0.8rem; border-radius: 12px; max-width: 92%; line-height: 1.45; font-size: 0.92rem; }
+    .you { align-self: flex-end; background: var(--you); border: 1px solid var(--border); }
+    .mag { align-self: flex-start; background: var(--green-bg); border: 1px solid #238636; }
+    .who { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .bubble .meta-line { font-size: 0.68rem; color: #6e7681; margin-top: 0.3rem; }
+    .composer {
+      border-top: 1px solid var(--border); padding: 0.55rem 0.75rem 0.75rem; background: #0d1117;
+    }
+    .composer-row { display: flex; gap: 0.5rem; align-items: flex-end; }
+    .composer textarea {
+      flex: 1; font: inherit; font-size: 0.95rem; min-height: 2.6rem; max-height: 8rem;
+      resize: vertical; background: #161b22; color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.55rem 0.7rem; line-height: 1.4;
+    }
+    .composer textarea:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+    .btns { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    button.act {
+      font: inherit; border: 1px solid var(--border); background: #21262d; color: var(--text);
+      border-radius: 999px; padding: 0.5rem 0.9rem; cursor: pointer;
+    }
+    button.act.primary { background: #238636; border-color: #2ea043; }
+    button.act:disabled { opacity: 0.45; cursor: not-allowed; }
+    .presets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0 0.2rem; }
+    .presets button {
+      font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px;
+      border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer;
+    }
+    .presets button:hover { color: var(--text); border-color: var(--muted); }
+    details.adv { margin-top: 0.4rem; font-size: 0.8rem; color: var(--muted); }
+    details.adv select, details.adv label { display: block; margin: 0.25rem 0; }
+    details.adv select {
+      font: inherit; background: #161b22; color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.25rem 0.4rem;
+    }
+    .status-line { font-size: 0.78rem; color: var(--muted); min-height: 1.1rem; margin: 0.25rem 0; }
+    .phase {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--border);
+      font-size: 0.72rem; margin-left: 0.35rem;
+    }
+    .phase.busy { border-color: #a371f7; color: #d2a8ff; }
+    .phase.listening { border-color: #bb8009; color: #e3b341; }
+    .bubble .body { white-space: normal; line-height: 1.45; }
+    .bubble .h2 {
+      margin: 0.65rem 0 0.25rem; font-size: 0.72rem; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #8b949e; font-weight: 600;
+    }
+    .bubble .h2:first-child { margin-top: 0.15rem; }
+    .bubble .h3 {
+      margin: 0.55rem 0 0.2rem; font-size: 0.78rem; color: #a371f7; font-weight: 600;
+    }
+    .bubble .lead { color: #79c0ff; margin: 0.1rem 0; }
+    .bubble pre.ledger {
+      margin: 0.4rem 0; padding: 0.45rem 0.55rem; background: #0d1117;
+      border: 1px solid var(--border); border-radius: 8px; font-size: 0.72rem;
+      color: #8b949e; overflow-x: auto; white-space: pre-wrap; max-height: 14rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <h1>Mag Table</h1>
+    <span class="tag">shell · system test · domain: keep</span>
+    <div class="meta" id="meta">
+      <span>Route <b id="mRoute">—</b></span>
+      <span>Seat <b id="mSeat">—</b></span>
+      <span>ms <b id="mMs">—</b></span>
+      <span>Session <b id="mSid">—</b></span>
+      <span class="phase" id="phase">idle</span>
+    </div>
+    <nav class="nav">
+      <a href="/?tab=home">Dash</a>
+      <a href="/voice">Voice</a>
+      <a href="#" id="btnNewWatch" title="New session id">New watch</a>
+    </nav>
+  </header>
+
+  <div class="main">
+    <section class="canvas-col" aria-label="Table canvas">
+      <div class="pane-h">
+        <span>Board <span class="sub">view layer · engine-true · REST</span></span>
+        <button type="button" class="chip" id="btnRefreshCanvas" style="font-size:0.7rem;padding:0.15rem 0.45rem">Refresh</button>
+      </div>
+      <pre class="ascii-map" id="asciiMap" aria-label="Dungeon ASCII"># loading…</pre>
+      <div class="canvas-body" id="canvasBody">
+        <p class="empty">HUD: scene · legal · guest. Map above is always on.</p>
+      </div>
+    </section>
+
+    <section class="chat-col" aria-label="Mission log">
+      <div class="pane-h">
+        <span>Log <span class="sub">chat · voice · shell</span></span>
+      </div>
+      <div class="log" id="log" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <footer class="composer">
+    <div class="status-line" id="status">Ready — text or mic. Engine owns the map; guest only advises.</div>
+    <div class="presets">
+      <button type="button" data-send="classic one">classic one (tavern)</button>
+      <button type="button" data-send="I'm Ash a greedy fighter">I'm Ash…</button>
+      <button type="button" data-send="random classic">random classic</button>
+      <button type="button" data-send="look">look</button>
+      <button type="button" data-send="ask for a rumor">rumor</button>
+      <button type="button" data-send="buy a drink">drink</button>
+      <button type="button" data-send="leave for the road">leave for the road</button>
+      <button type="button" data-send="go north">go north</button>
+      <button type="button" data-send="go fight something">go fight something</button>
+      <button type="button" data-send="start tavern brawl">start tavern brawl</button>
+      <button type="button" data-send="start battle">start battle</button>
+      <button type="button" data-send="attack">attack</button>
+      <button type="button" data-send="punch Vex and grapple">punch Vex + grapple</button>
+      <button type="button" data-send="I start a conga line through the bar">absurd conga</button>
+      <button type="button" data-send="flee">flee</button>
+      <button type="button" data-send="help">help</button>
+      <button type="button" data-send="what should I do">what should I do?</button>
+      <button type="button" data-send="move off to the woods">woods</button>
+      <button type="button" data-send="surprise me">surprise me</button>
+      <button type="button" data-send="seal session">seal session</button>
+    </div>
+    <div class="composer-row">
+      <textarea id="input" rows="2" placeholder="Talk to the table… Enter send · Shift+Enter newline"></textarea>
+      <div class="btns">
+        <button type="button" class="act primary" id="btnSend">Send</button>
+        <button type="button" class="act" id="btnMic">Mic</button>
+        <button type="button" class="act" id="btnDone" disabled>I'm done</button>
+        <button type="button" class="act" id="btnStopMic" disabled>Stop mic</button>
+      </div>
+    </div>
+    <details class="adv">
+      <summary>Advanced (STT / TTS / seat)</summary>
+      <label>STT
+        <select id="sttMode">
+          <option value="browser" selected>Browser Web Speech</option>
+          <option value="whisper">Whisper local (if wired)</option>
+        </select>
+      </label>
+      <label>Seat
+        <select id="seat">
+          <option value="local" selected>local + stack</option>
+          <option value="local_only">local only</option>
+          <option value="handoff">handoff scut</option>
+        </select>
+      </label>
+      <label>TTS voice <select id="ttsVoice"><option value="">Default</option></select></label>
+    </details>
+  </footer>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const inputEl = $("input");
+    const canvasBody = $("canvasBody");
+    const statusEl = $("status");
+    const phaseEl = $("phase");
+
+    let sessionId = localStorage.getItem("magTableSession") || ("table-" + Math.random().toString(36).slice(2, 11));
+    localStorage.setItem("magTableSession", sessionId);
+    $("mSid").textContent = sessionId;
+
+    let busy = false;
+    let lastLegal = [];
+    let lastSalon = null;
+    let rec = null;
+    let recRunning = false;
+    let buffer = "";
+    let silenceTimer = null;
+    const END_TURN_MS = 2000;
+
+    function esc(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function setPhase(p, cls) {
+      phaseEl.textContent = p;
+      phaseEl.className = "phase" + (cls ? " " + cls : "");
+    }
+
+    function setStatus(t) {
+      statusEl.textContent = t || "";
+    }
+
+    function formatBubbleHtml(text) {
+      // Preserve DM passage structure: ## headings, lists, code fences
+      let t = esc(text || "");
+      t = t.replace(/```([\s\S]*?)```/g, (_, code) =>
+        `<pre class="ledger">${code.trim()}</pre>`
+      );
+      t = t.replace(/^###\s+(.+)$/gm, "<div class=\"h3\">$1</div>");
+      t = t.replace(/^##\s+(.+)$/gm, "<div class=\"h2\">$1</div>");
+      t = t.replace(/^- (.+)$/gm, "<div class=\"lead\">· $1</div>");
+      t = t.replace(/\n/g, "<br>");
+      return t;
+    }
+
+    function addBubble(who, text, meta) {
+      const div = document.createElement("div");
+      div.className = "bubble " + (who === "you" ? "you" : "mag");
+      const m = meta ? `<div class="meta-line">${esc(meta)}</div>` : "";
+      const body = who === "you" ? esc(text) : formatBubbleHtml(text);
+      div.innerHTML = `<div class="who">${who === "you" ? "You" : "Mag"}</div><div class="body">${body}</div>${m}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function speakTts(text) {
+      if (!window.speechSynthesis || !text) return;
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text.slice(0, 600));
+        const vName = $("ttsVoice").value;
+        const voices = speechSynthesis.getVoices();
+        if (vName) {
+          const v = voices.find((x) => x.name === vName);
+          if (v) u.voice = v;
+        }
+        u.rate = 1.15;
+        speechSynthesis.speak(u);
+      } catch (_) {}
+    }
+
+    function fillVoices() {
+      const sel = $("ttsVoice");
+      if (!window.speechSynthesis) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Default</option>';
+      speechSynthesis.getVoices().forEach((v) => {
+        const o = document.createElement("option");
+        o.value = v.name;
+        o.textContent = v.name;
+        sel.appendChild(o);
+      });
+      if (cur) sel.value = cur;
+    }
+    fillVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = fillVoices;
+
+    function paintAscii(view) {
+      const el = $("asciiMap");
+      if (!el) return;
+      const title = (view && view.title) || "Map";
+      const grid = (view && view.grid_text) || (view && view.grid && view.grid.join("\n")) || "";
+      el.textContent = "";
+      const t = document.createElement("div");
+      t.className = "map-title";
+      t.textContent = title + "  @ you  g foe  + door  ≈ hook";
+      el.appendChild(t);
+      el.appendChild(document.createTextNode(grid || "##########\n#........#\n#...@....#\n#........#\n##########"));
+    }
+
+    function paintCanvas(j) {
+      const sc = (j && (j.scene_context || j.scene)) || null;
+      const legal = (j && j.legal) || lastLegal || [];
+      lastLegal = legal;
+      if (j && j.salon) lastSalon = j.salon;
+      const pl = (sc && sc.player) || {};
+      const enc = (sc && sc.encounter) || {};
+
+      if (j && (j.grid_text || j.grid)) paintAscii(j);
+
+      let html = "";
+      if (sc && (sc.room_name || sc.room_desc)) {
+        html += `<div class="sec">Scene</div>`;
+        html += `<div class="room-title">${esc(sc.room_name || "—")}</div>`;
+        if (sc.room_desc) html += `<div>${esc(sc.room_desc)}</div>`;
+        if (sc.hook) html += `<div class="hook">Hook: ${esc(sc.hook)}</div>`;
+        if (sc.exits && sc.exits.length) {
+          html += `<div class="sec">Exits</div><div class="chips">`;
+          sc.exits.forEach((e) => {
+            html += `<button type="button" class="chip" data-send="go ${esc(e)}">${esc(e)}</button>`;
+          });
+          html += `</div>`;
+        }
+      } else {
+        html += `<p class="empty">No party yet — <b>classic one</b> then name yourself.</p>`;
+      }
+
+      if (pl.name) {
+        html += `<div class="sec">Crew</div>`;
+        html += `<div><b>${esc(pl.name)}</b> the ${esc(pl.archetype || "?")} · HP ${esc(pl.hp)}/${esc(pl.hp_max)}</div>`;
+        if (pl.traits && pl.traits.length) html += `<div>Traits: ${esc(pl.traits.join(", "))}</div>`;
+      }
+
+      if (enc && enc.name && Number(enc.hp || 0) > 0) {
+        html += `<div class="sec">Threat</div>`;
+        html += `<div>${esc(enc.name)} · HP ${esc(enc.hp)}/${esc(enc.hp_max || enc.hp)}</div>`;
+      }
+
+      if (legal && legal.length) {
+        html += `<div class="sec">Legal</div><div class="chips">`;
+        legal.forEach((a) => {
+          let label = a.type || "?";
+          let send = label;
+          if (a.direction) {
+            label = a.type + " " + a.direction;
+            send = a.type === "move" ? "go " + a.direction : label;
+          }
+          if (["look", "help", "inventory", "rest", "attack", "flee"].includes(a.type)) send = a.type;
+          html += `<button type="button" class="chip" data-send="${esc(send)}">${esc(label)}</button>`;
+        });
+        html += `</div>`;
+      }
+
+      if (j && j.advice && j.advice.options) {
+        html += `<div class="sec">Guest of honor</div>`;
+        if (j.advice.flavor) html += `<div class="hook">${esc(j.advice.flavor)}</div>`;
+        html += `<div class="chips">`;
+        (j.advice.options || []).forEach((o) => {
+          html += `<button type="button" class="chip guest" data-send="take ${esc(o.id)}">${esc(o.id)}) ${esc(o.label)}</button>`;
+        });
+        html += `<button type="button" class="chip" data-send="ignore guest">ignore guest</button>`;
+        html += `</div>`;
+      }
+
+      if (j && j.campaign_id) {
+        html += `<div class="sec">Campaign</div><div class="empty">${esc(j.campaign_id)}</div>`;
+      }
+
+      canvasBody.innerHTML = html || `<p class="empty">HUD ready.</p>`;
+      canvasBody.querySelectorAll("[data-send]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const t = btn.getAttribute("data-send");
+          if (t) sendText(t);
+        });
+      });
+    }
+
+    async function refreshTableView() {
+      try {
+        let url = "/api/v1/table/view?session_id=" + encodeURIComponent(sessionId);
+        try {
+          const cid = localStorage.getItem("magTableCampaign");
+          if (cid) url += "&campaign_id=" + encodeURIComponent(cid);
+        } catch (_) {}
+        const r = await fetch(url);
+        const j = await r.json();
+        if (j && j.ok !== false) {
+          if (j.campaign_id) {
+            try { localStorage.setItem("magTableCampaign", j.campaign_id); } catch (_) {}
+          }
+          paintAscii(j);
+          paintCanvas({
+            scene_context: j.scene,
+            legal: j.legal,
+            campaign_id: j.campaign_id,
+            grid_text: j.grid_text,
+            grid: j.grid,
+            title: j.title,
+            route: "table_view",
+          });
+        }
+      } catch (e) {
+        paintAscii({ title: "offline", grid_text: "##########\n# ERROR  #\n##########" });
+      }
+    }
+
+    async function refreshGameStatus() {
+      await refreshTableView();
+    }
+
+    async function sendText(text) {
+      text = (text || "").trim();
+      if (!text || busy) return;
+      busy = true;
+      setPhase("thinking", "busy");
+      setStatus("Table turn…");
+      addBubble("you", text);
+      inputEl.value = "";
+      const t0 = performance.now();
+      try {
+        const r = await fetch("/api/v1/voice/turn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            session_id: sessionId,
+            seat: $("seat").value || "local",
+            channel: "table",
+            conversation: true,
+            lane: "dig",
+          }),
+        });
+        const j = await r.json();
+        const ms = Math.round(performance.now() - t0);
+        // Table: full passage + ledger. TTS: DM narrator only.
+        const display = (j.answer || j.narrate || j.speak_text || j.error || "…").trim();
+        const voice = (j.speak_text || j.speak || "").trim() || display;
+        $("mRoute").textContent = j.route || "—";
+        $("mSeat").textContent = j.seat || "—";
+        $("mMs").textContent = String(ms);
+        addBubble("mag", display, (j.route || "") + (j.provider ? " · " + j.provider : "") + " · " + ms + "ms");
+        speakTts(voice);
+        if (j.campaign_id) {
+          try { localStorage.setItem("magTableCampaign", j.campaign_id); } catch (_) {}
+        }
+        await refreshTableView();
+        if (j.advice || j.scene_context) {
+          paintCanvas({
+            scene_context: j.scene_context,
+            legal: j.legal,
+            campaign_id: j.campaign_id,
+            advice: j.advice,
+            route: j.route,
+          });
+          // re-apply ascii from view endpoint (authoritative)
+          await refreshTableView();
+          if (j.advice) {
+            // keep guest chips after view refresh
+            const hud = canvasBody.innerHTML;
+            paintCanvas({
+              scene_context: j.scene_context,
+              legal: j.legal,
+              campaign_id: j.campaign_id,
+              advice: j.advice,
+              route: j.route,
+            });
+          }
+        }
+        setStatus(j.route === "salon_advice" ? "Guest spoke — take A/B or ignore guest" : "Ready");
+      } catch (e) {
+        addBubble("mag", "Error: " + (e.message || e));
+        setStatus("Error");
+      } finally {
+        busy = false;
+        setPhase("idle");
+      }
+    }
+
+    $("btnSend").onclick = () => sendText(inputEl.value);
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendText(inputEl.value);
+      }
+    });
+    document.querySelectorAll(".presets [data-send]").forEach((b) => {
+      b.addEventListener("click", () => sendText(b.getAttribute("data-send")));
+    });
+    $("btnRefreshCanvas").onclick = () => refreshGameStatus();
+    $("btnNewWatch").onclick = (e) => {
+      e.preventDefault();
+      sessionId = "table-" + Math.random().toString(36).slice(2, 11);
+      localStorage.setItem("magTableSession", sessionId);
+      $("mSid").textContent = sessionId;
+      logEl.innerHTML = "";
+      canvasBody.innerHTML = `<p class="empty">New watch. Say <b>classic one</b>.</p>`;
+      setStatus("New session " + sessionId);
+    };
+
+    // --- Browser mic (simple Web Speech) ---
+    function sttMode() {
+      return $("sttMode").value || "browser";
+    }
+
+    function stopMic() {
+      clearTimeout(silenceTimer);
+      try {
+        if (rec && recRunning) rec.stop();
+      } catch (_) {}
+      recRunning = false;
+      $("btnMic").disabled = false;
+      $("btnDone").disabled = true;
+      $("btnStopMic").disabled = true;
+      setPhase("idle");
+    }
+
+    $("btnStopMic").onclick = () => {
+      stopMic();
+      buffer = "";
+    };
+
+    $("btnDone").onclick = () => {
+      clearTimeout(silenceTimer);
+      const t = buffer.trim() || inputEl.value.trim();
+      stopMic();
+      buffer = "";
+      if (t) sendText(t);
+    };
+
+    $("btnMic").onclick = () => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        setStatus("No Web Speech in this browser — type instead");
+        return;
+      }
+      if (recRunning) return;
+      buffer = "";
+      rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+      rec.onresult = (ev) => {
+        let interim = "";
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const piece = ev.results[i][0].transcript;
+          if (ev.results[i].isFinal) buffer += piece + " ";
+          else interim += piece;
+        }
+        inputEl.value = (buffer + interim).trim();
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if (!recRunning || busy) return;
+          const t = buffer.trim();
+          if (t) {
+            stopMic();
+            buffer = "";
+            sendText(t);
+          }
+        }, END_TURN_MS);
+      };
+      rec.onerror = () => setStatus("Mic error — try type");
+      rec.onend = () => {
+        recRunning = false;
+        $("btnMic").disabled = false;
+      };
+      rec.start();
+      recRunning = true;
+      $("btnMic").disabled = true;
+      $("btnDone").disabled = false;
+      $("btnStopMic").disabled = false;
+      setPhase("listening", "listening");
+      setStatus("Listening… pause ~2s or I'm done");
+    };
+
+    // boot
+    addBubble("mag", "Table online. This is the system test surface — engine map, chat, guest advice. Type classic one or use presets.", "table");
+    refreshGameStatus();
+  </script>
+</body>
+</html>

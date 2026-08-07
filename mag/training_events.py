@@ -29,6 +29,12 @@ VALID_PATTERNS = frozenset({
     "promote_gate",
     "resonance_hit",
     "voice_turn",
+    "diary_seal",
+    "diary_artifact",
+    "state_freeze",
+    "refine_round",
+    "game_turn",
+    "skill_miss",
     "skill_gate",
     "release_milestone",
     "ilap_cycle",
@@ -40,6 +46,11 @@ VALID_PATTERNS = frozenset({
     "arena_match",
     "desk_episode",
     "desk_teaching",
+    "lifecycle_gap",
+    "pointer_knot",
+    "temperature_route",
+    "operator_behavior",
+    "table_view",
 })
 
 

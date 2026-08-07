@@ -25,13 +25,18 @@ providers:
     base_url: http://127.0.0.1:11434/v1
     api_key_env: null          # Ollama ignores key; send "ollama"
     api_key_default: ollama
+    # Home PC envelope (RX 5600 XT ~6GB + 64GB RAM): default FAST path.
+    # Role map in configs/lanes.yaml pins worker/critic to gemma4 when needed.
     models:
       - gemma:2b
+      - qwen-desk:latest
+      - qwen2.5:3b-instruct
       - gemma4:latest
-    default_model: gemma4:latest
+      - gemma4-desk:latest
+    default_model: qwen-desk:latest
     tier_max: T1               # may see local private
     free_local: true
-    timeout_seconds: 300
+    timeout_seconds: 90        # was 300 — don't hang voice/UI behind cold 8B loads
     quota:
       period: none             # unlimited local
       max_calls: null

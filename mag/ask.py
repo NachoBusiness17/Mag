@@ -184,7 +184,7 @@ def ask(
     *,
     session_id: str | None = None,
     use_llm: bool = True,
-    speak: bool = True,
+    speak: bool = False,
     peer_context: str | None = None,
     desk_canvas: str | None = None,
 ) -> dict[str, Any]:

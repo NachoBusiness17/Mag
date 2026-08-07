@@ -5531,6 +5531,138 @@ body.cli .routing-probe-fold {
   padding: 0.35rem 0.55rem;
   line-height: 1.45;
 }
+/* --- Mag Talk (default) vs Lab calibration desk --- */
+body.cli .chat-shell.talk-default {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+body.cli .mag-talk {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}
+body.cli .mag-talk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+body.cli .mag-talk-status {
+  padding: 0.35rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+body.cli .mag-talk-dot {
+  opacity: 0.45;
+}
+body.cli .mag-talk-modes {
+  padding: 0.45rem 0.85rem;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+body.cli .mag-talk .chat-chips {
+  padding: 0.4rem 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+body.cli .mag-talk .chat-log {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  overflow: auto;
+  padding: 0.75rem 0.85rem;
+}
+body.cli .mag-talk-compose {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--line);
+  padding: 0.55rem 0.85rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: color-mix(in srgb, var(--bg, #0a1210) 92%, #000);
+}
+body.cli .mag-talk-compose textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.45;
+  background: #07100d;
+  color: var(--fg, #d8efe4);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.55rem 0.65rem;
+}
+body.cli .mag-talk-compose-row {
+  align-items: center;
+  gap: 0.4rem;
+}
+body.cli .talk-verbose {
+  margin-top: 0.55rem;
+  border-top: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line));
+  padding-top: 0.4rem;
+}
+body.cli .talk-verbose summary {
+  cursor: pointer;
+  color: var(--muted);
+  user-select: none;
+}
+body.cli .talk-verbose-pre {
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #050c0a;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: #9ecfba;
+  max-height: 14rem;
+  overflow: auto;
+}
+body.cli .chat-msg.pending .chat-body {
+  opacity: 0.85;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.88rem;
+}
+body.cli #btnTalkVerbose.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Lab block off by default — calibration only */
+body.cli .mag-lab-block {
+  display: none !important;
+}
+body.cli .agent-desk-shell.lab-mode .mag-lab-block {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+body.cli .agent-desk-shell.lab-mode .mag-talk {
+  flex: 0 0 auto;
+  max-height: 38vh;
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+}
+body.cli .agent-desk-shell.lab-mode .mag-talk .chat-log {
+  min-height: 4rem;
+  max-height: 12rem;
+}
+
 .desk-redundant-compose,
 .desk-lane .desk-compose,
 .desk-lab-control,

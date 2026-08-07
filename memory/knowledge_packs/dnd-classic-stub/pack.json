@@ -1,0 +1,116 @@
+{
+  "schema": "local_usable.v1",
+  "slug": "dnd-classic-stub",
+  "kind": "game_module",
+  "title": "The Classic Keep (homage stub \u2014 not a commercial module)",
+  "entity_or_goal": "dnd_classic_stub",
+  "ts": "2026-08-07T02:31:45.467873+00:00",
+  "local_token_budget": 1024,
+  "generation_rule": "never_collapse_layers",
+  "world_roles": [
+    {
+      "world_role": "rules_clerk",
+      "mag_seat": "local",
+      "may": "cite legal_actions and dice outcomes",
+      "must_not": "invent rooms, NPCs, or exits"
+    },
+    {
+      "world_role": "scene_painter",
+      "mag_seat": "local_narrate",
+      "may": "paint scene_context only",
+      "must_not": "change HP, inventory, or map"
+    },
+    {
+      "world_role": "chronicler",
+      "mag_seat": "local",
+      "may": "FILE log tails and freezes",
+      "must_not": "rewrite past engine events"
+    },
+    {
+      "world_role": "module_author",
+      "mag_seat": "deepseek",
+      "may": "FILE local_usable packs and modules",
+      "must_not": "live-DM every player turn on remote"
+    },
+    {
+      "world_role": "contract_trail",
+      "mag_seat": "kimi",
+      "may": "check layer purity and obligations",
+      "must_not": "become system of record"
+    },
+    {
+      "world_role": "judge",
+      "mag_seat": "grok_tui",
+      "may": "benchmark, steal, unstick",
+      "must_not": "multi-file scut after plan freeze"
+    },
+    {
+      "world_role": "player",
+      "mag_seat": "human",
+      "may": "act and L3 consent",
+      "must_not": "\u2014"
+    }
+  ],
+  "retrieval_obligations": {
+    "historical_event": [
+      "provenance"
+    ],
+    "quotation": [
+      "source_reference"
+    ],
+    "controversial_claim": [
+      "opposing_interpretation"
+    ],
+    "psychological_theory": [
+      "historiography"
+    ],
+    "political_event": [
+      "historical_context"
+    ],
+    "game_action": [
+      "legal_actions",
+      "scene_state"
+    ],
+    "narrate": [
+      "scene_context",
+      "events_from_engine"
+    ],
+    "rules_ruling": [
+      "ruleset_id",
+      "rule_atom"
+    ],
+    "world_fact": [
+      "datasheet_id_or_engine"
+    ],
+    "structure_step": [
+      "acceptance",
+      "non_goals"
+    ]
+  },
+  "producer_chain_id": "",
+  "freeze_hash": "",
+  "files": {
+    "master": "master.md",
+    "datasheet": "datasheet.json",
+    "provenance": "provenance.yaml",
+    "misconceptions": "misconceptions.yaml",
+    "retrieval_policy": "retrieval_policy.yaml",
+    "world_roles": "world_roles.json",
+    "local_prompt": "local_prompt.md",
+    "prompt_variants": "prompt_variants.txt"
+  },
+  "hashes": {
+    "datasheet": "b015c5a9298654ee",
+    "local_prompt": "3905dffe16ce124c"
+  },
+  "dual_reading": {
+    "public_face": "play_or_riddle_activation",
+    "soil": "disk_engine_and_packs",
+    "note": "Shape of multi-seat self-talk is enough camo; real decode always on disk"
+  },
+  "extra": {
+    "module_id": "dnd_classic_stub",
+    "system": "5e-srd-lite",
+    "start_room": "road_to_keep"
+  }
+}

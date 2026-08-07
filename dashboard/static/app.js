@@ -735,7 +735,8 @@ function attentionCard(item) {
     <details><summary>Why this rank</summary><p class="muted sm">${esc(item.rank_reason || "")}</p>${evidence.length ? `<ul class="signal-list sm">${evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>
     <div class="attention-controls">
       <button type="button" class="btn ghost btn-sm attention-route" data-kind="${esc(item.kind)}">${item.kind === "roadmap" ? "Open roadmap" : item.kind === "worker" ? "Open workers" : "Inspect"}</button>
-      <button type="button" class="btn ghost btn-sm attention-direct">Direct Mag</button>
+      <a class="btn ghost btn-sm" href="/voice">Voice</a>
+      <button type="button" class="btn ghost btn-sm attention-direct">Talk</button>
       ${item.hard_rule ? "" : `<button type="button" class="attention-feedback" data-signal="useful">Useful</button><button type="button" class="attention-feedback" data-signal="wallpaper">Wallpaper</button><button type="button" class="attention-feedback" data-signal="pin">Pin</button><button type="button" class="attention-feedback" data-signal="mute">Mute</button>`}
     </div>
   </article>`;
@@ -1150,13 +1151,85 @@ const CHAT_MSG_MAX_CHARS = 6000;
 const CHAT_STREAM_IDLE_MS = 120000;
 const CHAT_STREAM_MAX_MS = 600000;
 const BIOGRAPHER_Q =
-  /^(what was i doing|what should i do next|is the office healthy|what next)/i;
+  /^(what was i doing|what should i do next|is the office healthy|what next|continuity|eject)/i;
 let chatMode = "ask"; // ask default — agent/tools → Shell
 let chatBusy = false;
 let chatPendingEl = null;
+let chatVerbose = localStorage.getItem("mag_talk_verbose") === "1";
 const AGENT_SESSION = "dashboard";
 /** @type {{path:string, chip:string, attach_text:string}[]} */
 let composePending = [];
+
+/** Goal-oriented chips — replace generic FAQ theater. */
+const TALK_CHIPS = [
+  { q: "what was I doing?", mode: "ask", label: "What was I doing?" },
+  { q: "Load continuity: goals, gaps, eject protocol, next move from OPERATOR_CONTINUITY and agent_state", mode: "ask", label: "Continuity" },
+  { q: "What is the single next open gap and what seat should handle it?", mode: "ask", label: "Next gap" },
+  { q: "Office healthy? Dashboard, ollama, multi-smoke, keys presence only.", mode: "ask", label: "Body check" },
+  { q: "Run desk/ui smoke summary: what must pass before multi-agent tests?", mode: "ask", label: "Smoke map" },
+  { q: "Classify only: best seat and provider for implementing Talk verbose + useful chips", mode: "dispatch", label: "Do · classify" },
+  { q: "FILE residual note: Talk Phase 0 dogfood — goals, gaps, eject at 10% Grok, next single move", mode: "dispatch", label: "Do · file note" },
+  { q: "Build elevate pack for Grok: project goals, current state, gaps, function-test ladder, eject protocol", mode: "tangent", label: "Think · elevate" },
+];
+
+function setChatVerbose(on) {
+  chatVerbose = !!on;
+  try {
+    localStorage.setItem("mag_talk_verbose", chatVerbose ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  const btn = $("#btnTalkVerbose");
+  if (btn) {
+    btn.classList.toggle("on", chatVerbose);
+    btn.classList.toggle("ghost", !chatVerbose);
+    btn.textContent = chatVerbose ? "Verbose on" : "Verbose";
+    btn.title = chatVerbose
+      ? "Showing route · sources · tools · raw meta"
+      : "Show what Mag is thinking (sources, route, tools)";
+  }
+  renderChat();
+}
+
+function formatVerboseBlock(m) {
+  if (!chatVerbose || !m) return "";
+  const parts = [];
+  if (m.verbose) parts.push(String(m.verbose));
+  if (m.sources && m.sources.length) {
+    parts.push(
+      "Sources:\n" +
+        m.sources
+          .slice(0, 14)
+          .map((s) => {
+            if (typeof s === "string") return `· ${s}`;
+            return `· ${s.id || "?"} ${s.path || s.label || ""}`.trim();
+          })
+          .join("\n")
+    );
+  }
+  if (m.tools && m.tools.length) {
+    parts.push("Tools: " + m.tools.map((t) => String(t)).join(", "));
+  }
+  if (!parts.length) return "";
+  return `<details class="talk-verbose" open><summary class="muted sm">thinking / evidence</summary><pre class="talk-verbose-pre">${esc(parts.join("\n\n"))}</pre></details>`;
+}
+
+function renderTalkChips() {
+  const host = $("#chatChips");
+  if (!host) return;
+  host.innerHTML = TALK_CHIPS.map(
+    (c) =>
+      `<button type="button" class="btn ghost chip btn-sm" data-q="${esc(c.q)}" data-mode="${esc(c.mode || "ask")}">${esc(c.label)}</button>`
+  ).join("");
+  host.querySelectorAll(".chip").forEach((b) => {
+    b.addEventListener("click", () => {
+      const mode = b.dataset.mode || "ask";
+      setChatMode(mode);
+      if ($("#chatInput")) $("#chatInput").value = b.dataset.q || "";
+      sendChat();
+    });
+  });
+}
 
 function renderComposeAttach() {
   const el = $("#composeAttach");
@@ -1834,7 +1907,7 @@ function renderChat() {
   if (!log) return;
   const msgs = loadChatHistory();
   if (!msgs.length) {
-    log.innerHTML = `<div class="chat-msg sys"><b>Ask</b> = biographer over briefs/bonds (fast). <b>Shell</b> = file tree + streaming agent (tools). <b>Dispatch</b> = pack-first remote seat.</div>`;
+    log.innerHTML = `<div class="chat-msg sys"><b>Ask</b> local memory · <b>Do</b> route · <b>Agent</b> tools · <b>Think</b> elevate pack · <b>Verbose</b> shows sources/route · chips = real loops not FAQ theater · Lab = calibration only · eject ≤10% Grok → FILE + Pack + Mag Talk</div>`;
     if (chatPendingEl && chatPendingEl.parentNode === log) {
       log.appendChild(chatPendingEl);
     }
@@ -1845,7 +1918,7 @@ function renderChat() {
       const role = m.role === "user" ? "user" : m.role === "sys" ? "sys" : "mag";
       const meta = m.meta ? `<span class="meta">${esc(m.meta)}</span>` : "";
       let toolsHtml = "";
-      if (m.tools && m.tools.length) {
+      if (m.tools && m.tools.length && !chatVerbose) {
         toolsHtml =
           `<div class="tool-trace">` +
           m.tools.map((t) => `<span class="tool-chip">${esc(String(t))}</span>`).join("") +
@@ -1856,7 +1929,8 @@ function renderChat() {
         role === "mag" || role === "sys"
           ? formatAgentReply(raw)
           : esc(raw).replace(/\n/g, "<br/>");
-      return `<article class="chat-msg ${role} reply-card"><header class="reply-head">${meta}</header><div class="chat-body">${body}</div>${toolsHtml}</article>`;
+      const verboseHtml = role === "mag" || role === "sys" ? formatVerboseBlock(m) : "";
+      return `<article class="chat-msg ${role} reply-card"><header class="reply-head">${meta}</header><div class="chat-body">${body}</div>${toolsHtml}${verboseHtml}</article>`;
     })
     .join("");
   if (chatPendingEl && chatPendingEl.parentNode === log) {
@@ -1865,28 +1939,36 @@ function renderChat() {
   log.scrollTop = log.scrollHeight;
 }
 
-function beginPendingBubble() {
+function beginPendingBubble(statusLine) {
   const log = $("#chatLog");
   if (!log) return;
   if (chatPendingEl) chatPendingEl.remove();
   chatPendingEl = document.createElement("div");
   chatPendingEl.className = "chat-msg mag pending";
-  chatPendingEl.innerHTML = `<span class="meta">thinking…</span><div class="chat-body">…</div>`;
+  const st = statusLine || "thinking…";
+  chatPendingEl.innerHTML = `<span class="meta">${esc(st)}</span><div class="chat-body muted sm">${chatVerbose ? "Gathering pack / routing…" : "…"}</div>`;
   log.appendChild(chatPendingEl);
   log.scrollTop = log.scrollHeight;
 }
 
-function updatePendingBubble(text) {
-  if (!chatPendingEl) beginPendingBubble();
+function updatePendingBubble(text, statusLine) {
+  if (!chatPendingEl) beginPendingBubble(statusLine);
+  const meta = chatPendingEl?.querySelector(".meta");
+  if (meta && statusLine) meta.textContent = statusLine;
   const body = chatPendingEl?.querySelector(".chat-body");
   if (body) {
-    body.textContent = (text || "…").slice(-CHAT_MSG_MAX_CHARS);
+    const t = text || "…";
+    if (chatVerbose) {
+      body.textContent = t.slice(-CHAT_MSG_MAX_CHARS);
+    } else {
+      body.textContent = t.length > 200 ? t.slice(-200) : t;
+    }
     const log = $("#chatLog");
     if (log) log.scrollTop = log.scrollHeight;
   }
 }
 
-function endPendingBubble(finalText, meta, tools) {
+function endPendingBubble(finalText, meta, tools, extra) {
   if (chatPendingEl) {
     chatPendingEl.remove();
     chatPendingEl = null;
@@ -1897,6 +1979,8 @@ function endPendingBubble(finalText, meta, tools) {
     text: (finalText || "").slice(0, CHAT_MSG_MAX_CHARS),
     meta: meta || "",
     tools: tools || null,
+    sources: extra?.sources || null,
+    verbose: extra?.verbose || null,
     ts: Date.now(),
   });
   saveChatHistory(msgs);
@@ -3727,12 +3811,9 @@ function initAgentDesk() {
     loadDeskUserModel();
   });
   $("#btnDeskTemplate")?.addEventListener("click", () => loadDeskTemplate());
-  $("#btnDeskLabMode")?.addEventListener("click", (e) => {
-    const shell = $(".agent-desk-shell");
-    const on = !shell?.classList.contains("lab-mode");
-    shell?.classList.toggle("lab-mode", on);
-    e.currentTarget.textContent = on ? "Hide prototype controls" : "Show prototype controls";
-    setDeskCanvasMode(on ? "split" : "edit");
+  $("#btnDeskLabMode")?.addEventListener("click", () => {
+    const on = !$(".agent-desk-shell")?.classList.contains("lab-mode");
+    setTalkLabMode(on);
   });
   $("#btnDeskResetDialogue")?.addEventListener("click", () => {
     if (!confirm("Reset dialogue log? Clears echo loop (Sure-here's-the). Lanes cleared too.")) return;
@@ -3816,13 +3897,26 @@ function initAgentDesk() {
   });
   setDeskCanvasMode("edit");
   $("#btnChatClear")?.addEventListener("click", () => {
-    if (!confirm("Clear desk lanes in this browser?")) return;
-    localStorage.removeItem(LOCAL_CHAT_KEY);
-    localStorage.removeItem(REMOTE_CHAT_KEY);
-    localStorage.removeItem(META_CHAT_KEY);
-    renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
-    renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
-    renderLaneLog($("#metaChatLog"), META_CHAT_KEY, metaPendingEl);
+    const inLab = $(".agent-desk-shell")?.classList.contains("lab-mode");
+    if (inLab) {
+      if (!confirm("Clear talk history and lab lanes in this browser?")) return;
+      localStorage.removeItem(CHAT_KEY);
+      localStorage.removeItem(LOCAL_CHAT_KEY);
+      localStorage.removeItem(REMOTE_CHAT_KEY);
+      localStorage.removeItem(META_CHAT_KEY);
+      renderChat();
+      renderLaneLog($("#localChatLog"), LOCAL_CHAT_KEY, localPendingEl);
+      renderLaneLog($("#remoteChatLog"), REMOTE_CHAT_KEY, remotePendingEl);
+      renderLaneLog($("#metaChatLog"), META_CHAT_KEY, metaPendingEl);
+    } else {
+      if (!confirm("Clear talk history in this browser?")) return;
+      localStorage.removeItem(CHAT_KEY);
+      renderChat();
+    }
+  });
+  $("#btnTalkLab")?.addEventListener("click", () => {
+    const on = !$(".agent-desk-shell")?.classList.contains("lab-mode");
+    setTalkLabMode(on);
   });
 }
 
@@ -3883,13 +3977,17 @@ function setChatMode(mode) {
     const seat = chatSeat();
     let line;
     if (chatMode === "agent")
-      line = `Ready · Agent · ${isRemoteSeat(seat) ? seat : "deepseek"} · prefer Shell for long tool loops`;
-    else if (chatMode === "tangent") line = "Ready · Tangent (background)";
+      line = `Ready · Agent · ${isRemoteSeat(seat) ? seat : seat === "auto" ? "auto" : "deepseek"} · tools`;
+    else if (chatMode === "tangent")
+      line = "Ready · Think · background pack · elevate to Grok if needed";
+    else if (chatMode === "dispatch")
+      line =
+        seat === "auto"
+          ? "Ready · Do · auto-route cheapest seat"
+          : `Ready · Do · ${seat} · pack-first`;
     else if (isRemoteSeat(seat))
-      line = `Ready · ${seat} · pack-first (real API)`;
-    else if (seat === "local")
-      line = chatMode === "ask" ? "Ready · Local biographer" : "Ready · Local dispatch";
-    else line = `Ready · ${chatMode} · ${seat}`;
+      line = `Ready · Ask · ${seat} · pack-first`;
+    else line = "Ready · Ask · local memory";
     $("#chatStatus").textContent = line;
   }
   refreshChatPreflight();
@@ -3897,8 +3995,37 @@ function setChatMode(mode) {
   if (ph) {
     ph.placeholder =
       chatMode === "agent"
-        ? "Agent goal — multi-line OK. Long tool loops? Open Shell tab instead."
-        : "Ask Mag about your filed work…";
+        ? "Agent goal — multi-line OK. Long tool loops? Shell ↗"
+        : chatMode === "dispatch"
+          ? "What do you want done? Mag routes to the cheapest capable seat…"
+          : chatMode === "tangent"
+            ? "Think out loud — Mag files a pack; elevate to Grok for hard judgment…"
+            : "Ask Mag about your filed work…";
+  }
+}
+
+/** Toggle calibration Lab (desk lanes) vs default Talk surface. */
+function setTalkLabMode(on) {
+  const shell = $(".agent-desk-shell");
+  if (!shell) return;
+  shell.classList.toggle("lab-mode", !!on);
+  const lab = $("#magLabBlock");
+  if (lab) {
+    if (on) lab.removeAttribute("hidden");
+    else lab.setAttribute("hidden", "");
+  }
+  const btn = $("#btnTalkLab");
+  if (btn) btn.textContent = on ? "Hide lab" : "Lab";
+  const btn2 = $("#btnDeskLabMode");
+  if (btn2) btn2.textContent = on ? "Hide lab" : "Show lab";
+  if (on) setDeskCanvasMode("split");
+  try {
+    const u = new URL(window.location.href);
+    if (on) u.searchParams.set("lab", "1");
+    else u.searchParams.delete("lab");
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -4250,28 +4377,41 @@ async function sendChat() {
   composePending = [];
   renderComposeAttach();
   pushChat("user", userShow, `${chatMode} · ${seat}`);
-  if ($("#chatStatus")) $("#chatStatus").textContent = `Thinking (${chatMode} · ${seat})…`;
-  beginPendingBubble();
+  const thinkLine = `Thinking (${chatMode} · ${seat})…`;
+  if ($("#chatStatus")) $("#chatStatus").textContent = thinkLine;
+  beginPendingBubble(thinkLine);
 
   try {
     let text = "";
     let meta = chatMode;
     let tools = null;
+    let extra = {};
     if (chatMode === "agent") {
       const provider = isRemoteSeat(seat) ? seat : seat === "local" ? "ollama" : "deepseek";
       let acc = "";
       let toolN = 0;
+      updatePendingBubble(
+        chatVerbose ? `Agent seat · provider=${provider} · session=${AGENT_SESSION}\nStreaming…` : "…",
+        `Agent · ${provider} · start`
+      );
       const done = await streamAgentTurn(
         { goal: q, provider, session_id: AGENT_SESSION, reset: false },
         (delta) => {
           acc += delta;
-          updatePendingBubble(acc);
+          updatePendingBubble(acc, `Agent · ${provider} · stream`);
         },
         {
-          onTool: () => {
+          onTool: (t) => {
             toolN += 1;
+            const tname = t?.name || t || "tool";
             if ($("#chatStatus")) {
-              $("#chatStatus").textContent = `Agent · ${provider} · tool ${toolN}…`;
+              $("#chatStatus").textContent = `Agent · ${provider} · tool ${toolN}: ${tname}`;
+            }
+            if (chatVerbose) {
+              updatePendingBubble(
+                (acc || "") + `\n\n[tool ${toolN}] ${tname}`,
+                `Agent · tool ${toolN}`
+              );
             }
           },
         }
@@ -4279,8 +4419,22 @@ async function sendChat() {
       text = done.answer || acc || "(empty)";
       tools = done.tools || [];
       meta = `agent · ${done.provider || provider} · tools=${(tools || []).length}`;
-      endPendingBubble(text, meta, tools);
+      extra = {
+        verbose: [
+          `mode=agent provider=${done.provider || provider}`,
+          `session=${AGENT_SESSION}`,
+          tools.length ? `tools: ${tools.join(", ")}` : "tools: none",
+          done.error ? `error: ${done.error}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+      endPendingBubble(text, meta, tools, extra);
     } else if (chatMode === "tangent") {
+      updatePendingBubble(
+        chatVerbose ? "Think mode · filing background tangent / elevate pack…" : "…",
+        "Think · pack"
+      );
       const res = await postJSON("/api/v1/tangent", {
         prompt: q,
         source: "dashboard",
@@ -4289,14 +4443,27 @@ async function sendChat() {
         provider: isRemoteSeat(seat) ? seat : undefined,
       });
       const r = res.result || {};
-      meta = `tangent · ${r.id || res.queued?.id || "?"} · ${res.ok === false || r.ok === false ? "fail" : "ok"}`;
+      meta = `think · ${r.id || res.queued?.id || "?"} · ${res.ok === false || r.ok === false ? "fail" : "ok"}`;
       text =
-        `**Background tangent**\n\n` +
+        `**Think / elevate path**\n\n` +
         (r.summary || res.error || JSON.stringify(res).slice(0, 600)) +
         `\n\n_File:_ \`${r.path || "memory/tangents/latest.md"}\`\n` +
-        `_Elevate to Grok only if useful — pack path, not full chat._`;
-      endPendingBubble(text, meta, null);
-    } else if (chatMode === "dispatch" || isRemoteSeat(seat) || (chatMode === "ask" && seat !== "local")) {
+        `_Grok: LOAD that path + context-pack — not this chat scroll._`;
+      extra = {
+        verbose: `mode=think path=${r.path || "memory/tangents/latest.md"}\n${JSON.stringify(
+          { ok: res.ok, id: r.id || res.queued?.id, provider: r.provider },
+          null,
+          0
+        )}`,
+      };
+      endPendingBubble(text, meta, null, extra);
+    } else if (chatMode === "dispatch" || isRemoteSeat(seat) || (chatMode === "ask" && seat !== "local" && seat !== "auto")) {
+      updatePendingBubble(
+        chatVerbose
+          ? `Do · dispatch goal through router\nseat_pref=${seat}\n(pack-first, no full chat)`
+          : "…",
+        "Do · routing"
+      );
       const body = { goal: q };
       if (seat === "local") {
         body.seat = "local";
@@ -4315,27 +4482,59 @@ async function sendChat() {
         typeof res.provider === "string"
           ? res.provider
           : res.provider?.provider || res.result?.provider || seat;
-      meta = `dispatch · ${res.seat || "?"} · ${prov} · ${res.ok === false ? "fail" : "ok"}`;
+      meta = `do · ${res.seat || "?"} · ${prov} · ${res.ok === false ? "fail" : "ok"}`;
       if (res.economy_last) {
         meta += ` · saved ~${res.economy_last.tokens_saved ?? "?"} tok`;
       }
-      endPendingBubble(text, meta, null);
+      extra = {
+        verbose: [
+          `mode=do seat=${res.seat || "?"} provider=${prov}`,
+          res.job ? `job=${res.job}` : "",
+          res.hint || "",
+          res.classify ? `classify=${JSON.stringify(res.classify).slice(0, 400)}` : "",
+          res.context_pack || res.pack_excerpt
+            ? "pack excerpt present — elevate ready"
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+      endPendingBubble(text, meta, null, extra);
     } else {
+      updatePendingBubble(
+        chatVerbose
+          ? "Ask · loading L0 context (briefs, bonds, improve, continuity)…"
+          : "…",
+        "Ask · L0 gather"
+      );
       const res = await postJSON("/api/v1/ask", { question: q, use_llm: true });
       text = res.answer || res.error || JSON.stringify(res, null, 2);
-      const last = res.economy_last || {};
       const nsrc = (res.sources || []).length;
       meta =
         res.ok === false
           ? "ask · fail"
-          : `ask · L0 · ${nsrc} sources · memory/briefs`;
-      endPendingBubble(text, meta, null);
+          : `ask · L0 · ${nsrc} sources · ${res.used_llm ? "llm" : "heuristic"} · 0 Grok`;
+      extra = {
+        sources: res.sources || [],
+        verbose: [
+          `mode=ask used_llm=${!!res.used_llm} context_chars=${res.context_chars ?? "?"}`,
+          `system=${res.system_prompt_source || "chat_default + GOAL/SEATS/MIRROR"}`,
+          res.not_in_store ? "flag=NOT_IN_STORE" : "flag=in_store",
+          res.cited_ids?.length ? `cited=${res.cited_ids.join(",")}` : "cited=none_in_text",
+          nsrc ? `n_sources=${nsrc}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+      endPendingBubble(text, meta, null, extra);
     }
     refreshEconomy();
     refreshChatQuota();
     refreshChatPreflight();
   } catch (e) {
-    endPendingBubble(String(e.message || e), "error", null);
+    endPendingBubble(String(e.message || e), "error", null, {
+      verbose: chatVerbose ? String(e.stack || e) : null,
+    });
   } finally {
     chatBusy = false;
     if ($("#chatStatus")) $("#chatStatus").textContent = "Ready";
@@ -8409,13 +8608,22 @@ async function bind() {
   $("#chatModeAsk")?.addEventListener("click", () => setChatMode("ask"));
   $("#chatModeDispatch")?.addEventListener("click", () => setChatMode("dispatch"));
   $("#chatModeTangent")?.addEventListener("click", () => setChatMode("tangent"));
-  document.querySelectorAll("#chatChips .chip").forEach((b) => {
-    b.addEventListener("click", () => {
-      setChatMode("ask");
-      if ($("#chatInput")) $("#chatInput").value = b.dataset.q || "";
-      sendChat();
-    });
-  });
+  $("#btnChatSend")?.addEventListener("click", () => sendChat());
+  $("#btnTalkVerbose")?.addEventListener("click", () => setChatVerbose(!chatVerbose));
+  renderTalkChips();
+  setChatVerbose(chatVerbose);
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("lab") === "1" || params.get("lab") === "true") {
+      setTalkLabMode(true);
+    } else {
+      setTalkLabMode(false);
+    }
+  } catch {
+    setTalkLabMode(false);
+  }
+  setChatMode(chatMode);
+  renderChat();
   $("#chatInput")?.addEventListener("keydown", (e) => {
     // Grok-compose steal: Enter send · Shift/Alt+Enter newline · Shift+Tab mode
     if (e.key === "Tab" && e.shiftKey) {

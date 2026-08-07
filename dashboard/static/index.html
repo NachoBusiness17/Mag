@@ -11,7 +11,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/static/mag-icon.png" />
   <link rel="stylesheet" href="/static/style.css?v=tesuji9" />
-  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v60-feature-lab" />
+  <link rel="stylesheet" href="/static/cli.css?v=dashboard-v62-verbose" />
   <script type="importmap">
   {
     "imports": {
@@ -87,7 +87,9 @@
         <a class="dashboard-view-tab" href="?tab=verkle" data-dashboard-view="verkle">Verkle knots</a>
       </div>
       <div class="dashboard-view-group" data-dashboard-group="run">
-        <a class="dashboard-view-tab" href="?tab=chat" data-dashboard-view="chat">Direct Mag</a>
+        <a class="dashboard-view-tab" href="/table" data-dashboard-view="table">Table</a>
+        <a class="dashboard-view-tab" href="/voice" data-dashboard-view="voice">Voice</a>
+        <a class="dashboard-view-tab" href="?tab=chat" data-dashboard-view="chat">Talk</a>
         <a class="dashboard-view-tab" href="?tab=status" data-dashboard-view="status">Runs &amp; seats</a>
         <a class="dashboard-view-tab" href="?tab=orchestrate" data-dashboard-view="orchestrate">Capability lab</a>
         <a class="dashboard-view-tab" href="?tab=viewports" data-dashboard-view="viewports">Shared artifacts</a>
@@ -212,7 +214,8 @@
 
           </div>
           <div class="row home-cta home-cta-simple">
-            <button type="button" class="btn primary" id="btnHomeLaunchAgent" title="Tell Mag the outcome; it will remember, route, verify, and learn">Direct Mag</button>
+            <a class="btn primary" href="/voice" id="btnHomeVoice" title="Simple voice turns — talk, Mag answers, reads back">Voice</a>
+            <button type="button" class="btn ghost" id="btnHomeLaunchAgent" title="Text Talk — Mag routes, remembers, verifies">Talk</button>
             <button type="button" class="btn ghost" id="btnHomeDays">Review history</button>
             <button type="button" class="hidden" id="btnHomeChat"></button>
             <button type="button" class="hidden" id="btnHomeDiary"></button>
@@ -266,7 +269,7 @@
 
     <div class="win focused" data-win="chat" id="win-chat">
       <div class="win-titlebar">
-        <span class="win-title">▶ TTY // CHAT</span>
+        <span class="win-title">Mag · talk</span>
         <span class="win-ctrls">
           <button type="button" class="win-min" title="minimize">_</button>
           <button type="button" class="win-max" title="maximize">â–¡</button>
@@ -275,9 +278,66 @@
       </div>
       <div class="win-body">
         <section id="panel-chat" class="panel">
-<div class="chat-shell agent-desk-shell agent-desk-v2">
+<div class="chat-shell agent-desk-shell agent-desk-v2 talk-default">
+          <!-- Mag Talk: default operator surface (Ask / Do / Think). Lab = calibration desk. -->
+          <div class="mag-talk" id="magTalk" aria-label="Talk to Mag">
+            <header class="mag-talk-bar">
+              <div class="mag-talk-title">
+                <strong>Mag · talk</strong>
+                <span class="muted sm"> · type once · routes cheap first · Grok only for hard judgment</span>
+              </div>
+              <div class="row mag-talk-actions">
+                <select id="chatProvider" class="desk-orch-select sm" title="Seat for Do / Agent">
+                  <option value="local" selected>local</option>
+                  <option value="auto">auto</option>
+                  <option value="deepseek">deepseek</option>
+                  <option value="anthropic">anthropic</option>
+                  <option value="openai">openai</option>
+                  <option value="gemini">gemini</option>
+                  <option value="openrouter">openrouter</option>
+                </select>
+                <button type="button" class="btn ghost btn-sm" id="btnTalkVerbose" title="Show sources, route, tools">Verbose</button>
+                <button type="button" class="btn ghost btn-sm" id="btnTalkLab" title="Calibration desk · lanes · canvas">Lab</button>
+                <button type="button" class="btn ghost btn-sm" id="btnCopyPack" title="Copy context-pack for Grok elevate">Pack</button>
+                <button type="button" class="btn ghost btn-sm" id="btnAgentReset" title="Reset agent session">Reset</button>
+                <button type="button" class="btn ghost btn-sm" id="btnChatClear" title="Clear talk history">Clear</button>
+              </div>
+            </header>
+            <div class="mag-talk-status muted sm" id="talkStatusStrip" aria-live="polite">
+              <span id="chatQuota">quota —</span>
+              <span class="mag-talk-dot">·</span>
+              <span id="chatPreflight">preflight —</span>
+              <span class="mag-talk-dot">·</span>
+              <span id="economyGoal">local first</span>
+              <span class="hidden" id="economyBar" aria-hidden="true">
+                <b id="econLocal">0</b><b id="econSaved">0</b><span id="econTurns">0</span>
+                <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
+              </span>
+            </div>
+            <div class="mag-talk-modes row" role="toolbar" aria-label="Talk mode">
+              <button type="button" class="btn chat-mode-btn on" id="chatModeAsk" data-mode="ask" title="Recall from filed memory · 0 Grok">Ask</button>
+              <button type="button" class="btn ghost chat-mode-btn" id="chatModeDispatch" data-mode="dispatch" title="Route goal · cheapest capable seat">Do</button>
+              <button type="button" class="btn ghost chat-mode-btn" id="chatModeAgent" data-mode="agent" title="Tool loop on chosen seat">Agent</button>
+              <button type="button" class="btn ghost chat-mode-btn" id="chatModeTangent" data-mode="tangent" title="Background think · elevate pack for Grok">Think</button>
+            </div>
+            <div class="chat-chips" id="chatChips" aria-label="Useful loops"></div>
+            <div class="compose-attach" id="composeAttach" hidden></div>
+            <div class="chat-log" id="chatLog" aria-live="polite"></div>
+            <div class="chat-compose mag-talk-compose">
+              <textarea id="chatInput" rows="3" placeholder="Talk to Mag… Enter send · Shift+Enter newline · Shift+Tab mode"></textarea>
+              <div class="row mag-talk-compose-row">
+                <span class="muted sm" id="chatStatus" style="flex:1">Ready · Ask · local</span>
+                <label class="btn ghost btn-sm" for="chatFile" title="Attach file">+</label>
+                <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />
+                <button type="button" class="btn primary" id="btnChatSend">Send</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lab: desk calibration (hidden unless lab-mode) -->
+          <div class="mag-lab-block" id="magLabBlock" hidden>
           <nav class="local-view-nav" aria-label="Run views">
-            <button type="button" class="btn ghost btn-sm on" data-open-tab="chat">Direct Mag</button>
+            <button type="button" class="btn ghost btn-sm on" data-open-tab="chat">Talk</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="status">Runs &amp; seats</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="orchestrate">Capability lab</button>
             <button type="button" class="btn ghost btn-sm" data-open-tab="viewports">Shared artifacts</button>
@@ -285,8 +345,8 @@
           </nav>
           <header class="desk-bar">
             <div>
-              <strong>Direct Mag</strong>
-              <span class="muted sm"> · give direction once · Mag routes, checks, and continues</span>
+              <strong>Lab · calibration desk</strong>
+              <span class="muted sm"> · Local ↔ contract ↔ DeepSeek · not the daily seat</span>
             </div>
             <details class="desk-lab-menu">
               <summary>Expert controls</summary>
@@ -297,8 +357,7 @@
               <button type="button" class="btn ghost btn-sm" id="btnDeskReload">Reload</button>
               <button type="button" class="btn ghost btn-sm" id="btnDeskRefreshLocal" title="Reset dialogue + reload gemma4 local seat">Refresh Local</button>
               <button type="button" class="btn ghost btn-sm" id="btnDeskResetDialogue" title="Clear dialogue log — fixes echo loop">Reset dialogue</button>
-              <button type="button" class="btn ghost btn-sm" id="btnChatClear">Clear lanes</button>
-              <button type="button" class="btn ghost btn-sm" id="btnDeskLabMode" title="Show prototype lane inputs and handoff diagnostics">Show prototype controls</button>
+              <button type="button" class="btn ghost btn-sm" id="btnDeskLabMode" title="Hide lab · return to Talk">Hide lab</button>
               </div>
             </details>
           </header>
@@ -458,37 +517,12 @@
               </div>
             </details>
           </div>
-          <!-- legacy hidden for economy/quota hooks -->
-          <details class="desk-control-drawer hidden" hidden>
-            <summary>Control · steer · guidance queue</summary>
-            <div class="economy-bar hidden" id="economyBar" aria-hidden="true">
-              <span id="economyGoal"></span>
-              <b id="econLocal">0</b><b id="econSaved">0</b><span id="econTurns">0</span>
-              <span id="econCf" class="hidden">0</span><span id="econPct" class="hidden"></span>
-            </div>
-            <!-- legacy ids for refreshEconomy / refreshChatQuota -->
-            <span class="hidden" id="chatQuota">—</span>
-            <span class="hidden" id="chatStatus">Ready</span>
-            <select id="chatProvider" class="hidden" aria-hidden="true">
-              <option value="local" selected>local</option>
-              <option value="deepseek">deepseek</option>
-            </select>
-            <button type="button" class="hidden" id="chatModeAsk" data-mode="ask"></button>
-            <button type="button" class="hidden" id="chatModeAgent" data-mode="agent"></button>
-            <button type="button" class="hidden" id="chatModeDispatch" data-mode="dispatch"></button>
-            <button type="button" class="hidden" id="chatModeTangent" data-mode="tangent"></button>
-            <div class="chat-log hidden" id="chatLog"></div>
-            <textarea class="hidden" id="chatInput"></textarea>
-            <button type="button" class="hidden" id="btnChatSend"></button>
-            <button type="button" class="hidden" id="btnCopyPack"></button>
-            <button type="button" class="hidden" id="btnAgentReset"></button>
-            <div class="chat-chips hidden" id="chatChips"></div>
+          <details class="desk-control-drawer">
+            <summary class="muted sm">Lab · steer · guidance queue</summary>
             <div class="row desk-steer-row">
               <input type="text" id="steerInput" placeholder="!steer / !pause / !continue …" class="desk-steer-input" />
               <button type="button" class="btn ghost btn-sm" id="btnSteer">Steer</button>
             </div>
-            <div class="compose-attach hidden" id="composeAttach" hidden></div>
-            <input type="file" id="chatFile" accept="image/*,.md,.txt,.json,.py,.log" hidden />
           <div class="operator-inbox-dock" id="operatorInboxDock">
             <div class="inbox-head">
               <strong>Guidance queue</strong>
@@ -519,7 +553,7 @@
             <summary>System details · open only when routing is blocked</summary>
           <footer class="desk-ops-strip row sm" id="deskOpsStrip" aria-label="System details">
             <span id="deskOpsMachine" class="desk-ops-chip muted">machine —</span>
-            <span id="chatPreflight" class="desk-ops-chip muted">preflight —</span>
+            <span id="deskOpsPreflight" class="desk-ops-chip muted">preflight —</span>
             <span id="deskOpsLocal" class="desk-ops-chip">local —</span>
             <span id="deskOpsAutorun" class="desk-ops-chip muted">autorun —</span>
             <span id="deskOpsStack" class="desk-ops-chip muted">stack —</span>
@@ -527,6 +561,7 @@
             <span id="deskOpsGrok" class="desk-ops-chip muted">grok —</span>
           </footer>
           </details>
+          </div><!-- /mag-lab-block -->
         </div>
         <span class="badge-zero hidden" id="badgeZeroGrok"></span>
         </section>
@@ -1172,7 +1207,7 @@
               </p>
               <pre class="pre ideas-pack" id="ideasPack">Pick a card on the left…</pre>
               <div class="row ideas-pack-actions">
-                <button type="button" class="btn primary" id="btnIdeasToChat" disabled>Direct Mag with this brief</button>
+                <button type="button" class="btn primary" id="btnIdeasToChat" disabled>Talk with this brief</button>
                 <button type="button" class="btn ghost" id="btnIdeasCopyPack" disabled>Copy brief</button>
               </div>
               <div class="row ideas-status-actions" id="ideasStatusActions">
@@ -1517,6 +1552,6 @@
   <script src="/static/visual.js?v=tesuji9"></script>
   <script src="/static/board.js?v=tesuji9"></script>
   <script src="/static/windows.js?v=dashboard-nav-v37"></script>
-  <script src="/static/app.js?v=dashboard-v60-feature-lab"></script>
+  <script src="/static/app.js?v=dashboard-v62-verbose"></script>
 </body>
 </html>

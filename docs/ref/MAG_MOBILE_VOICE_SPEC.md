@@ -5,7 +5,7 @@
 **Status:** Product spec — not v2 blocker; pilot after v2 gate  
 **Parents:** `MAG_v3_SWARM_VISION.md` · `FRAMEWORK_LOAD.md` · `CONTAINER.md` · `configs/lanes.yaml`
 
-**One breath:** Android + iPhone apps that feel like **Grok voice mode** — push-to-talk or hands-free — but answers route through **your Mag lattice** (janitor first, frontier scarce). Subscription economics on their side; **pennies on yours**.
+**One breath:** Phone feels like **Grok voice mode**, but Mag **compiles intention cheaply** first (`intention_brief.v1`), then fires smart seats only when depth or escalate demands it. Always-frontier is a quality bar, not the bill. Subscription economics on their side; **pennies on yours**.
 
 ---
 

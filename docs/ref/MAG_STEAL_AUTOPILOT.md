@@ -7,18 +7,23 @@
 
 **Job:** Steals happen **by default** through scout → compose → candidate — never overwrite beads/forest zeitgeist. Cross-domain ideas (Verkle, knots, switchboard topology) enter as **contracts**, not cosplay.
 
+**Honest origin (2026-08-07):** Every taken steal gets a **`steal_tesuji.v1` leaf** — origin as presented, what we like/love, why grateful we don’t live in the *host* environment, where it lives inside Mag. Template: `docs/templates/STEAL_TESUJI.md`. Example: `docs/ref/tesuji/voice-vad-end-of-turn-2026-08-07.md`.
+
+Much of Mag was a dream built by hand. Steals are how the dream stops reinventing wheels **without becoming a tenant of the wheel factory**.
+
 ---
 
 ## 1. Thesis
 
-> **Rob everyone. Keep one cold vertex. Promote contracts, not brands.**
+> **Rob everyone. Keep one cold vertex. Promote contracts, not brands.**  
+> **Name the origin. Love the mechanism. Refuse the host throne.**
 
-Mag already runs daily scout (`improve --once`), field-steal ledger, agentic landscape map, and FEATURE_COMPOSE pipeline. What's missing for "by default" is a **zeitgeist alignment gate** so foreign patterns become **candidates** automatically but only **practices** after human promote.
+Mag already runs daily scout (`improve --once`), field-steal ledger, agentic landscape map, and FEATURE_COMPOSE pipeline. What's missing for "by default" is a **zeitgeist alignment gate** so foreign patterns become **candidates** automatically but only **practices** after human promote — **plus** honest leaves so we never pretend we invented Pipecat’s job.
 
 ```text
-foreign signal → identify contract → zeitgeist filter → steal/enhance → compose → candidate → promote
-                     ↑                      ↑
-              not "cool repo"         reject throne/SaaS memory
+foreign signal → identify contract → zeitgeist filter → steal_tesuji leaf → enhance → compose → candidate → promote
+                     ↑                      ↑                    ↑
+              not "cool repo"         reject throne      origin / love / grateful
 ```
 
 ---
@@ -66,8 +71,22 @@ Not praise — **contract quarry**. Grouped by what to steal.
 | **Factory floor / Andon** | stop line on defect | audit fail → no merge | pilot |
 | **Mycology (forest)** | roots touch, no king | beads + republic fork | ZEITGEIST |
 | **Tesuji (Go)** | efficient local shape | MODEL_TESUJI, grove | yes |
+| **Voice agents (Pipecat / LiveKit / Silero)** | VAD end-of-turn, barge-in, pad/buffer | `cast-voice` EnergyVAD + voice_scratch | yes (steal leaf 2026-08-07) |
+| **Realtime SaaS voice** | full-duplex product shape | study only | their session as DNA |
 
 **Rule for cross-domain:** steal **ops grammar** ("tip advances on session seal"), not **physics claims** ("EUT proves consciousness").
+
+### D. Voice / turn-taking quarry (semantic digs)
+
+| Topic | Search seeds (arxiv / HN / Reddit / GH) | Steal | Reject |
+|-------|------------------------------------------|-------|--------|
+| End of utterance | `turn detection`, `end-of-utterance`, `barge-in` | VAD → commit pad | fixed silence as only gate |
+| Pipelines | `pipecat`, `sentence aggregator`, `interrupt frame` | frame boundary = commit | rewrite Mag as Pipecat app |
+| Local STT | `faster-whisper streaming` | interim → pad | cloud-only STT throne |
+| Human TTS | `piper`, `edge-tts`, streaming sentence TTS | prosody inside us | PowerShell SAPI cosplay |
+| Session memory | Letta / Mem0 contracts | FILE voice_scratch | SaaS memory throne |
+
+**Hundreds of improvements** sit one honest leaf away — dig by *semantic adjacency*, not by starring repos.
 
 ---
 

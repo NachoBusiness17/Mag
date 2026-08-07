@@ -1,30 +1,40 @@
-"""Default text-to-speech for Mag (Windows-first, zero-dependency).
+"""Text-to-speech for Mag (Windows-first).
 
-Speaks Mag's answers and notifications out loud by default so the operator
-can hear results while working elsewhere on the machine.
+**Default is OFF.** Browser Mag Voice owns playback (pause/skip/scrub).
+Server-side TTS was spawning PowerShell SAPI on every `ask()`, stuffing full
+markdown essays into `-Command`, timing out at 60s, and crashing the feel.
 
-Backend chain (first available wins):
-  1. pyttsx3            — cross-platform, if installed
-  2. PowerShell SAPI    — Windows native (System.Speech), zero deps
-  3. no-op + log        — headless / non-Windows fallback
+Enable only when you want the *PC* to speak without a browser:
+  MAG_TTS=1
+  MAG_TTS_RATE=220
+  MAG_TTS_MAX_CHARS=280
 
-Disable with env MAG_TTS=0 or MAG_TTS=off. Rate/volume via MAG_TTS_RATE.
+Backend chain (first available wins), only if enabled:
+  1. pyttsx3 (if installed)
+  2. PowerShell SAPI via **temp .ps1 file** (never giant -Command lines)
+  3. no-op + log
 """
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
+import tempfile
+import threading
 from pathlib import Path
 
 from config import ROOT
 
 LOG = ROOT / "logs" / "tts.log"
+_SPEAK_LOCK = threading.Lock()
+_ACTIVE_PROC: subprocess.Popen | None = None
+_ACTIVE_LOCK = threading.Lock()
 
 
 def _enabled() -> bool:
-    v = os.environ.get("MAG_TTS", "1").strip().lower()
-    return v not in ("0", "off", "false", "no", "none")
+    # Default OFF — browser voice player is primary; PowerShell was a crash magnet.
+    v = os.environ.get("MAG_TTS", "0").strip().lower()
+    return v in ("1", "on", "true", "yes")
 
 
 def _log(msg: str) -> None:
@@ -34,6 +44,22 @@ def _log(msg: str) -> None:
             f.write(msg + "\n")
     except Exception:
         pass
+
+
+def _clip(text: str) -> str:
+    spoken = " ".join((text or "").strip().split())
+    # Strip markdown noise that sounds terrible and bloats SAPI
+    for ch in ("#", "*", "`", "_"):
+        spoken = spoken.replace(ch, "")
+    max_chars = int(os.environ.get("MAG_TTS_MAX_CHARS", "280") or "280")
+    if len(spoken) > max_chars:
+        cut = spoken[: max(0, max_chars - 1)]
+        for sep in (". ", "! ", "? "):
+            i = cut.rfind(sep)
+            if i >= 60:
+                return cut[: i + 1].strip()
+        spoken = cut.rstrip() + "…"
+    return spoken
 
 
 def _backend_pyttsx3(text: str, rate: int) -> bool:
@@ -50,61 +76,130 @@ def _backend_pyttsx3(text: str, rate: int) -> bool:
         return False
 
 
+def _kill_active() -> None:
+    global _ACTIVE_PROC
+    with _ACTIVE_LOCK:
+        proc = _ACTIVE_PROC
+        _ACTIVE_PROC = None
+    if proc is None:
+        return
+    try:
+        proc.kill()
+    except Exception:
+        pass
+    try:
+        proc.wait(timeout=2)
+    except Exception:
+        pass
+
+
 def _backend_powershell(text: str, rate: int) -> bool:
-    """Windows SAPI via PowerShell System.Speech (zero deps)."""
+    """Windows SAPI via temp .ps1 — avoids command-line length limits and hangs."""
     if sys.platform != "win32":
         return False
-    # Escape for single-quoted PS string: double any single quotes.
+    # Map WPM-ish rate → SAPI -10..10
+    sapi_rate = max(-10, min(10, int(round((rate - 150) / 12))))
+    # Escape for single-quoted PowerShell string
     safe = text.replace("'", "''")
-    ps = (
-        "Add-Type -AssemblyName System.Speech; "
-        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-        f"$s.Rate = {max(-10, min(10, (rate - 150) // 15))}; "
-        f"$s.Speak('{safe}')"
+    ps_body = (
+        "Add-Type -AssemblyName System.Speech\n"
+        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer\n"
+        f"$s.Rate = {sapi_rate}\n"
+        f"$s.Speak('{safe}')\n"
     )
+    timeout_s = int(os.environ.get("MAG_TTS_TIMEOUT_S", "20") or "20")
+    path: str | None = None
     try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True,
-            text=True,
-            timeout=60,
+        fd, path = tempfile.mkstemp(prefix="mag_tts_", suffix=".ps1")
+        os.close(fd)
+        Path(path).write_text(ps_body, encoding="utf-8")
+        # -File avoids stuffing the whole essay into process args
+        proc = subprocess.Popen(
+            [
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                path,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        if r.returncode == 0:
+        with _ACTIVE_LOCK:
+            global _ACTIVE_PROC
+            _ACTIVE_PROC = proc
+        try:
+            _stdout, stderr = proc.communicate(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            _log(f"powershell SAPI timeout after {timeout_s}s — killing")
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            try:
+                proc.communicate(timeout=2)
+            except Exception:
+                pass
+            return False
+        finally:
+            with _ACTIVE_LOCK:
+                if _ACTIVE_PROC is proc:
+                    _ACTIVE_PROC = None
+        if proc.returncode == 0:
             return True
-        _log(f"powershell SAPI rc={r.returncode}: {r.stderr[:200]}")
+        err = (stderr or b"").decode("utf-8", errors="replace")[:200]
+        _log(f"powershell SAPI rc={proc.returncode}: {err}")
         return False
     except Exception as e:
         _log(f"powershell SAPI error: {e}")
         return False
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
 
 
 def speak(text: str, *, force: bool = False) -> bool:
-    """Speak `text` out loud. Returns True if a backend produced audio.
+    """Speak `text` out loud on the PC. Returns True if audio was produced.
 
-    Default-on unless MAG_TTS=0. `force=True` bypasses the env gate.
+    Default-off unless MAG_TTS=1. `force=True` bypasses the env gate (CLI only).
     """
     if not text or not text.strip():
         return False
     if not force and not _enabled():
         return False
 
-    # Trim to a reasonable spoken length (TTS is linear-time; keep it snappy).
-    spoken = " ".join(text.strip().split())
-    if len(spoken) > 1200:
-        spoken = spoken[:1200] + " ..."
+    spoken = _clip(text)
+    if not spoken:
+        return False
 
-    rate = int(os.environ.get("MAG_TTS_RATE", "170") or "170")
+    rate = int(os.environ.get("MAG_TTS_RATE", "220") or "220")
 
-    if _backend_pyttsx3(spoken, rate):
-        return True
-    if _backend_powershell(spoken, rate):
-        return True
-    _log(f"no TTS backend available; would speak: {spoken[:200]}")
-    return False
+    # Serialize — concurrent PowerShell SAPI was a crash source
+    if not _SPEAK_LOCK.acquire(blocking=False):
+        _log("tts busy — skip overlapping speak")
+        return False
+    try:
+        _kill_active()
+        if _backend_pyttsx3(spoken, rate):
+            return True
+        if _backend_powershell(spoken, rate):
+            return True
+        _log(f"no TTS backend available; would speak: {spoken[:200]}")
+        return False
+    finally:
+        _SPEAK_LOCK.release()
 
 
 def speak_async(text: str, *, force: bool = False) -> None:
     """Speak in a background thread so the caller never blocks."""
+    if not force and not _enabled():
+        return
     import threading
 
     def _run() -> None:
@@ -116,8 +211,13 @@ def speak_async(text: str, *, force: bool = False) -> None:
     threading.Thread(target=_run, name="mag-tts", daemon=True).start()
 
 
+def stop() -> None:
+    """Hard-stop any in-flight server TTS (PowerShell/SAPI)."""
+    _kill_active()
+
+
 if __name__ == "__main__":
     # CLI: python -m mag.tts "hello from Mag"
     msg = " ".join(sys.argv[1:]) or "Mag text to speech is online."
     ok = speak(msg, force=True)
-    print(f"tts ok={ok} backend={'audio' if ok else 'none'}")
+    print(f"tts ok={ok} backend={'audio' if ok else 'none'} enabled={_enabled()}")

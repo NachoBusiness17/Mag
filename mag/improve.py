@@ -1487,6 +1487,150 @@ def synthesize_field_brief(
     return result
 
 
+def deepseek_rank_top(
+    *,
+    top_n: int = 5,
+    dry: bool = False,
+) -> dict[str, Any]:
+    """DeepSeek workhorse: verdict promote|hold|reject on ranked new/hold candidates.
+
+    Writes memory/improve/pins/deepseek_routing.jsonl + pins/deepseek_rank_latest.md
+    Does not auto-promote (human gate).
+    """
+    cfg = load_config()
+    paths = ensure_dirs(cfg)
+    ranked = rank_candidates_for_brief(top_n=top_n, statuses=["new", "hold"])
+    if not ranked:
+        return {"ok": False, "error": "no candidates", "ranked": 0}
+
+    pack_rows = []
+    for r in ranked[:top_n]:
+        pack_rows.append(
+            {
+                "id": r.get("id"),
+                "kind": r.get("kind"),
+                "status": r.get("status"),
+                "title": (r.get("title") or r.get("claim") or "")[:200],
+                "claim": (r.get("claim") or "")[:300],
+                "score": r.get("score") or r.get("rank_score"),
+            }
+        )
+
+    if dry:
+        return {"ok": True, "dry": True, "candidates": pack_rows}
+
+    system = (
+        "You are Mag DeepSeek self-improve seat (workhorse). "
+        "For each candidate output ONLY a JSON array of objects: "
+        '[{"id":"...","verdict":"promote|hold|reject","confidence":0.0-1.0,'
+        '"reason":"one sentence","next_action":"one concrete Mag path or command"}]. '
+        "Prefer hold over promote unless clearly shippable on local Mag. "
+        "Reject noise/risk without a path. No markdown outside JSON."
+    )
+    user = "Candidates:\n" + json.dumps(pack_rows, indent=2)
+
+    try:
+        from models.providers import chat_provider
+
+        res = chat_provider(
+            "deepseek",
+            system,
+            user,
+            tier="T2",
+            max_tokens=900,
+            temperature=0.2,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200], "candidates": pack_rows}
+
+    raw = str(res.get("text") or res.get("content") or "") if res.get("ok") else ""
+    verdicts: list[dict[str, Any]] = []
+    if res.get("ok") and raw:
+        import re as _re
+
+        m = _re.search(r"\[[\s\S]*\]", raw)
+        if m:
+            try:
+                arr = json.loads(m.group(0))
+                if isinstance(arr, list):
+                    for item in arr:
+                        if isinstance(item, dict) and item.get("id"):
+                            verdicts.append(
+                                {
+                                    "id": item.get("id"),
+                                    "verdict": str(item.get("verdict") or "hold").lower(),
+                                    "confidence": item.get("confidence"),
+                                    "reason": str(item.get("reason") or "")[:300],
+                                    "next_action": str(item.get("next_action") or "")[:200],
+                                }
+                            )
+            except Exception:
+                pass
+
+    pins = paths["root"] / "pins"
+    pins.mkdir(parents=True, exist_ok=True)
+    jpath = pins / "deepseek_routing.jsonl"
+    md_path = pins / "deepseek_rank_latest.md"
+    ts = _utc_now().isoformat()
+    with jpath.open("a", encoding="utf-8") as fh:
+        for v in verdicts:
+            row = {"ts": ts, "source": "deepseek_rank_top", "model": res.get("model"), **v}
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    lines = [
+        f"# DeepSeek self-improve rank — {ts[:10]}",
+        "",
+        f"model: `{res.get('model')}` · candidates: {len(pack_rows)} · verdicts: {len(verdicts)}",
+        "",
+        "| id | verdict | conf | reason | next |",
+        "|----|---------|------|--------|------|",
+    ]
+    for v in verdicts:
+        lines.append(
+            f"| `{v.get('id')}` | **{v.get('verdict')}** | {v.get('confidence')} | "
+            f"{(v.get('reason') or '')[:80]} | {(v.get('next_action') or '')[:60]} |"
+        )
+    if not verdicts:
+        lines.append("")
+        lines.append("No parseable JSON verdicts. Raw tail:")
+        lines.append("```")
+        lines.append(raw[:1500] if raw else str(res.get("error") or "empty")[:500])
+        lines.append("```")
+    lines.append("")
+    lines.append("Human gate: `python main.py promote --apply <id>` or `--reject <id>`.")
+    md_path.write_text("\n".join(lines), encoding="utf-8")
+
+    state = _load_state(paths)
+    state["last_deepseek_rank"] = ts
+    state["last_deepseek_rank_n"] = len(verdicts)
+    _save_state(paths, state)
+
+    try:
+        from mag.training_events import emit
+
+        emit(
+            "improve_cycle",
+            action={"kind": "deepseek_rank_top", "n": len(verdicts)},
+            outcome={"path": str(md_path.relative_to(ROOT)).replace("\\", "/")},
+            pattern_tags=["improve", "deepseek", "self_improve"],
+            tier_max="T2",
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": bool(res.get("ok")) and bool(verdicts),
+        "schema": "mag_deepseek_rank.v1",
+        "model": res.get("model"),
+        "candidates": pack_rows,
+        "verdicts": verdicts,
+        "jsonl": str(jpath),
+        "latest_md": str(md_path),
+        "raw_ok": bool(res.get("ok")),
+        "error": None if res.get("ok") else str(res.get("error") or "")[:200],
+    }
+
+
 def improve_once(
     *,
     scout_only: bool = False,

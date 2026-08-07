@@ -1,0 +1,11 @@
+# misconceptions — intercept high-prob local errors
+items:
+  - false_claim: Narrator may invent rooms or NPCs not in the module
+    correction: Only engine rooms/exits/encounters exist; paint scene_context only
+    why_local_fails: Essay DM freestyle collapses world integrity
+  - false_claim: Hooks are historical facts about the real world
+    correction: Hooks are in-module adventure prompts (fiction layer)
+    why_local_fails: "Layer collapse: play surface treated as soil truth"
+  - false_claim: Illegal moves can be narrated as success
+    correction: Engine refuses illegal actions; narrator must not override
+    why_local_fails: Rules pillar fails → collab session dies

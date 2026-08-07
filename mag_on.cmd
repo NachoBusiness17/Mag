@@ -21,8 +21,9 @@ echo.
 
 "%PY%" "%~dp0main.py" power start --browser
 echo.
-echo Dashboard: http://127.0.0.1:8765  ^(Body tab = stack status^)
+echo Direct Mag: http://127.0.0.1:8765/?tab=chat
 echo Kill switch: mag_kill.cmd  or  mag.cmd power stop
+echo Auto-login:  scripts\install_mag_startup.ps1
 echo.
-pause
+if /I not "%~1"=="--nopause" pause
 endlocal

@@ -6,153 +6,1165 @@
   <title>Mag Voice</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0a0e14; color: #e6edf3; }
-    body { margin: 0; padding: 1rem; max-width: 36rem; }
-    h1 { font-size: 1.2rem; margin: 0 0 0.25rem; }
-    .muted { color: #8b949e; font-size: 0.88rem; }
-    .bubble { margin: 0.75rem 0; padding: 0.65rem 0.75rem; border-radius: 8px; line-height: 1.4; }
-    .you { background: #161b22; border: 1px solid #30363d; }
-    .mag { background: #0d2818; border: 1px solid #238636; }
+    body { margin: 0; padding: 1.25rem; max-width: 28rem; margin-left: auto; margin-right: auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+    .muted { color: #8b949e; font-size: 0.88rem; line-height: 1.4; }
+    .phase {
+      display: inline-block; margin: 0.75rem 0 0.5rem; padding: 0.3rem 0.75rem;
+      border-radius: 999px; border: 1px solid #30363d; font-size: 0.85rem; color: #8b949e;
+    }
+    .phase.listening { border-color: #bb8009; color: #e3b341; background: #2a1f08; }
+    .phase.thinking { border-color: #a371f7; color: #d2a8ff; background: #1a1028; }
+    .phase.speaking { border-color: #3fb950; color: #3fb950; background: #0d2818; }
+    #status { min-height: 1.3rem; margin-bottom: 0.5rem; }
+    .live-hear {
+      min-height: 2.4rem; padding: 0.55rem 0.7rem; margin: 0.5rem 0 0.75rem;
+      border: 1px dashed #30363d; border-radius: 10px; background: #0d1117;
+      font-size: 0.95rem; line-height: 1.4; color: #c9d1d9;
+    }
+    .live-hear .lab { font-size: 0.72rem; color: #8b949e; margin-bottom: 0.25rem; }
+    .live-hear .interim { color: #8b949e; font-style: italic; }
+    .log { display: flex; flex-direction: column; gap: 0.55rem; margin: 1rem 0; max-height: 45vh; overflow-y: auto; }
+    .bubble { padding: 0.7rem 0.85rem; border-radius: 12px; line-height: 1.45; max-width: 92%; }
+    .you { align-self: flex-end; background: #161b22; border: 1px solid #30363d; }
+    .mag { align-self: flex-start; background: #0d2818; border: 1px solid #238636; }
+    .who { font-size: 0.7rem; color: #8b949e; margin-bottom: 0.25rem; }
     button {
       font: inherit; border: 1px solid #30363d; background: #21262d; color: #e6edf3;
-      border-radius: 999px; padding: 0.85rem 1.2rem; margin: 0.35rem 0.25rem 0.35rem 0;
+      border-radius: 999px; padding: 0.85rem 1.15rem; margin: 0.25rem 0.25rem 0.25rem 0;
       touch-action: manipulation;
     }
     button.primary { background: #238636; border-color: #2ea043; }
-    button:active, button.listening { background: #9e6a03; border-color: #bb8009; }
+    button.on { background: #9e6a03; border-color: #bb8009; }
     button:disabled { opacity: 0.45; }
-    #status { min-height: 1.2rem; margin: 0.5rem 0; }
-    a { color: #58a6ff; }
+    select {
+      font: inherit; background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 8px; padding: 0.4rem 0.55rem; margin: 0.35rem 0;
+    }
+    label { font-size: 0.85rem; color: #8b949e; display: block; margin-top: 0.45rem; }
+    .hint { font-size: 0.8rem; color: #6e7681; margin: 0.4rem 0 0.6rem; line-height: 1.35; }
+    .meta-strip {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 0.85rem; align-items: center;
+      padding: 0.45rem 0.65rem; margin: 0.5rem 0 0.65rem;
+      border: 1px solid #30363d; border-radius: 10px; background: #0d1117;
+      font-size: 0.8rem; color: #9ecfba; font-variant-numeric: tabular-nums;
+    }
+    .meta-strip b { color: #e6edf3; font-weight: 600; }
+    .bubble .meta-line { font-size: 0.68rem; color: #6e7681; margin-top: 0.35rem; }
+    .canvas {
+      margin: 0.65rem 0 0.85rem; padding: 0.65rem 0.75rem;
+      border: 1px solid #30363d; border-radius: 12px; background: #0d1117;
+      max-height: 38vh; overflow-y: auto; font-size: 0.78rem; line-height: 1.4;
+    }
+    .canvas h2 {
+      font-size: 0.8rem; margin: 0 0 0.4rem; color: #d2a8ff; font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+    }
+    .canvas .warn { color: #e3b341; margin: 0.25rem 0 0.45rem; }
+    .canvas .sec { color: #8b949e; margin: 0.45rem 0 0.15rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .canvas .row { margin: 0.2rem 0; color: #c9d1d9; word-break: break-word; }
+    .canvas .you { color: #79c0ff; }
+    .canvas .mag { color: #3fb950; }
+    .canvas .path { color: #6e7681; font-size: 0.7rem; }
+    .canvas button {
+      font-size: 0.72rem; padding: 0.25rem 0.55rem; margin: 0;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
+  <p class="muted" style="margin:0 0 0.5rem">
+    <a href="/?tab=home" style="color:#58a6ff">← Dashboard</a>
+    · <a href="/table" style="color:#e3b341">Table (system test)</a>
+  </p>
   <h1>Mag Voice</h1>
-  <div class="muted">Hold to talk · DeepSeek answers · <a href="/">cast view</a></div>
-  <div id="status" class="muted">Checking speech support…</div>
-  <div id="transcript" class="bubble you" hidden></div>
-  <div id="answer" class="bubble mag" hidden></div>
-  <div>
-    <button type="button" class="primary" id="btnTalk">Hold to talk</button>
-    <button type="button" id="btnSpeak">Repeat answer</button>
+  <p class="muted">You talk (full ask) → Mag answers → reads back. Pause ~2s when finished, or hit <b>I'm done</b>. No voice training — Whisper generalizes; isolation cleans the mic path.</p>
+
+  <div class="meta-strip" id="metaStrip" aria-live="polite">
+    <span>Voice: <b id="metaVoice">—</b></span>
+    <span>Last reply: <b id="metaMs">—</b></span>
+    <span>Seat: <b id="metaSeat">—</b></span>
+    <span>Lane: <b id="metaLane">—</b></span>
+    <span>STT: <b id="metaStt">—</b></span>
   </div>
+
+  <div class="canvas" id="knotCanvas" aria-live="polite">
+    <h2>
+      <span>Knot canvas <span class="path">(dig · brief · verkle diary)</span></span>
+      <span>
+        <button type="button" id="btnSealDiary" title="Seal this talk onto Verkle tip as diary + train labels">Seal diary</button>
+        <button type="button" id="btnClearCanvas" title="Wipe dig board + sticky sludge">Clear knot</button>
+      </span>
+    </h2>
+    <div id="canvasBody" class="muted">Loading what seats are discussing…</div>
+  </div>
+
+  <label>Hearing (STT)
+    <select id="sttMode">
+      <option value="whisper" selected>Whisper local (better recognition + isolation)</option>
+      <option value="browser">Browser Web Speech (fast interim, flaky)</option>
+    </select>
+  </label>
+  <label>Memory lane
+    <select id="memoryLane">
+      <option value="auto" selected>auto (infer from what you say)</option>
+      <option value="voice">Voice Mag — talk only (no dig/desk)</option>
+      <option value="harness">Harness Mag — this page / Mag itself</option>
+      <option value="dig">Dig Mag — research / salon / refine</option>
+      <option value="code">Code Mag — handoff / implement</option>
+      <option value="janitor">Janitor Mag — status / scut</option>
+    </select>
+  </label>
+  <label>Who answers
+    <select id="seat">
+      <option value="local" selected>local + handoff stack (FILE scut, keep talking)</option>
+      <option value="handoff">always handoff (file DeepSeek, never block mic)</option>
+      <option value="local_only">local only</option>
+      <option value="deepseek">deepseek on mic (blocks — rare)</option>
+    </select>
+  </label>
+  <label>Speak voice
+    <select id="ttsVoice"><option value="">Default system voice</option></select>
+  </label>
+  <label>Rate <input type="range" id="ttsRate" min="0.8" max="1.6" step="0.05" value="1.2" /> <span id="ttsRateVal">1.2</span></label>
+  <label>Pitch (intonation) <input type="range" id="ttsPitch" min="0.7" max="1.4" step="0.05" value="1.05" /> <span id="ttsPitchVal">1.05</span></label>
+  <p class="hint">
+    <b>Whisper:</b> records with echo-cancel + noise-suppress, then local faster-whisper + VAD (no enroll).
+    <b>Browser:</b> live interim text, weaker accuracy. Prefer Whisper when Chrome mangles words.
+  </p>
+  <div id="scoutChip" class="muted" style="margin:0.35rem 0;font-size:0.8rem">Scout: idle</div>
+  <div id="handoffChip" class="muted" style="margin:0.2rem 0;font-size:0.8rem">Handoff: idle — “implement…” or “handoff” FILEs DeepSeek</div>
+  <div id="refineChip" class="muted" style="margin:0.2rem 0;font-size:0.8rem">Refine: idle — “start refine chain…” for multi-seat</div>
+  <div id="sttChip" class="muted" style="margin:0.2rem 0;font-size:0.8rem">STT: checking…</div>
+
+  <div id="phase" class="phase">idle</div>
+  <div id="status" class="muted">Ready</div>
+
+  <div class="live-hear" id="liveHear" hidden>
+    <div class="lab" id="liveLab">Hearing you</div>
+    <div id="liveFinal"></div>
+    <div class="interim" id="liveInterim"></div>
+  </div>
+
+  <div>
+    <button type="button" class="primary" id="btnGo">Start</button>
+    <button type="button" id="btnDone" disabled title="Send now without waiting">I'm done</button>
+    <button type="button" id="btnStop" disabled>Stop</button>
+  </div>
+  <p class="hint">Mid-sentence pauses no longer end your turn. Wait for a longer quiet, or press <b>I'm done</b>. Topic shift kills sticky RAM/SAM. Canvas shows the evolving dig board.</p>
+
+  <div class="log" id="log"></div>
+
   <script>
-    const statusEl = document.getElementById("status");
-    const transcriptEl = document.getElementById("transcript");
-    const answerEl = document.getElementById("answer");
-    const btnTalk = document.getElementById("btnTalk");
-    const btnSpeak = document.getElementById("btnSpeak");
-    let sessionId = localStorage.getItem("magVoiceSession");
-    if (!sessionId) {
-      sessionId = "voice-" + Math.random().toString(36).slice(2, 12);
-      localStorage.setItem("magVoiceSession", sessionId);
-    }
-    let lastAnswer = "";
-    let recognition = null;
-    let listening = false;
+    const $ = (id) => document.getElementById(id);
+    const phaseEl = $("phase");
+    const statusEl = $("status");
+    const logEl = $("log");
+    const seatEl = $("seat");
+    const laneEl = $("memoryLane");
+    const sttModeEl = $("sttMode");
+    const btnGo = $("btnGo");
+    const btnStop = $("btnStop");
+    const btnDone = $("btnDone");
+    const liveHear = $("liveHear");
+    const liveFinal = $("liveFinal");
+    const liveInterim = $("liveInterim");
+    const liveLab = $("liveLab");
+
+    // Fresh session every Start so old RAM/BIOS turns don't glue onto "smart access memory"
+    let sessionId = "voice-" + Math.random().toString(36).slice(2, 12);
+    const saved = localStorage.getItem("magVoiceSimpleSeat");
+    if (["local", "local_only", "deepseek", "handoff"].includes(saved)) seatEl.value = saved;
+    const savedStt = localStorage.getItem("magVoiceSttMode");
+    if (savedStt === "browser" || savedStt === "whisper") sttModeEl.value = savedStt;
+
+    let live = false;
+    let busy = false; // thinking or speaking
+    let scoutTimer = null;
+    let canvasTimer = null;
+    let rec = null;
+    let recRunning = false;
+    let buffer = ""; // accumulated finals for this turn (browser STT)
+    let silenceTimer = null;
+    // Longer than Chrome's default "end of phrase" — wait after last speech chunk
+    const END_TURN_MS = 2000;
+    // Whisper path: MediaRecorder + energy VAD hangover
+    const WHISPER_SILENCE_MS = 1800;
+    const WHISPER_SPEECH_RMS = 0.018;
+    let mediaStream = null;
+    let mediaRec = null;
+    let mediaChunks = [];
+    let mediaMime = "audio/webm";
+    let vadCtx = null;
+    let vadAnalyser = null;
+    let vadRaf = 0;
+    let vadSpeechSeen = false;
+    let vadQuietSince = 0;
+    let whisperReady = false;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const ttsOk = "speechSynthesis" in window;
+    const canSpeak = "speechSynthesis" in window;
+    const canMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
+    function sttMode() { return sttModeEl.value || "whisper"; }
+    function setPhase(name) {
+      phaseEl.textContent = name;
+      phaseEl.className = "phase " + (name === "idle" ? "" : name);
+    }
+    function setStatus(t) { statusEl.textContent = t; }
+    function setSttChip(t) {
+      const el = $("sttChip");
+      if (el) el.textContent = "STT: " + t;
+    }
+    function activeVoiceLabel() {
+      const sel = $("ttsVoice");
+      if (sel && sel.value) return sel.value;
+      if (sel && sel.selectedOptions && sel.selectedOptions[0]) {
+        return sel.selectedOptions[0].textContent || "default";
+      }
+      return "default system";
+    }
+    function updateMetaStrip(opts = {}) {
+      const mv = $("metaVoice");
+      const mm = $("metaMs");
+      const ms = $("metaSeat");
+      const mst = $("metaStt");
+      if (mv) mv.textContent = opts.voice || activeVoiceLabel();
+      if (mm && opts.ms != null) mm.textContent = opts.ms + " ms";
+      if (ms && opts.seat) ms.textContent = opts.seat;
+      const ml = $("metaLane");
+      if (ml && opts.lane) ml.textContent = opts.lane;
+      if (mst) mst.textContent = opts.stt || sttMode();
+    }
+    function bubble(who, text, meta) {
+      const d = document.createElement("div");
+      d.className = "bubble " + (who === "you" ? "you" : "mag");
+      let metaHtml = "";
+      if (who === "mag" && meta) {
+        const bits = [];
+        if (meta.voice) bits.push("voice: " + meta.voice);
+        if (meta.ms != null) bits.push(meta.ms + " ms");
+        if (meta.seat) bits.push(meta.seat);
+        if (bits.length) metaHtml = `<div class="meta-line">${esc(bits.join(" · "))}</div>`;
+      }
+      d.innerHTML = `<div class="who">${who === "you" ? "You" : "Mag"}</div>${esc(text)}${metaHtml}`;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function showLive() {
+      liveHear.hidden = false;
+      liveFinal.textContent = buffer || "";
+    }
+    function clearLive() {
+      buffer = "";
+      liveFinal.textContent = "";
+      liveInterim.textContent = "";
+      liveHear.hidden = true;
+    }
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const s = String(fr.result || "");
+          const i = s.indexOf(",");
+          resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        fr.onerror = () => reject(fr.error || new Error("read failed"));
+        fr.readAsDataURL(blob);
+      });
+    }
+    async function transcribeWhisper(blob) {
+      const b64 = await blobToBase64(blob);
+      const ext = (blob.type || "").includes("ogg") ? "ogg"
+        : (blob.type || "").includes("mp4") || (blob.type || "").includes("m4a") ? "m4a"
+        : "webm";
+      const r = await fetch("/api/v1/voice/stt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: b64,
+          filename: "clip." + ext,
+          language: "en",
+        }),
+      });
+      const j = await r.json();
+      if (!j.ok && !j.text) throw new Error(j.error || "STT failed");
+      return {
+        text: (j.text || "").trim(),
+        ms: j.elapsed_ms,
+        model: j.model || "whisper",
+      };
+    }
+    function stopVadLoop() {
+      if (vadRaf) cancelAnimationFrame(vadRaf);
+      vadRaf = 0;
+      vadSpeechSeen = false;
+      vadQuietSince = 0;
+      try { vadCtx && vadCtx.close(); } catch (_) {}
+      vadCtx = null;
+      vadAnalyser = null;
+    }
+    function startVadLoop(stream) {
+      stopVadLoop();
+      try {
+        vadCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = vadCtx.createMediaStreamSource(stream);
+        vadAnalyser = vadCtx.createAnalyser();
+        vadAnalyser.fftSize = 512;
+        src.connect(vadAnalyser);
+        const data = new Uint8Array(vadAnalyser.fftSize);
+        const tick = () => {
+          if (!live || busy || sttMode() !== "whisper" || !mediaRec) {
+            vadRaf = 0;
+            return;
+          }
+          vadAnalyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          const now = performance.now();
+          if (rms >= WHISPER_SPEECH_RMS) {
+            vadSpeechSeen = true;
+            vadQuietSince = 0;
+            liveInterim.textContent = "… speaking";
+          } else if (vadSpeechSeen) {
+            if (!vadQuietSince) vadQuietSince = now;
+            const quiet = now - vadQuietSince;
+            liveInterim.textContent = quiet > 400
+              ? `… quiet ${Math.round(quiet / 100) / 10}s — hold or I'm done`
+              : "… speaking";
+            if (quiet >= WHISPER_SILENCE_MS) {
+              submitWhisperTurn();
+              return;
+            }
+          } else {
+            liveInterim.textContent = "… waiting for speech";
+          }
+          vadRaf = requestAnimationFrame(tick);
+        };
+        vadRaf = requestAnimationFrame(tick);
+      } catch (_) {
+        // VAD optional — user can still press I'm done
+      }
+    }
+    async function startWhisperRec() {
+      if (!canMedia) throw new Error("MediaRecorder unavailable — use Chrome/Edge");
+      stopWhisperRec(false);
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+        video: false,
+      });
+      mediaChunks = [];
+      const types = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ];
+      mediaMime = types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+      mediaRec = mediaMime
+        ? new MediaRecorder(mediaStream, { mimeType: mediaMime })
+        : new MediaRecorder(mediaStream);
+      mediaMime = mediaRec.mimeType || mediaMime || "audio/webm";
+      mediaRec.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size) mediaChunks.push(ev.data);
+      };
+      mediaRec.start(250);
+      setPhase("listening");
+      setStatus("Isolated mic open — speak fully, pause ~2s or I'm done");
+      if (liveLab) liveLab.textContent = "Recording (Whisper — words appear after you finish)";
+      liveHear.hidden = false;
+      liveFinal.textContent = "(recording…)";
+      liveInterim.textContent = "… waiting for speech";
+      btnDone.disabled = false;
+      startVadLoop(mediaStream);
+    }
+    function stopWhisperRec(keepBusy) {
+      stopVadLoop();
+      try {
+        if (mediaRec && mediaRec.state !== "inactive") mediaRec.stop();
+      } catch (_) {}
+      mediaRec = null;
+      if (mediaStream) {
+        try { mediaStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+      }
+      mediaStream = null;
+      if (!keepBusy) mediaChunks = [];
+    }
+    async function submitWhisperTurn() {
+      if (!live || busy) return;
+      busy = true;
+      btnDone.disabled = true;
+      stopVadLoop();
+      const chunks = mediaChunks.slice();
+      const mime = mediaMime || "audio/webm";
+      try {
+        if (mediaRec && mediaRec.state !== "inactive") {
+          await new Promise((resolve) => {
+            mediaRec.onstop = () => resolve();
+            try { mediaRec.stop(); } catch (_) { resolve(); }
+          });
+        }
+      } catch (_) {}
+      // pick up final chunk
+      const all = mediaChunks.length ? mediaChunks : chunks;
+      stopWhisperRec(false);
+      if (!all.length) {
+        busy = false;
+        setStatus("Nothing captured — try again");
+        if (live) startWhisperRec().catch((e) => setStatus(String(e.message || e)));
+        return;
+      }
+      const blob = new Blob(all, { type: mime });
+      setPhase("thinking");
+      setStatus("Whisper decoding (local, VAD filtered)…");
+      liveFinal.textContent = "(transcribing…)";
+      liveInterim.textContent = "";
+      let heard = "";
+      try {
+        const stt = await transcribeWhisper(blob);
+        heard = stt.text;
+        if (stt.ms != null) setSttChip("whisper · " + stt.ms + " ms · " + (stt.model || ""));
+      } catch (e) {
+        busy = false;
+        const m = String(e.message || e);
+        setStatus(/not installed|faster-whisper/i.test(m)
+          ? "Whisper not installed on server — switch STT to Browser or pip install faster-whisper"
+          : "STT failed: " + m);
+        if (live) startWhisperRec().catch(() => {});
+        return;
+      }
+      if (!heard) {
+        busy = false;
+        clearLive();
+        setStatus("Heard silence — speak closer or press I'm done after talking");
+        if (live) startWhisperRec().catch(() => {});
+        return;
+      }
+      buffer = heard;
+      clearLive();
+      bubble("you", heard);
+      setStatus("Got: “" + heard.slice(0, 100) + (heard.length > 100 ? "…”" : "”"));
+      let pack = { answer: "", ms: null, seat: seatEl.value, voice: activeVoiceLabel() };
+      try {
+        pack = await askMag(heard);
+      } catch (e) {
+        if (e && e.name === "AbortError") {
+          pack.answer = "That took too long. Try local, or a shorter ask.";
+        } else {
+          const m = String(e.message || e);
+          pack.answer = /failed to fetch|refused/i.test(m)
+            ? "Can't reach Mag server. Is the dashboard still up?"
+            : "Something went wrong: " + m;
+        }
+      }
+      if (!live) { busy = false; return; }
+      updateMetaStrip({
+        voice: pack.voice || activeVoiceLabel(),
+        ms: pack.ms,
+        seat: pack.seat || seatEl.value,
+        stt: "whisper",
+      });
+      bubble("mag", pack.answer, {
+        voice: pack.voice || activeVoiceLabel(),
+        ms: pack.ms,
+        seat: pack.seat || seatEl.value,
+      });
+      await speak(pack.answer);
+      busy = false;
+      if (live) {
+        try { await startWhisperRec(); }
+        catch (e) { setStatus(String(e.message || e)); }
+      }
     }
 
-    function pickVoice() {
+    function fillVoices() {
+      const sel = $("ttsVoice");
+      if (!sel || !canSpeak) return;
       const voices = speechSynthesis.getVoices() || [];
-      return voices.find((v) => /en/i.test(v.lang)) || voices[0] || null;
+      const cur = localStorage.getItem("magVoiceTtsVoice") || "";
+      sel.innerHTML = '<option value="">Default system voice</option>';
+      // Prefer English; list natural/Google/Microsoft first
+      const sorted = [...voices].sort((a, b) => {
+        const score = (v) =>
+          (/en/i.test(v.lang) ? 0 : 2) +
+          (/natural|neural|google|microsoft|samantha|aria|jenny|guy/i.test(v.name) ? 0 : 1);
+        return score(a) - score(b);
+      });
+      for (const v of sorted) {
+        const o = document.createElement("option");
+        o.value = v.name;
+        o.textContent = `${v.name} (${v.lang})`;
+        if (v.name === cur) o.selected = true;
+        sel.appendChild(o);
+      }
     }
 
     function speak(text) {
-      if (!ttsOk || !text) return;
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text.slice(0, 1200));
-      u.voice = pickVoice();
-      u.rate = 1;
-      speechSynthesis.speak(u);
+      return new Promise((resolve) => {
+        if (!canSpeak || !text) { resolve(); return; }
+        try { speechSynthesis.cancel(); } catch (_) {}
+        const u = new SpeechSynthesisUtterance(String(text).slice(0, 600));
+        const rate = parseFloat($("ttsRate")?.value || "1.2");
+        const pitch = parseFloat($("ttsPitch")?.value || "1.05");
+        u.rate = Number.isFinite(rate) ? rate : 1.2;
+        u.pitch = Number.isFinite(pitch) ? pitch : 1.05;
+        const want = $("ttsVoice")?.value || localStorage.getItem("magVoiceTtsVoice") || "";
+        const voices = speechSynthesis.getVoices() || [];
+        const match = want && voices.find((v) => v.name === want);
+        if (match) u.voice = match;
+        else {
+          const en = voices.find((v) => /en/i.test(v.lang) && /natural|neural|google|microsoft/i.test(v.name))
+            || voices.find((v) => /en/i.test(v.lang));
+          if (en) u.voice = en;
+        }
+        u.onend = () => resolve();
+        u.onerror = () => resolve();
+        setPhase("speaking");
+        setStatus("Reading answer…");
+        speechSynthesis.speak(u);
+      });
     }
 
-    async function sendTurn(text) {
-      setStatus("Thinking…");
-      btnTalk.disabled = true;
+    function setScout(t) {
+      const el = $("scoutChip");
+      if (el) el.textContent = "Scout: " + t;
+    }
+    function setHandoff(t) {
+      const el = $("handoffChip");
+      if (el) el.textContent = "Handoff: " + t;
+    }
+    function setRefine(t) {
+      const el = $("refineChip");
+      if (el) el.textContent = "Refine: " + t;
+    }
+    async function pollStacks() {
+      try {
+        const hr = await fetch("/api/v1/voice/handoff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list", limit: 5 }),
+        });
+        const hj = await hr.json();
+        const open = (hj.handoffs || []).filter((h) =>
+          ["open", "running", "ready"].includes(h.status)
+        );
+        setHandoff(
+          open.length
+            ? open.map((h) => (h.handoff_id || "") + "=" + (h.status || "")).join(" · ")
+            : "idle — implement… or handoff"
+        );
+      } catch (_) {
+        setHandoff("?");
+      }
+      try {
+        const rr = await fetch("/api/v1/refine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", session_id: sessionId }),
+        });
+        const rj = await rr.json();
+        if (rj.ok && rj.chain) {
+          const c = rj.chain;
+          setRefine((c.chain_id || "") + " " + (c.status || "") + " r" + (c.round_i ?? "?"));
+        } else {
+          setRefine("idle — start refine chain…");
+        }
+      } catch (_) {
+        setRefine("?");
+      }
+    }
+
+    async function kickScout(text) {
+      const mode = seatEl.value || "local";
+      if (mode !== "local") return; // local_only / deepseek skip background
+      try {
+        await fetch("/api/v1/voice/shadow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "start",
+            session_id: sessionId,
+            text,
+          }),
+        });
+        setScout("DeepSeek researching… (local already answered)");
+        pollScout();
+      } catch (_) {
+        setScout("offline");
+      }
+    }
+
+    function pollScout() {
+      clearTimeout(scoutTimer);
+      scoutTimer = setTimeout(async () => {
+        if (!live) return;
+        try {
+          const r = await fetch(
+            "/api/v1/voice/shadow?session_id=" + encodeURIComponent(sessionId) + "&action=status",
+            { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "status", session_id: sessionId }) }
+          );
+          const j = await r.json();
+          if (j.status === "ready" && j.has_brief) {
+            setScout("ready — next local answers can use it");
+            return;
+          }
+          if (j.status === "failed") {
+            setScout("failed — local continues alone");
+            return;
+          }
+          if (j.status === "running") {
+            setScout("DeepSeek still scouting…");
+            pollScout();
+            return;
+          }
+          setScout(j.status || "idle");
+        } catch (_) {
+          setScout("?");
+        }
+      }, 2500);
+    }
+
+    function renderCanvas(j) {
+      const el = $("canvasBody");
+      if (!el) return;
+      if (!j || j.ok === false) {
+        el.innerHTML = `<div class="row">${esc(j?.error || "canvas offline")}</div>`;
+        return;
+      }
+      const bits = [];
+      if (j.sludge_warn) {
+        bits.push(`<div class="warn">⚠ Sticky hardware sludge on board — say a new topic or Clear knot. Latest line wins.</div>`);
+      }
+      const br = j.last_brief || {};
+      if (br.goal || br.depth) {
+        bits.push(`<div class="sec">Intention brief (compiled)</div>`);
+        bits.push(`<div class="row"><b>Goal:</b> ${esc((br.goal || "").slice(0, 200))}</div>`);
+        bits.push(`<div class="row">depth <b>${esc(br.depth || "—")}</b> · seat <b>${esc(br.seat_recommend || "—")}</b> · ${esc(br.why || "")}</div>`);
+        if (br.mode) bits.push(`<div class="row path">mode ${esc(br.mode)} — local speak + scout unless escalate</div>`);
+      }
+      if (j.verkle_tip) bits.push(`<div class="sec">Verkle tip</div><div class="row">${esc(j.verkle_tip)}</div>`);
+      const dt = j.diary_tip || {};
+      if (dt.n_leaves != null || dt.last_seal) {
+        bits.push(`<div class="sec">Diary / tip</div>`);
+        bits.push(`<div class="row">leaves <b>${esc(String(dt.n_leaves ?? "—"))}</b> · kind ${esc(dt.last_leaf_kind || "—")}</div>`);
+        if (dt.last_seal && dt.last_seal.title) {
+          bits.push(`<div class="row">last seal: ${esc((dt.last_seal.title || "").slice(0, 100))}</div>`);
+        }
+      }
+      if (j.desk_goal) bits.push(`<div class="sec">Desk goal (may poison if off-topic)</div><div class="row">${esc(j.desk_goal)}</div>`);
+      const scout = j.scout || {};
+      if (scout.brief || scout.trigger) {
+        bits.push(`<div class="sec">Scout</div><div class="row">${esc((scout.trigger || "") + " — " + (scout.brief || "").slice(0, 280))}</div>`);
+      }
+      const sq = j.socratic_queue || [];
+      if (sq.length) {
+        bits.push(`<div class="sec">Socratic queue</div>`);
+        sq.slice(-4).forEach((q) => bits.push(`<div class="row">· ${esc(q.q || "")}</div>`));
+      }
+      const turns = j.session_turns || [];
+      if (turns.length) {
+        bits.push(`<div class="sec">This session (what model sees)</div>`);
+        turns.slice(-8).forEach((t) => {
+          const who = t.role === "user" ? "you" : "mag";
+          bits.push(`<div class="row ${who}"><b>${who === "you" ? "You" : "Mag"}:</b> ${esc((t.text || "").slice(0, 180))}</div>`);
+        });
+      }
+      const eps = j.episodes || [];
+      if (eps.length) {
+        bits.push(`<div class="sec">Dig episodes (board)</div>`);
+        eps.slice(-5).forEach((ep) => {
+          bits.push(`<div class="row you"><b>You:</b> ${esc((ep.you || "").slice(0, 140))}</div>`);
+          if (ep.mag) bits.push(`<div class="row mag"><b>Mag:</b> ${esc((ep.mag || "").slice(0, 140))}</div>`);
+        });
+      }
+      bits.push(`<div class="path">paths: ${(j.paths && j.paths.dig_md) || "voice_dig_board.md"} · updated ${esc(j.updated || "")}</div>`);
+      el.innerHTML = bits.join("") || `<div class="row">Empty knot — talk and it grows.</div>`;
+    }
+    async function refreshCanvas() {
+      try {
+        const r = await fetch(
+          "/api/v1/voice/canvas?session_id=" + encodeURIComponent(sessionId),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "canvas", session_id: sessionId }),
+          }
+        );
+        const j = await r.json();
+        renderCanvas(j);
+      } catch (e) {
+        renderCanvas({ ok: false, error: String(e.message || e) });
+      }
+    }
+    function armCanvasPoll() {
+      clearTimeout(canvasTimer);
+      canvasTimer = setTimeout(async () => {
+        await refreshCanvas();
+        if (live) armCanvasPoll();
+      }, 2800);
+    }
+    async function clearKnot() {
+      try {
+        await fetch("/api/v1/voice/canvas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear" }),
+        });
+        await fetch("/api/v1/voice/turn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clear_session: true, session_id: sessionId }),
+        });
+        await fetch("/api/v1/voice/shadow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear", session_id: sessionId }),
+        });
+        setStatus("Knot cleared — dig board + session sludge wiped");
+        await refreshCanvas();
+      } catch (e) {
+        setStatus("Clear failed: " + (e.message || e));
+      }
+    }
+    async function sealDiary() {
+      setStatus("Sealing diary → Verkle tip + train labels…");
+      try {
+        const r = await fetch("/api/v1/diary/seal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "seal",
+            session_id: sessionId,
+            channel: "voice",
+            include_audio: false,
+          }),
+        });
+        const j = await r.json();
+        if (!j.ok) {
+          setStatus("Seal failed: " + (j.error || "unknown"));
+          return;
+        }
+        const n = j.n_leaves != null ? j.n_leaves : (j.verkle && j.verkle.n_leaves);
+        setStatus(
+          "Sealed “" + (j.title || "").slice(0, 40) + "” · tip leaves=" + n +
+          " · train diary_seal (speak-as-me still parked)"
+        );
+        await refreshCanvas();
+      } catch (e) {
+        setStatus("Seal failed: " + (e.message || e));
+      }
+    }
+
+    async function askMag(text) {
+      let seat = seatEl.value || "local";
+      const seatLabel = seatEl.value || "local";
+      const kickBackground = seatLabel === "local";
+      if (seat === "local_only") seat = "local";
+      const handoffForce = seatLabel === "handoff";
+
+      setPhase("thinking");
+      setStatus(
+        seat === "deepseek"
+          ? "DeepSeek on mic (blocking)…"
+          : handoffForce
+            ? "Filing handoff…"
+            : "Local Mag (handoff/refine stack)…"
+      );
+      updateMetaStrip({ seat: seatLabel, voice: activeVoiceLabel() });
+      if (kickBackground) kickScout(text);
+
+      const ctrl = new AbortController();
+      const ms = seat === "deepseek" ? 60000 : 35000;
+      const t = setTimeout(() => ctrl.abort(), ms);
+      const t0 = performance.now();
       try {
         const r = await fetch("/api/v1/voice/turn", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, session_id: sessionId, channel: "cast" }),
+          body: JSON.stringify({
+            text,
+            session_id: sessionId,
+            seat: handoffForce ? "handoff" : seat,
+            handoff: handoffForce,
+            lane: (laneEl && laneEl.value && laneEl.value !== "auto") ? laneEl.value : undefined,
+            channel: "dashboard-voice",
+            conversation: true,
+          }),
+          signal: ctrl.signal,
         });
         const j = await r.json();
-        if (!j.ok) throw new Error(j.error || "voice turn failed");
-        lastAnswer = j.answer || "";
-        answerEl.hidden = false;
-        answerEl.textContent = lastAnswer;
-        setStatus("Tap Repeat or hold to talk again");
-        if (j.speak !== false) speak(lastAnswer);
-      } catch (e) {
-        setStatus(String(e.message || e));
+        const elapsed = Math.round(performance.now() - t0);
+        if (!j.ok && !j.answer && !j.speak_text) throw new Error(j.error || "no answer");
+        const answer = (j.speak_text || j.answer || "").trim() || "I didn't get a clear answer.";
+        const laneName = (j.lane && (j.lane.label || j.lane.id)) || (laneEl && laneEl.value) || "auto";
+        updateMetaStrip({ seat: j.seat || seatLabel, lane: laneName, voice: activeVoiceLabel() });
+        if (j.route === "handoff" || j.handoff_id) {
+          setHandoff("filed " + (j.handoff_id || ""));
+          setStatus("Handoff " + (j.handoff_id || "") + " → DeepSeek background");
+        } else if (j.route && String(j.route).indexOf("harness") >= 0) {
+          setStatus("Harness lane (no dig/desk) · " + (j.route || ""));
+        } else if (j.route && String(j.route).startsWith("refine")) {
+          setRefine((j.chain_id || "") + " " + j.route);
+          setStatus("Refine " + (j.chain_id || j.route));
+        } else if (j.brief && j.brief.goal) {
+          setStatus(
+            "Brief: " + String(j.brief.goal).slice(0, 60) +
+            " · " + (j.brief.depth || "") + " → " + (j.seat || seatLabel)
+          );
+        }
+        refreshCanvas();
+        pollStacks();
+        return {
+          answer,
+          ms: elapsed,
+          seat: j.seat || seatLabel,
+          route: j.route || "",
+          voice: activeVoiceLabel(),
+          topic_reset: !!j.topic_reset,
+          transcript: j.transcript || text,
+          brief: j.brief || null,
+          depth: j.depth || (j.brief && j.brief.depth) || "",
+          handoff_id: j.handoff_id || "",
+          chain_id: j.chain_id || "",
+        };
       } finally {
-        btnTalk.disabled = false;
+        clearTimeout(t);
       }
     }
 
-    function startListen() {
-      if (!recognition || listening) return;
-      listening = true;
-      btnTalk.classList.add("listening");
-      btnTalk.textContent = "Listening…";
-      setStatus("Speak now");
+    function armEndTurn() {
+      clearTimeout(silenceTimer);
+      if (!live || busy) return;
+      if (!buffer.trim()) return;
+      setStatus("Still listening… pause ~2s when finished, or hit I'm done");
+      silenceTimer = setTimeout(() => {
+        if (!live || busy) return;
+        submitTurn();
+      }, END_TURN_MS);
+    }
+
+    async function submitTurn() {
+      if (sttMode() === "whisper") {
+        return submitWhisperTurn();
+      }
+      clearTimeout(silenceTimer);
+      const heard = buffer.trim();
+      if (!heard || busy) return;
+      busy = true;
+      btnDone.disabled = true;
+      stopRec();
+      clearLive();
+      bubble("you", heard);
+      setStatus("Got: “" + heard.slice(0, 100) + (heard.length > 100 ? "…”" : "”"));
+      let pack = { answer: "", ms: null, seat: seatEl.value, voice: activeVoiceLabel() };
       try {
-        recognition.start();
-      } catch (_) {
-        listening = false;
-        btnTalk.classList.remove("listening");
-        btnTalk.textContent = "Hold to talk";
+        pack = await askMag(heard);
+      } catch (e) {
+        if (e && e.name === "AbortError") {
+          pack.answer = "That took too long. Try local, or a shorter ask.";
+        } else {
+          const m = String(e.message || e);
+          pack.answer = /failed to fetch|refused/i.test(m)
+            ? "Can't reach Mag server. Is the dashboard still up?"
+            : "Something went wrong: " + m;
+        }
+      }
+      if (!live) { busy = false; return; }
+      updateMetaStrip({
+        voice: pack.voice || activeVoiceLabel(),
+        ms: pack.ms,
+        seat: pack.seat || seatEl.value,
+        stt: "browser",
+      });
+      bubble("mag", pack.answer, {
+        voice: pack.voice || activeVoiceLabel(),
+        ms: pack.ms,
+        seat: pack.seat || seatEl.value,
+      });
+      await speak(pack.answer);
+      busy = false;
+      if (live) startRec();
+    }
+
+    function onResult(ev) {
+      if (!live || busy) return;
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const t = (r[0].transcript || "").trim();
+        if (!t) continue;
+        if (r.isFinal) {
+          buffer = (buffer + " " + t).replace(/\s+/g, " ").trim();
+        } else {
+          interim += (interim ? " " : "") + t;
+        }
+      }
+      showLive();
+      liveInterim.textContent = interim ? "… " + interim : "";
+      if (buffer || interim) {
+        setPhase("listening");
+        armEndTurn();
       }
     }
 
-    function stopListen() {
-      if (!recognition || !listening) return;
-      try { recognition.stop(); } catch (_) {}
+    function startRec() {
+      if (sttMode() === "whisper") {
+        startWhisperRec().catch((e) => {
+          setStatus(String(e.message || e));
+          if (/NotAllowed|Permission|denied/i.test(String(e))) stop();
+        });
+        return;
+      }
+      if (!rec || !live || busy || recRunning) return;
+      setPhase("listening");
+      setStatus("Your turn — take your time. I'm done when finished.");
+      if (liveLab) liveLab.textContent = "Hearing you (live — fix if wrong before it sends)";
+      btnDone.disabled = false;
+      try {
+        rec.start();
+        recRunning = true;
+      } catch (_) {
+        recRunning = false;
+        setTimeout(startRec, 400);
+      }
     }
 
-    if (!SpeechRecognition) {
-      setStatus("Speech recognition needs Chrome/Safari on phone — try Android Chrome");
-      btnTalk.disabled = true;
-    } else {
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.onresult = (ev) => {
-        const text = ev.results[0][0].transcript.trim();
-        if (!text) return;
-        transcriptEl.hidden = false;
-        transcriptEl.textContent = "You: " + text;
-        sendTurn(text);
-      };
-      recognition.onerror = (ev) => {
-        setStatus("Mic error: " + (ev.error || "unknown"));
-        listening = false;
-        btnTalk.classList.remove("listening");
-        btnTalk.textContent = "Hold to talk";
-      };
-      recognition.onend = () => {
-        listening = false;
-        btnTalk.classList.remove("listening");
-        btnTalk.textContent = "Hold to talk";
-      };
-      setStatus(ttsOk ? "Ready — hold button and speak" : "Ready (text only — no TTS)");
+    function stopRec() {
+      clearTimeout(silenceTimer);
+      recRunning = false;
+      try { rec && rec.abort(); } catch (_) {}
+      try { rec && rec.stop(); } catch (_) {}
+      stopWhisperRec(false);
     }
 
-    btnTalk.addEventListener("mousedown", startListen);
-    btnTalk.addEventListener("mouseup", stopListen);
-    btnTalk.addEventListener("mouseleave", stopListen);
-    btnTalk.addEventListener("touchstart", (e) => { e.preventDefault(); startListen(); });
-    btnTalk.addEventListener("touchend", (e) => { e.preventDefault(); stopListen(); });
-
-    btnSpeak.addEventListener("click", () => speak(lastAnswer));
-
-    if (ttsOk) {
-      speechSynthesis.onvoiceschanged = pickVoice;
+    function ensureRec() {
+      if (sttMode() === "whisper") return; // MediaRecorder path
+      if (rec) return;
+      rec = new SpeechRecognition();
+      rec.lang = "en-US";
+      rec.continuous = true;       // don't die on mid-sentence pause
+      rec.interimResults = true;   // show "smart" etc. live
+      rec.maxAlternatives = 3;     // sometimes better alternate
+      rec.onresult = onResult;
+      rec.onerror = (ev) => {
+        recRunning = false;
+        const e = ev.error || "";
+        if (!live || busy) return;
+        if (e === "not-allowed") {
+          setStatus("Mic blocked — allow microphone for this site");
+          stop();
+          return;
+        }
+        if (e === "no-speech" || e === "aborted") {
+          setTimeout(startRec, 300);
+          return;
+        }
+        setStatus("Mic: " + e);
+        setTimeout(startRec, 500);
+      };
+      rec.onend = () => {
+        recRunning = false;
+        // Chrome stops continuous sessions periodically — restart if still our turn
+        if (live && !busy && sttMode() === "browser") setTimeout(startRec, 250);
+      };
     }
+
+    function start() {
+      const mode = sttMode();
+      if (mode === "browser" && !SpeechRecognition) {
+        setStatus("Need Chrome or Edge for browser STT — or pick Whisper");
+        return;
+      }
+      if (mode === "whisper" && !canMedia) {
+        setStatus("Need Chrome/Edge MediaRecorder for Whisper — or pick Browser STT");
+        return;
+      }
+      if (mode === "whisper" && !whisperReady) {
+        setStatus("Whisper not ready on server — pick Browser STT or install faster-whisper");
+        return;
+      }
+      // New session every Start — kills sticky RAM/BIOS glue + old scout + dig sludge
+      sessionId = "voice-" + Math.random().toString(36).slice(2, 12);
+      localStorage.setItem("magVoiceSession", sessionId);
+      localStorage.setItem("magVoiceSttMode", mode);
+      logEl.innerHTML = "";
+      clearLive();
+      setScout("idle");
+      clearTimeout(scoutTimer);
+      try {
+        fetch("/api/v1/voice/shadow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear", session_id: sessionId }),
+        });
+        // Hard clear dig sludge + force clean voice lane memory
+        fetch("/api/v1/voice/canvas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear" }),
+        });
+        fetch("/api/v1/voice/turn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clear_session: true, clear_dig: true, session_id: sessionId }),
+        });
+      } catch (_) {}
+      ensureRec();
+      live = true;
+      busy = false;
+      btnGo.disabled = true;
+      btnStop.disabled = false;
+      btnDone.disabled = false;
+      btnGo.classList.add("on");
+      localStorage.setItem("magVoiceSimpleSeat", seatEl.value);
+      updateMetaStrip({ seat: seatEl.value, stt: mode, voice: activeVoiceLabel() });
+      setStatus(mode === "whisper"
+        ? "Whisper mode — isolated mic, speak fully"
+        : "Listening — speak your full ask");
+      refreshCanvas();
+      armCanvasPoll();
+      pollStacks();
+      startRec();
+    }
+
+    function stop() {
+      live = false;
+      busy = false;
+      stopRec();
+      clearTimeout(canvasTimer);
+      try { speechSynthesis.cancel(); } catch (_) {}
+      clearLive();
+      btnGo.disabled = false;
+      btnStop.disabled = true;
+      btnDone.disabled = true;
+      btnGo.classList.remove("on");
+      setPhase("idle");
+      setStatus("Stopped");
+      refreshCanvas();
+    }
+
+    btnGo.addEventListener("click", start);
+    btnStop.addEventListener("click", stop);
+    $("btnClearCanvas")?.addEventListener("click", clearKnot);
+    $("btnSealDiary")?.addEventListener("click", sealDiary);
+    btnDone.addEventListener("click", () => {
+      if (!live || busy) return;
+      if (sttMode() === "whisper") {
+        submitWhisperTurn();
+        return;
+      }
+      if (!buffer.trim()) {
+        setStatus("Nothing heard yet — keep talking");
+        return;
+      }
+      submitTurn();
+    });
+    seatEl.addEventListener("change", () => {
+      localStorage.setItem("magVoiceSimpleSeat", seatEl.value);
+      updateMetaStrip({ seat: seatEl.value, voice: activeVoiceLabel(), stt: sttMode() });
+      // Fresh model context when switching seats — stops sticky SAM/RAM glue
+      sessionId = "voice-" + Math.random().toString(36).slice(2, 12);
+      localStorage.setItem("magVoiceSession", sessionId);
+      setStatus("Seat → " + seatEl.value + " (fresh session — sticky topics cleared)");
+      try {
+        fetch("/api/v1/voice/shadow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear", session_id: sessionId }),
+        });
+      } catch (_) {}
+    });
+    sttModeEl.addEventListener("change", () => {
+      localStorage.setItem("magVoiceSttMode", sttMode());
+      updateMetaStrip({ stt: sttMode() });
+      if (live) {
+        stopRec();
+        ensureRec();
+        if (!busy) startRec();
+      }
+      setStatus(sttMode() === "whisper"
+        ? "STT → Whisper local (no voice train)"
+        : "STT → Browser Web Speech");
+    });
+    $("ttsVoice")?.addEventListener("change", () => {
+      localStorage.setItem("magVoiceTtsVoice", $("ttsVoice").value || "");
+    });
+    $("ttsRate")?.addEventListener("input", () => {
+      $("ttsRateVal").textContent = $("ttsRate").value;
+      localStorage.setItem("magVoiceTtsRate", $("ttsRate").value);
+    });
+    $("ttsPitch")?.addEventListener("input", () => {
+      $("ttsPitchVal").textContent = $("ttsPitch").value;
+      localStorage.setItem("magVoiceTtsPitch", $("ttsPitch").value);
+    });
+    const savedRate = localStorage.getItem("magVoiceTtsRate");
+    const savedPitch = localStorage.getItem("magVoiceTtsPitch");
+    if (savedRate && $("ttsRate")) {
+      $("ttsRate").value = savedRate;
+      $("ttsRateVal").textContent = savedRate;
+    }
+    if (savedPitch && $("ttsPitch")) {
+      $("ttsPitch").value = savedPitch;
+      $("ttsPitchVal").textContent = savedPitch;
+    }
+    if (canSpeak) {
+      fillVoices();
+      speechSynthesis.onvoiceschanged = () => {
+        fillVoices();
+        updateMetaStrip({ voice: activeVoiceLabel(), seat: seatEl.value });
+      };
+    }
+    updateMetaStrip({ voice: activeVoiceLabel(), seat: seatEl.value || "local", stt: sttMode() });
+    $("ttsVoice")?.addEventListener("change", () => updateMetaStrip({ voice: activeVoiceLabel() }));
+
+    async function probeStt() {
+      try {
+        const r = await fetch("/api/v1/voice/stt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status" }),
+        });
+        const j = await r.json();
+        whisperReady = !!(j.faster_whisper || j.ok && j.model);
+        if (whisperReady) {
+          setSttChip("whisper ready · model " + (j.model || "base"));
+          setStatus("Hit Start. Prefer Whisper if browser mangled words. Pause ~2s or I'm done.");
+        } else {
+          setSttChip("whisper offline — use Browser STT or install faster-whisper");
+          if (sttMode() === "whisper") sttModeEl.value = "browser";
+          setStatus(SpeechRecognition
+            ? "Browser STT only (Whisper not installed). Hit Start."
+            : "No STT available — install faster-whisper or use Chrome/Edge");
+          if (!SpeechRecognition && !whisperReady) btnGo.disabled = true;
+        }
+      } catch (_) {
+        whisperReady = false;
+        setSttChip("server unreachable for STT probe");
+        if (SpeechRecognition) {
+          sttModeEl.value = "browser";
+          setStatus("Hit Start (browser STT). Dashboard may need restart for Whisper.");
+        } else {
+          btnGo.disabled = true;
+          setStatus("Need Mag server + Chrome/Edge");
+        }
+      }
+      updateMetaStrip({ stt: sttMode() });
+    }
+    probeStt();
+    refreshCanvas();
   </script>
 </body>
 </html>

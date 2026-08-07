@@ -318,8 +318,12 @@ def stop_all(*, include_self: bool = False) -> dict[str, Any]:
     }
 
 
+# Direct Mag face — agent router, not multi-tab warehouse home
+DASH_URL = "http://127.0.0.1:8765/?tab=chat"
+
+
 def start_all(*, open_browser: bool = False) -> dict[str, Any]:
-    """Turn-on switch — clear off flag and boot supervisor + core services."""
+    """Turn-on switch — full stack: supervisor (backend+dash+lab+scribe) + UI face."""
     clear_off()
     py = _python_exe()
     pyw = py.replace("python.exe", "pythonw.exe") if py.endswith("python.exe") else py
@@ -327,7 +331,7 @@ def start_all(*, open_browser: bool = False) -> dict[str, Any]:
     if not launch.is_file():
         return {"ok": False, "error": "mag_launch.py missing"}
 
-    # Spawn detached supervisor (same as start_everything.cmd)
+    # Spawn detached supervisor (same as start_everything.cmd / boot_mag.cmd)
     try:
         subprocess.run([py, str(launch), "--once"], cwd=str(ROOT), timeout=120, check=False)
     except Exception as exc:
@@ -351,31 +355,60 @@ def start_all(*, open_browser: bool = False) -> dict[str, Any]:
     except Exception as exc:
         return {"ok": False, "error": f"supervisor spawn failed: {exc}"}
 
-    deadline = time.time() + 60
-    health = {"backend": False, "dashboard": False}
+    # Backup: ensure integral lab if supervisor slot not up yet
+    try:
+        from mag.guard import ensure_lab
+
+        ensure_lab(restart=True)
+    except Exception:
+        pass
+
+    deadline = time.time() + 90
+    health = {"backend": False, "dashboard": False, "integral": False}
     while time.time() < deadline:
         health["backend"] = _health("http://127.0.0.1:8000/health")
         health["dashboard"] = _health("http://127.0.0.1:8765/")
-        if all(health.values()):
-            break
+        try:
+            from mag.health import sanity
+
+            s = sanity()
+            health["integral"] = s.get("status") == "up"
+        except Exception:
+            health["integral"] = False
+        if health["backend"] and health["dashboard"]:
+            # integral may lag a few seconds; don't block UI forever
+            if health["integral"] or time.time() + 15 > deadline:
+                break
         time.sleep(1)
 
     if open_browser and health["dashboard"]:
         try:
             import webbrowser
 
-            webbrowser.open("http://127.0.0.1:8765")
+            webbrowser.open(DASH_URL)
         except Exception:
             pass
 
+    # First passive pass immediately — don't wait for supervisor tick
+    lifecycle_boot: dict[str, Any] | None = None
+    try:
+        from mag.lifecycle import auto_reconcile
+
+        lifecycle_boot = auto_reconcile(force=True)
+    except Exception:
+        lifecycle_boot = None
+
+    core_ok = bool(health["backend"] and health["dashboard"])
     return {
-        "ok": all(health.values()),
+        "ok": core_ok,
         "schema": SCHEMA,
         "ts": _now(),
         "action": "start",
         "power_off": False,
         "health": health,
-        "hint": "http://127.0.0.1:8765 — Body tab for live stack status",
+        "ui": DASH_URL,
+        "lifecycle_boot": lifecycle_boot,
+        "hint": f"{DASH_URL} — Direct Mag (agent router). Kill: mag_kill.cmd",
     }
 
 
@@ -463,15 +496,47 @@ def stack_status() -> dict[str, Any]:
         "mag_processes": mag_pids,
         "switchboard_summary": switchboard.get("summary"),
         "top_peers": (switchboard.get("top_peers") or [])[:5],
+        "ui": DASH_URL,
+        "browser_env": _browser_env_glance(),
+        "lifecycle": _lifecycle_glance(),
         "actions": {
             "stop": "mag.cmd power stop  or  mag_kill.cmd",
-            "start": "mag.cmd power start  or  start_everything.cmd",
-            "status": "mag.cmd power status  or  dashboard Body tab",
+            "start": "mag.cmd power start --browser  or  boot_mag.cmd",
+            "status": "mag.cmd power status  or  dashboard Direct Mag",
+            "lifecycle": "GET /api/v1/lifecycle — when each piece should be on/off",
+            "reconcile": "POST /api/v1/lifecycle/reconcile — safe passive offs",
         },
     }
 
 
+def _lifecycle_glance() -> dict[str, Any]:
+    try:
+        from mag.lifecycle import build_lifecycle
+
+        lc = build_lifecycle()
+        return {
+            "posture": lc.get("posture"),
+            "waste": lc.get("waste") or [],
+            "gaps": lc.get("gaps") or [],
+            "signals": lc.get("signals") or {},
+            "hint": lc.get("hint"),
+            "api": "GET /api/v1/lifecycle",
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:120]}
+
+
+def _browser_env_glance() -> dict[str, Any]:
+    try:
+        from mag.browser_env import status as browser_status
+
+        return browser_status()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:120]}
+
+
 def format_status_text(s: dict[str, Any]) -> str:
+    lc = s.get("lifecycle") or {}
     lines = [
         f"Mag power ({s.get('headline')}) — off_flag={s.get('power_off')}",
         f"  backend={s.get('services', {}).get('backend')} "
@@ -481,7 +546,11 @@ def format_status_text(s: dict[str, Any]) -> str:
         f"fleet_running={s.get('fleet', {}).get('running')} "
         f"seat_guards={s.get('seat_guards_running')} "
         f"mag_pids={s.get('mag_processes')}",
+        f"  lifecycle posture={lc.get('posture')} "
+        f"waste={lc.get('waste') or []} gaps={lc.get('gaps') or []}",
     ]
+    if lc.get("hint"):
+        lines.append(f"  lifecycle: {lc.get('hint')}")
     for p in s.get("top_peers") or []:
         lines.append(
             f"  · {p.get('peer_id')} seat={p.get('seat')} status={p.get('status')}"

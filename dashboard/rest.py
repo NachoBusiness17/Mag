@@ -220,6 +220,66 @@ def h_power_start(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int,
     return 200, start_all(open_browser=open_browser)
 
 
+def h_lifecycle(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dict]:
+    """When each stack piece should be on/off — passive efficiency map."""
+    from mag.lifecycle import build_lifecycle
+
+    return 200, build_lifecycle()
+
+
+def h_lifecycle_reconcile(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Apply safe passive offs (drainer etc). Never kills core UI."""
+    from mag.lifecycle import reconcile
+
+    data = dict(body or {})
+    dry = bool(data.get("dry_run") or data.get("dry"))
+    return 200, reconcile(dry_run=dry)
+
+
+def h_temperature_stacks(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Adjustable temperature stacks + resolve goal heat / file pointer / track gap."""
+    from mag.temperature_stack import (
+        file_pointer_knot,
+        registry,
+        sampling_for_goal,
+        stack_for_goal,
+        track_loop_gap,
+        track_lifecycle_into_improve,
+    )
+
+    data = dict(body or {}) if body else {}
+    action = str(data.get("action") or _p.get("action") or "status").strip().lower()
+    if action in ("resolve", "for_goal"):
+        goal = str(data.get("goal") or data.get("text") or "")
+        tag = str(data.get("tag") or "")
+        st = stack_for_goal(goal, tag=tag, stack=data.get("stack"))
+        return 200, {
+            "ok": True,
+            "stack": st.to_dict(),
+            "sampling": sampling_for_goal(goal, tag=tag),
+            "timeout_s": st.timing.scaled_timeout(size_hint=len(goal)),
+        }
+    if action == "pointer":
+        ref = str(data.get("ref") or data.get("path") or data.get("url") or "")
+        return 200, file_pointer_knot(
+            ref,
+            kind=str(data.get("kind") or "path"),
+            summary=str(data.get("summary") or ""),
+            tags=list(data.get("tags") or []),
+        )
+    if action == "track_gap":
+        return 200, track_loop_gap(
+            str(data.get("name") or "unnamed"),
+            detail=str(data.get("detail") or ""),
+            where=str(data.get("where") or ""),
+            kind=str(data.get("kind") or "missing_capability"),
+            force=bool(data.get("force")),
+        )
+    if action == "track_lifecycle":
+        return 200, track_lifecycle_into_improve()
+    return 200, registry().snapshot()
+
+
 def h_improve_cloud(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Cloud agent files handoff + optional improve cycle enqueue."""
     from mag.improve_loop import write_cloud_handoff
@@ -1806,6 +1866,212 @@ def h_routing_network(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[
     return _err(400, f"unknown action: {action}")
 
 
+def h_voice_scratch(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Voice scratch pad — append / commit / clear (same as cast :8766)."""
+    try:
+        from mag.voice_scratch import handle_scratch
+
+        out = handle_scratch(body or {})
+        if out.get("ok") or out.get("cancelled"):
+            return 200, out
+        return 400, out if isinstance(out, dict) else {"ok": False, "error": "scratch failed"}
+    except Exception as exc:
+        return 500, {
+            "ok": False,
+            "error": f"voice_scratch crash: {exc!s}"[:240],
+            "speak_text": "Something broke on the server. Try again in a second.",
+        }
+
+
+def h_voice_turn(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Legacy one-shot voice turn."""
+    try:
+        from mag.voice_turn import handle_voice_turn
+
+        out = handle_voice_turn(body or {})
+        return (200 if out.get("ok") else 400), out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_turn crash: {exc!s}"[:240]}
+
+
+def h_voice_shadow(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Background DeepSeek scout for voice — status / start / clear."""
+    try:
+        from mag.voice_shadow import handle_shadow
+
+        out = handle_shadow(body or {})
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_shadow crash: {exc!s}"[:240]}
+
+
+def h_voice_task(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Voice → REST build tasks for cheap coding agents."""
+    try:
+        from mag.voice_tasks import handle_voice_task
+
+        data = body or {}
+        # GET-style list when no body action
+        if not data:
+            data = {"action": "list"}
+        out = handle_voice_task(data)
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_task crash: {exc!s}"[:240]}
+
+
+def h_voice_stt(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Local Whisper-class STT — no voice training; isolation via clean capture + VAD."""
+    try:
+        from mag.voice_stt import handle_stt
+
+        data = body or {}
+        # GET with empty body → status
+        if not data:
+            data = {"action": "status"}
+        out = handle_stt(data)
+        # status always 200; transcribe may be 400 on missing payload
+        if out.get("schema") == "mag_voice_stt.v1" and "text" not in out and "error" not in out:
+            return 200, out
+        if out.get("ok") is False and out.get("error"):
+            code = 400 if "required" in str(out.get("error", "")).lower() or "not installed" in str(out.get("error", "")).lower() else 500
+            # empty transcript is still ok:False with empty text
+            if out.get("backend") or out.get("path") is not None:
+                return 200, out
+            return code, out
+        return 200, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_stt crash: {exc!s}"[:240], "text": ""}
+
+
+def h_voice_canvas(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Evolving dig board / Verkle-flavored canvas of what voice seats are discussing."""
+    try:
+        from mag.voice_dig_board import handle_dig
+
+        data = dict(body or {})
+        # GET query session_id may live in path params from router
+        if not data.get("session_id") and _p.get("session_id"):
+            data["session_id"] = _p["session_id"]
+        if not data.get("action"):
+            data["action"] = "canvas"
+        out = handle_dig(data)
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_canvas crash: {exc!s}"[:240]}
+
+
+def h_diary_seal(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Seal voice/talk into Verkle diary node + high-fidelity train event."""
+    try:
+        from mag.diary_node import handle_diary
+
+        data = dict(body or {})
+        if not data.get("action"):
+            # POST with session_id → seal; empty GET-style → list
+            data["action"] = "seal" if data.get("session_id") or data.get("title") else "list"
+        if _p.get("session_id") and not data.get("session_id"):
+            data["session_id"] = _p["session_id"]
+        out = handle_diary(data)
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"diary_seal crash: {exc!s}"[:240]}
+
+
+def h_voice_handoff(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Non-blocking FILE to DeepSeek — voice keeps talking."""
+    try:
+        from mag.voice_handoff import handle_handoff
+
+        data = dict(body or {})
+        if not data.get("action"):
+            data["action"] = "list"
+        if _p.get("session_id") and not data.get("session_id"):
+            data["session_id"] = _p["session_id"]
+        out = handle_handoff(data)
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"voice_handoff crash: {exc!s}"[:240]}
+
+
+def h_refine_chain(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Multi-seat refine chain (Project Verkle recursive pattern)."""
+    try:
+        from mag.refine_chain import handle_refine
+
+        data = dict(body or {})
+        if not data.get("action"):
+            data["action"] = "list"
+        out = handle_refine(data)
+        return 200 if out.get("ok") else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"refine_chain crash: {exc!s}"[:240]}
+
+
+def h_game(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """Living campaign — engine-first classic keep / tabletop-dnd."""
+    try:
+        from mag.game_campaign import handle_game
+
+        data = dict(body or {})
+        # GET /api/v1/game?action=status&session_id=…
+        for k in ("action", "session_id", "campaign_id", "module", "module_id", "text"):
+            if not data.get(k) and _p.get(k):
+                data[k] = _p.get(k)
+        if not data.get("action"):
+            data["action"] = "status"
+        out = handle_game(data)
+        return 200 if out.get("ok") is not False else 400, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"game crash: {exc!s}"[:240]}
+
+
+def h_table_view(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """ASCII/DF table projection of engine state — REST, cheap, offline."""
+    try:
+        from mag.game_view import handle_table_view
+
+        out = handle_table_view(body, _p)
+        # attach tileset meta when available (local DF path)
+        try:
+            from mag.df_tileset import ensure_cached_png, tileset_meta
+
+            meta = tileset_meta()
+            if meta.get("ok") and not meta.get("cached"):
+                ensure_cached_png()
+                meta = tileset_meta()
+            elif meta.get("ok") and meta.get("cached"):
+                pass
+            else:
+                ensure_cached_png()
+                meta = {**tileset_meta(), **ensure_cached_png()}
+            out["tileset"] = ensure_cached_png() if meta.get("ok") or True else meta
+            # prefer full ensure result
+            ts = ensure_cached_png()
+            if ts.get("ok"):
+                out["tileset"] = ts
+            else:
+                out["tileset"] = meta
+        except Exception as te:
+            out["tileset"] = {"ok": False, "error": str(te)[:120]}
+        return 200, out
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"table_view crash: {exc!s}"[:240]}
+
+
+def h_table_tileset(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
+    """DF tileset meta + ensure local PNG cache from Steam DF art."""
+    try:
+        from mag.df_tileset import ensure_cached_png, tileset_meta
+
+        action = str((body or {}).get("action") or _p.get("action") or "ensure").lower()
+        if action in ("meta", "status"):
+            return 200, tileset_meta()
+        return 200, ensure_cached_png()
+    except Exception as exc:
+        return 500, {"ok": False, "error": f"tileset crash: {exc!s}"[:240]}
+
+
 def h_unsloth(p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, dict]:
     """Unsloth Studio GPU seat — status (GET) or start/stop/chat (POST)."""
     from mag.unsloth_seat import build_unsloth_payload, unsloth_chat, unsloth_start, unsloth_stop
@@ -2186,10 +2452,13 @@ def h_post_ask(_p: dict[str, str], body: dict[str, Any] | None) -> tuple[int, di
         from mag.agent_desk import read_desk
 
         canvas = (read_desk().get("text") or "").strip() or None
+    # Server TTS default off — Mag Voice (browser) owns playback; PowerShell SAPI was crashing.
+    speak = bool(data.get("speak") or data.get("tts"))
     return 200, mag_ask(
         q,
         session_id=sid,
         use_llm=use_llm,
+        speak=speak,
         peer_context=peer,
         desk_canvas=canvas,
     )
@@ -2787,6 +3056,10 @@ def h_api_index(_p: dict[str, str], _b: dict[str, Any] | None) -> tuple[int, dic
             "GET /api/v1/power": "Stack status — kill switch / turn-on glance",
             "POST /api/v1/power/stop": "Kill switch — stop entire Mag stack",
             "POST /api/v1/power/start": "Turn-on — boot supervisor + core services",
+            "GET /api/v1/lifecycle": "Per-piece on/off policy (passive efficiency)",
+            "POST /api/v1/lifecycle/reconcile": "Safe offs (drainer); dry_run supported",
+            "GET /api/v1/temperature-stacks": "Heat bands + loop timings (YAML adjustable)",
+            "POST /api/v1/temperature-stacks": "resolve|pointer|track_gap|track_lifecycle",
             "POST /api/v1/improve/cloud": "Cloud handoff JSON → behavioral + optional queue",
             "POST /api/v1/improve/cycle": "Improve cycle → queue + nervous + spider",
             "GET /api/v1/governance": "Steering + behavioral loop + autonomy prefs",
@@ -2859,6 +3132,54 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("POST", "/api/v1/unsloth", h_unsloth),
     ("GET", "/api/unsloth", h_unsloth),
     ("POST", "/api/unsloth", h_unsloth),
+    ("POST", "/api/v1/voice/scratch", h_voice_scratch),
+    ("POST", "/api/voice/scratch", h_voice_scratch),
+    ("POST", "/api/v1/voice/turn", h_voice_turn),
+    ("POST", "/api/voice/turn", h_voice_turn),
+    ("GET", "/api/v1/voice/shadow", h_voice_shadow),
+    ("POST", "/api/v1/voice/shadow", h_voice_shadow),
+    ("GET", "/api/voice/shadow", h_voice_shadow),
+    ("POST", "/api/voice/shadow", h_voice_shadow),
+    ("GET", "/api/v1/voice/task", h_voice_task),
+    ("POST", "/api/v1/voice/task", h_voice_task),
+    ("GET", "/api/voice/task", h_voice_task),
+    ("POST", "/api/voice/task", h_voice_task),
+    ("GET", "/api/v1/voice/stt", h_voice_stt),
+    ("POST", "/api/v1/voice/stt", h_voice_stt),
+    ("GET", "/api/voice/stt", h_voice_stt),
+    ("POST", "/api/voice/stt", h_voice_stt),
+    ("GET", "/api/v1/voice/canvas", h_voice_canvas),
+    ("POST", "/api/v1/voice/canvas", h_voice_canvas),
+    ("GET", "/api/voice/canvas", h_voice_canvas),
+    ("POST", "/api/voice/canvas", h_voice_canvas),
+    ("GET", "/api/v1/voice/dig", h_voice_canvas),
+    ("POST", "/api/v1/voice/dig", h_voice_canvas),
+    ("GET", "/api/v1/diary/seal", h_diary_seal),
+    ("POST", "/api/v1/diary/seal", h_diary_seal),
+    ("GET", "/api/v1/diary/nodes", h_diary_seal),
+    ("POST", "/api/v1/diary/nodes", h_diary_seal),
+    ("GET", "/api/diary/seal", h_diary_seal),
+    ("POST", "/api/diary/seal", h_diary_seal),
+    ("GET", "/api/v1/voice/handoff", h_voice_handoff),
+    ("POST", "/api/v1/voice/handoff", h_voice_handoff),
+    ("GET", "/api/voice/handoff", h_voice_handoff),
+    ("POST", "/api/voice/handoff", h_voice_handoff),
+    ("GET", "/api/v1/refine", h_refine_chain),
+    ("POST", "/api/v1/refine", h_refine_chain),
+    ("GET", "/api/refine", h_refine_chain),
+    ("POST", "/api/refine", h_refine_chain),
+    ("GET", "/api/v1/game", h_game),
+    ("POST", "/api/v1/game", h_game),
+    ("GET", "/api/game", h_game),
+    ("POST", "/api/game", h_game),
+    ("GET", "/api/v1/table/view", h_table_view),
+    ("POST", "/api/v1/table/view", h_table_view),
+    ("GET", "/api/table/view", h_table_view),
+    ("POST", "/api/table/view", h_table_view),
+    ("GET", "/api/v1/table/tileset", h_table_tileset),
+    ("POST", "/api/v1/table/tileset", h_table_tileset),
+    ("GET", "/api/table/tileset", h_table_tileset),
+    ("POST", "/api/table/tileset", h_table_tileset),
     ("GET", "/api/v1/display", h_display),
     ("GET", "/api/display", h_display),
     ("GET", "/api/v1/grove", h_grove),
@@ -2937,6 +3258,11 @@ ROUTES: list[tuple[str, str, HandlerFn]] = [
     ("GET", "/api/v1/power", h_power),
     ("POST", "/api/v1/power/stop", h_power_stop),
     ("POST", "/api/v1/power/start", h_power_start),
+    ("GET", "/api/v1/lifecycle", h_lifecycle),
+    ("POST", "/api/v1/lifecycle/reconcile", h_lifecycle_reconcile),
+    ("GET", "/api/v1/power/lifecycle", h_lifecycle),
+    ("GET", "/api/v1/temperature-stacks", h_temperature_stacks),
+    ("POST", "/api/v1/temperature-stacks", h_temperature_stacks),
     ("POST", "/api/v1/improve/cloud", h_improve_cloud),
     ("POST", "/api/v1/improve/cycle", h_improve_cycle),
     ("GET", "/api/v1/token-chain", h_token_chain),

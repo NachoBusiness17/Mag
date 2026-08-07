@@ -1,0 +1,123 @@
+# Temperature stacks — adjustable timings + token heat for Mag pieces.
+# Schema: mag_temperature_stacks.v1
+# Edit here; code loads on demand. No redeploy ritual.
+
+schema: mag_temperature_stacks.v1
+
+# Global loop timings (seconds) — supervisor + lifecycle read these
+loops:
+  supervisor_check_s: 5
+  lifecycle_reconcile_every_s: 60
+  mag_idle_interval_s: 120
+  watch_interval_s: 5
+  external_seat_stale_s: 300
+
+# Stacks: colder = cheaper/faster local; hotter = longer/more tokens/scarce seats
+stacks:
+  cold:
+    label: Local free / status
+    token_class: local_free
+    temperature: 0.1
+    max_tokens: 512
+    timeout_s: 120
+    seat_hint: ollama
+    when: doctor lifecycle power status short classify
+    keywords:
+      - doctor
+      - status
+      - lifecycle
+      - power
+      - health
+      - glance
+      - ping
+
+  warm:
+    label: Local craft / implement
+    token_class: local_gpu
+    temperature: 0.2
+    max_tokens: 4096
+    timeout_s: 600
+    seat_hint: ollama
+    when: code edit tests dual-progress pack work
+    keywords:
+      - implement
+      - fix
+      - edit
+      - refactor
+      - test
+      - code
+      - file
+      - patch
+
+  hot:
+    label: Long plan / multi-file / research pack
+    token_class: scheduled
+    temperature: 0.35
+    max_tokens: 8192
+    timeout_s: 900
+    seat_hint: deepseek
+    when: multi-file dinner loop research-pack deep dive
+    keywords:
+      - research
+      - plan
+      - multi
+      - epic
+      - dinner
+      - deep
+      - pack
+      - architecture
+
+  scarce:
+    label: Hard judgment / Grok / frontier
+    token_class: remote_tokens
+    temperature: 0.5
+    max_tokens: 8192
+    timeout_s: 1200
+    seat_hint: grok_tui
+    when: strike constitution irreversible design
+    keywords:
+      - strike
+      - judgment
+      - scarce
+      - constitution
+      - design
+      - final
+
+  improve:
+    label: Self-improve scout (bounded)
+    token_class: scheduled
+    temperature: 0.25
+    max_tokens: 2048
+    timeout_s: 420
+    seat_hint: ollama
+    when: improve scout promote eval
+    keywords:
+      - "[improve]"
+      - improve
+      - scout
+      - promote
+      - playbook
+
+  pointer:
+    label: Pointer-knot only (where not dump)
+    token_class: local_free
+    temperature: 0.0
+    max_tokens: 256
+    timeout_s: 60
+    seat_hint: local
+    when: FILE residual as paths urls not full corpus
+    keywords:
+      - pointer
+      - knot
+      - where
+      - path
+      - github
+      - find
+
+default_stack: warm
+
+gap_tracking:
+  enabled: true
+  train_pattern: lifecycle_gap
+  improve_source: mag_temperature_gap
+  dedupe_hours: 12

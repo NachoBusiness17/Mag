@@ -793,6 +793,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Rank candidates → field_brief.md only (no scout)",
     )
+    p_imp.add_argument(
+        "--deepseek-rank",
+        action="store_true",
+        help="DeepSeek workhorse: verdict promote|hold|reject on top new/hold candidates (no auto-promote)",
+    )
+    p_imp.add_argument(
+        "--top-n",
+        type=int,
+        default=5,
+        help="With --deepseek-rank: how many ranked candidates (default 5)",
+    )
     p_imp.add_argument("--status", action="store_true", help="Show candidate ledger summary")
     p_imp.add_argument(
         "--dry",
@@ -3150,11 +3161,25 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(res, indent=2, default=str))
         return 0 if res.get("ok", True) else 1
     if args.cmd == "improve":
-        from mag.improve import improve_once, scout, status_summary, run_eval, deep_dive
+        from mag.improve import (
+            improve_once,
+            scout,
+            status_summary,
+            run_eval,
+            deep_dive,
+            deepseek_rank_top,
+        )
 
         if args.status:
             print(json.dumps(status_summary(), indent=2, default=str))
             return 0
+        if getattr(args, "deepseek_rank", False):
+            res = deepseek_rank_top(
+                top_n=int(getattr(args, "top_n", 5) or 5),
+                dry=bool(args.dry),
+            )
+            print(json.dumps(res, indent=2, default=str)[:12000])
+            return 0 if res.get("ok") else 1
         if args.deep:
             res = deep_dive(
                 minutes=args.minutes,

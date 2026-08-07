@@ -1,0 +1,216 @@
+# Narrative / scifi / IF inspiration forest — same pattern as steal_protocol_repos
+# Schema: narrative_corpus.v1
+# Clones: mine/raw/narrative_corpus/ (gitignored preferred)
+# Refresh: powershell -File scripts/pull_narrative_corpus.ps1
+#
+# Law:
+#   - T2 public research only in remote seats
+#   - steal_contracts_structure_craft — not wholesale republish of copyrighted fiction
+#   - Fanfic / Nexus mods / closed wikis: CATALOG + URL + license note only (no mass scrape)
+#   - PD / OSS / CC with clear terms: clone or fetch allowed
+#   - Later train: annotated leaves + Rashomon multi-perspective filters
+
+schema: narrative_corpus.v1
+as_of: "2026-08-07"
+dest_default: mine/raw/narrative_corpus
+index_path: memory/narrative_corpus/INDEX.md
+
+law:
+  tier_max_research: T2
+  steal_focus: structure_craft_not_fulltext_piracy
+  never_remote_private: true
+  rashomon_filter: true
+
+tags:
+  - interactive_fiction
+  - scifi_inspiration
+  - tavern_hub
+  - multi_perspective
+  - game_design
+  - open_modding
+  - public_domain
+
+# --- Git clones (OSS / tools / design) ---
+repos:
+  - id: inform7-docs-style
+    path: ganelson/inform
+    url: https://github.com/ganelson/inform.git
+    shallow: true
+    mag_slot: parser_if_world_model
+    steal_focus: room_description_grammar, world_model, rulebooks
+    note: "Large; shallow clone. Contracts only for Mag passage cards."
+
+  - id: twine-examples
+    path: klembot/twinejs
+    url: https://github.com/klembot/twinejs.git
+    shallow: true
+    mag_slot: choice_if_passages
+    steal_focus: passage_graph, hub_loops, hypertext_beats
+
+  - id: ink-language
+    path: inkle/ink
+    url: https://github.com/inkle/ink.git
+    shallow: true
+    mag_slot: branching_narrative_dsl
+    steal_focus: knots_stitches, divert, hub_return, choice_hiding
+
+  - id: ink-writing-tutorials
+    path: inkle/ink-library
+    url: https://github.com/inkle/ink-library.git
+    shallow: true
+    mag_slot: ink_samples
+    steal_focus: sample_stories, craft_patterns
+
+  - id: redblob-roguelike
+    path: redblobgames/2126-roguelikedev
+    url: https://github.com/redblobgames/2126-roguelikedev.git
+    shallow: true
+    mag_slot: web_ascii_map
+    steal_focus: grid_render, turn_loop, map_as_state
+
+  - id: bogc-if
+    path: sstephenson/babys-first-if
+    url: https://github.com/sstephenson/babys-first-if.git
+    shallow: true
+    mag_slot: tiny_parser_if
+    steal_focus: minimal_room_loop
+
+  - id: quest-js
+    path: textadventures/quest
+    url: https://github.com/textadventures/quest.git
+    shallow: true
+    mag_slot: quest_engine_patterns
+    steal_focus: room_objects_verbs
+
+  - id: fallout-mod-tools-open
+    path: fallout/xEdit
+    url: https://github.com/TES5Edit/TES5Edit.git
+    shallow: true
+    mag_slot: mod_record_structure
+    steal_focus: record_types, override_layers, mod_load_order
+    note: "xEdit multi-game; structure for DF/Fallout-like raw overlays — not game assets."
+
+  - id: openmw-docs-adjacent
+    path: OpenMW/openmw
+    url: https://github.com/OpenMW/openmw.git
+    shallow: true
+    mag_slot: open_rpg_data
+    steal_focus: content_files, data_driven_world
+    note: "Very large — optional; skip if disk tight."
+
+# Prefer smaller first-wave (script pulls these by default)
+first_wave:
+  - ink-language
+  - ink-writing-tutorials
+  - twine-examples
+  - redblob-roguelike
+  - fallout-mod-tools-open
+
+# --- Catalog only (do not auto-download full copyrighted text) ---
+catalog_only:
+  - id: leguin-craft
+    kind: author_craft
+    urls:
+      - https://en.wikipedia.org/wiki/Ursula_K._Le_Guin
+      - https://www.ursulakleguin.com/
+    steal_focus: prose_clarity_moral_weather_concrete_place
+    license: "Copyright remains with estates/publishers — train on NOTES not novels"
+
+  - id: campbell-hero
+    kind: theory_structure
+    urls:
+      - https://en.wikipedia.org/wiki/Hero%27s_journey
+    steal_focus: call_threshold_test_return_as_energy_not_checklist
+    license: "Summary PD-ish wiki; books copyrighted"
+
+  - id: jung-archetypes
+    kind: theory_structure
+    urls:
+      - https://en.wikipedia.org/wiki/Jungian_archetypes
+    steal_focus: unnamed_pressure_in_scene_not_jargon
+    license: "Wiki CC-BY-SA"
+
+  - id: rashomon-kurosawa
+    kind: multi_perspective
+    urls:
+      - https://en.wikipedia.org/wiki/Rashomon
+      - https://en.wikipedia.org/wiki/Rashomon_effect
+    steal_focus: same_event_multiple_unreliable_accounts
+    license: "Wiki + film copyrighted; structure only"
+
+  - id: fallout-wiki
+    kind: fan_wiki
+    urls:
+      - https://fallout.fandom.com/wiki/Fallout_Wiki
+    steal_focus: location_bars_factions_quest_hooks_as_tags
+    license: "Fandom CC-BY-SA typically — fetch specific pages with attribution only"
+
+  - id: fallout-nexus-catalog
+    kind: mod_catalog
+    urls:
+      - https://www.nexusmods.com/games/fallout4
+    steal_focus: mod_categories_load_order_culture_not_assets
+    license: "Nexus ToS — no bulk asset scrape; catalog categories only"
+
+  - id: ao3-if-tag
+    kind: fanfiction_catalog
+    urls:
+      - https://archiveofourown.org/tags/Interactive%20Fiction/works
+    steal_focus: tag_structure_reader_contracts_not_fulltext_mirror
+    license: "AO3 ToS + author copyright — NO bulk download; link + notes only"
+
+  - id: nethack-wiki
+    kind: game_wiki
+    urls:
+      - https://nethackwiki.com/
+    steal_focus: turn_economy_risk_death_comedy
+    license: "Check wiki license; structure notes OK"
+
+  - id: ifdb
+    kind: database
+    urls:
+      - https://ifdb.org/
+    steal_focus: if_taxonomy_ratings_forms
+    license: "Link catalog"
+
+  - id: scifi-deep-dive-mag
+    kind: session_leaf
+    urls:
+      - docs/ref/TABLE_SHELL_ARCH.md
+      - docs/ref/TABLE_DOGFOOD.md
+    steal_focus: zones_of_thought_holodeck_primer_battle_room_maps
+    license: "Operator Mag docs"
+
+# --- Local PD / small fetches (script may wget) ---
+public_fetches:
+  - id: pg-war-worlds
+    url: https://www.gutenberg.org/files/36/36-0.txt
+    dest: public_domain/wells_war_of_the_worlds.txt
+    steal_focus: invasion_threshold_prose
+    license: "Project Gutenberg PD (US)"
+
+  - id: pg-time-machine
+    url: https://www.gutenberg.org/files/35/35-0.txt
+    dest: public_domain/wells_time_machine.txt
+    steal_focus: journey_return_prose
+    license: "Project Gutenberg PD (US)"
+
+  - id: pg-metamorphosis
+    url: https://www.gutenberg.org/files/5200/5200-0.txt
+    dest: public_domain/kafka_metamorphosis.txt
+    steal_focus: body_threshold_estrangement
+    license: "Project Gutenberg PD (US) where applicable"
+
+# --- Rashomon seed (operator-authored multi-perspective training) ---
+rashomon_seeds:
+  - id: tavern_bar_fight_party
+    path: memory/narrative_corpus/rashomon/tavern_bar_fight_party.v1.md
+    event: "Bar fight at The Guttered Lantern; full party present; argument escalates"
+    perspectives:
+      - fighter
+      - wizard
+      - rogue
+      - barkeep
+      - stranger_in_corner
+      - engine_truth
+    use: "train multi-seat salon + unreliable narrate; compare to engine_truth leaf"

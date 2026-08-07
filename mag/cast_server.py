@@ -6,7 +6,9 @@ Serves:
   GET /voice              → phone voice UI (Web Speech STT + TTS)
   GET /health             → instant ping
   GET /api/v1/display     → TV-safe JSON
-  POST /api/v1/voice/turn → local janitor answer (narrow — no shell/desk control)
+  POST /api/v1/voice/turn → legacy one-shot turn
+  POST /api/v1/voice/scratch → scratch pad append/commit/wake
+  GET|POST /api/v1/voice/stt → local faster-whisper (no voice train)
 
 Default: 127.0.0.1:8766 — use --lan for WiFi receivers you point at manually.
 """
@@ -34,6 +36,8 @@ _ALLOWED = frozenset(
         "/api/v1/display",
         "/api/display",
         "/api/v1/voice/turn",
+        "/api/v1/voice/scratch",
+        "/api/v1/voice/stt",
         "/api/v1/remote/status",
         "/api/v1/remote/intent",
     }
@@ -114,7 +118,12 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "service": "mag-cast",
                     "voice": True,
-                    "routes": ["GET /", "GET /voice", "POST /api/v1/voice/turn"],
+                    "routes": [
+                        "GET /",
+                        "GET /voice",
+                        "POST /api/v1/voice/turn",
+                        "GET|POST /api/v1/voice/stt",
+                    ],
                 },
             )
             return
@@ -122,6 +131,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._file(STATIC / "cast-voice.html", "text/html; charset=utf-8")
         if path == "/control":
             return self._file(STATIC / "control.html", "text/html; charset=utf-8")
+        if path == "/api/v1/voice/stt":
+            try:
+                from mag.voice_stt import handle_stt
+
+                self._json(200, handle_stt({"action": "status"}))
+            except Exception as exc:
+                self._json(500, {"ok": False, "error": f"stt status: {exc!s}"[:200]})
+            return
         if path == "/api/v1/remote/status":
             from mag.remote_control import authorized, status, token_from_headers
 
@@ -151,7 +168,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
-        if path not in {"/api/v1/voice/turn", "/api/v1/remote/intent"}:
+        if path not in {
+            "/api/v1/voice/turn",
+            "/api/v1/voice/scratch",
+            "/api/v1/voice/stt",
+            "/api/v1/remote/intent",
+        }:
             self._json(405, {"ok": False, "error": "unsupported cast action"})
             return
         try:
@@ -171,10 +193,41 @@ class Handler(BaseHTTPRequestHandler):
             self._json(202 if out.get("ok") else 400, out)
             return
 
-        from mag.voice_turn import handle_voice_turn
+        if path == "/api/v1/voice/scratch":
+            try:
+                from mag.voice_scratch import handle_scratch
 
-        out = handle_voice_turn(body)
-        self._json(200 if out.get("ok") else 400, out)
+                out = handle_scratch(body)
+                code = 200 if out.get("ok") or out.get("cancelled") else 400
+                self._json(code, out)
+            except Exception as exc:
+                self._json(
+                    500,
+                    {
+                        "ok": False,
+                        "error": f"scratch crash: {exc!s}"[:240],
+                        "speak_text": "Server hiccup — try once more.",
+                    },
+                )
+            return
+
+        if path == "/api/v1/voice/stt":
+            try:
+                from mag.voice_stt import handle_stt
+
+                out = handle_stt(body)
+                self._json(200, out)
+            except Exception as exc:
+                self._json(500, {"ok": False, "error": f"stt crash: {exc!s}"[:240], "text": ""})
+            return
+
+        try:
+            from mag.voice_turn import handle_voice_turn
+
+            out = handle_voice_turn(body)
+            self._json(200 if out.get("ok") else 400, out)
+        except Exception as exc:
+            self._json(500, {"ok": False, "error": f"voice_turn crash: {exc!s}"[:240]})
 
     def _cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -219,7 +272,7 @@ def run(*, host: str = "127.0.0.1", port: int = DEFAULT_PORT) -> None:
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     print_bind_banner(host=host, port=port, service="cast")
-    print("  routes: GET / · GET /voice · POST /api/v1/voice/turn · GET /health")
+    print("  routes: GET / · GET /voice · POST voice/turn|scratch|stt · GET /health")
     print(f"  auto-refresh every {REFRESH_SECONDS}s — Roku-safe (no JavaScript)")
     print("  no network discovery — type URL on receiver manually")
     print("Ctrl+C to stop.")

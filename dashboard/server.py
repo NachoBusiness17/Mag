@@ -449,6 +449,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(404, {"error": "sovereign shell not found"})
             return self._bytes(200, sh.read_bytes(), "text/html; charset=utf-8")
 
+        # Mag Table — system-test dogfood (chat + canvas + voice); Battle Room
+        if path in ("/table", "/table.html", "/play", "/play.html"):
+            tf = STATIC / "table.html"
+            if not tf.is_file():
+                return self._json(404, {"error": "table.html missing"})
+            return self._bytes(200, tf.read_bytes(), "text/html; charset=utf-8")
+
+        # Mag Voice — same UI as cast :8766/voice (API on this server too)
+        if path in ("/voice", "/voice.html", "/cast-voice.html"):
+            vf = STATIC / "cast-voice.html"
+            if not vf.is_file():
+                return self._json(404, {"error": "cast-voice.html missing"})
+            return self._bytes(200, vf.read_bytes(), "text/html; charset=utf-8")
+
         if path.startswith("/static/"):
             f = safe_file(path.lstrip("/"))
             if not f:

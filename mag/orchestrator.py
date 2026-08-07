@@ -63,7 +63,7 @@ TASK_DIR = ROOT / "memory" / "runs" / "orchestrator" / "tasks"
 QUEUE_DIR = ROOT / "memory" / "runs" / "orchestrator" / "queue"
 LOG_DIR = ROOT / "logs" / "orchestrator"
 TRAIL = ROOT / "memory" / "runs" / "orchestrator_trail.jsonl"
-DEFAULT_TIMEOUT = 900  # seconds
+DEFAULT_TIMEOUT = 900  # seconds — fallback if temperature stacks unavailable
 IMPROVE_TIMEOUT = 420  # shorter backstop for [improve] loops (7 min)
 EXTERNAL_STALE_S = 300  # external/desktop seats without pid — reap after stale heartbeat
 
@@ -71,9 +71,18 @@ TERMINAL = {"done", "failed", "timeout", "stalled", "killed", "died"}
 
 
 def timeout_for_goal(goal: str, *, tag: str = "", timeout: int | None = None) -> int:
-    """Pick spawn timeout — improve jobs get a shorter backstop."""
-    if timeout is not None and timeout != DEFAULT_TIMEOUT:
+    """Pick spawn timeout from temperature stacks (adjustable YAML) + size boost.
+
+    Explicit timeout always wins. Else configs/temperature_stacks.yaml heat band.
+    """
+    if timeout is not None and int(timeout) > 0 and int(timeout) != DEFAULT_TIMEOUT:
         return int(timeout)
+    try:
+        from mag.temperature_stack import timeout_for_goal as stack_timeout
+
+        return int(stack_timeout(goal, tag=tag, timeout=None, size_hint=len(goal or "")))
+    except Exception:
+        pass
     g = (goal or "").lower()
     t = (tag or "").lower()
     if "[improve]" in g or t.startswith("improve"):
