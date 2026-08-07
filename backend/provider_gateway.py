@@ -162,6 +162,11 @@ class RunTurnRequest(BaseModel):
     provider: str | None = Field(
         default=None, description="Provider id (default: deepseek)"
     )
+    tier: str = Field(
+        default="T1",
+        pattern="^T[0-3]$",
+        description="Data tier; remote-safe callers must explicitly send T2",
+    )
     max_tokens: int | None = Field(default=None, ge=16, le=16384)
     system: str | None = Field(default=None, description="Optional system preamble")
 
@@ -194,6 +199,7 @@ def run_turn(
     *,
     system: str | None = None,
     max_tokens: int | None = None,
+    tier: str = "T1",
 ) -> dict[str, Any]:
     """Route one job to a provider; preserve context for chained jobs.
 
@@ -227,7 +233,7 @@ def run_turn(
             pid,
             history,
             model=None,  # provider default (env override honored)
-            tier="T2",
+            tier=tier,
             max_tokens=max_tokens or DEFAULT_MAX_TOKENS,
             temperature=0.2,
         )
@@ -287,6 +293,7 @@ def execute_run_turn(
         pid,
         system=request.system,
         max_tokens=request.max_tokens,
+        tier=request.tier,
     )
     return RunTurnResponse(**result)
 

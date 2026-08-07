@@ -1,0 +1,81 @@
+# Mag v5 — Vast.ai training job config
+# Schema: mag_vast_train.v1
+# Parent: docs/ref/MAG_v5_VAST_TRAINING.md
+# Law: curriculum stays home · T2 max export · L3 promote · cost_ledger every job
+
+schema: mag_vast_train.v1
+as_of: "2026-08-06"
+
+# Base models available for LoRA/SFT fine-tune on rented GPU.
+# VRAM estimates are Q4/LoRA-optimistic; verify against actual instance.
+base_models:
+  qwen2.5-7b:
+    label: Qwen2.5 7B (LoRA)
+    vram_gb: 16
+    min_gpu_ram_gb: 24
+    default_hyperparams:
+      lora_r: 16
+      lora_alpha: 32
+      lora_dropout: 0.05
+      batch_size: 4
+      learning_rate: 2.0e-4
+      epochs: 3
+  qwen2.5-14b:
+    label: Qwen2.5 14B (LoRA)
+    vram_gb: 24
+    min_gpu_ram_gb: 32
+    default_hyperparams:
+      lora_r: 16
+      lora_alpha: 32
+      lora_dropout: 0.05
+      batch_size: 2
+      learning_rate: 1.5e-4
+      epochs: 3
+  qwen2.5-32b:
+    label: Qwen2.5 32B (LoRA)
+    vram_gb: 40
+    min_gpu_ram_gb: 48
+    default_hyperparams:
+      lora_r: 8
+      lora_alpha: 16
+      lora_dropout: 0.05
+      batch_size: 1
+      learning_rate: 1.0e-4
+      epochs: 2
+  llama3.1-8b:
+    label: Llama 3.1 8B (LoRA)
+    vram_gb: 16
+    min_gpu_ram_gb: 24
+    default_hyperparams:
+      lora_r: 16
+      lora_alpha: 32
+      lora_dropout: 0.05
+      batch_size: 4
+      learning_rate: 2.0e-4
+      epochs: 3
+
+# Default base model when none specified
+default_base_model: qwen2.5-7b
+
+# Cost controls — operator-set, never auto-exceeded
+max_usd_per_job: 50.0
+max_hours_per_job: 24
+default_max_hours: 8
+
+# GPU hourly rate estimates (USD/hr) — operator editable, not billing truth
+gpu_hourly_rates_usd:
+  rtx_8000_48gb: 0.55
+  rtx_4090_24gb: 0.35
+  a100_80gb: 1.20
+  h100_80gb: 2.50
+
+# Vast template hash — set after template created (Phase V1)
+template_hash: ""
+template_name: mag-train-lora
+
+# Export bundle validation
+export:
+  required_manifest_schema: training_export_manifest.v1
+  required_source_schema: mag_training_event.v1
+  min_exported_rows: 1
+  tier_max: T2

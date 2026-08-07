@@ -2,6 +2,8 @@
 
 Mag routes work by **depth** so Grok, DeepSeek, and local janitors each do what they are good at — without burning tokens on the wrong seat.
 
+**Single router:** `mag/router.py` → `route(goal)` · CLI `python main.py route "…"` · REST `POST /api/v1/route` · smoke `scripts/routing_smoke.py`
+
 ## Depth → seat map
 
 | Depth | Seat | Launch | Use for |
@@ -76,4 +78,80 @@ POST /api/v1/coordination  { "seat", "depth", "goal", "status" }
 
 Works inside Docker — activity file lives on mounted `state/` volume.
 
+## Multi-device (tablet / remote seat)
+
+Home machine owns soil. Other devices are viewports or decoders.
+
+| Action | How |
+|--------|-----|
+| Plan + phases | `docs/ref/DISTRIBUTED_SURFACE.md` |
+| Pull directions on home PC | `memory/handoff/HOME_MACHINE.md` |
+| Surface status | `GET /api/v1/surface` |
+| FILE from tablet | `POST /api/v1/handoff/file` |
+| LAN dashboard | `launch_dashboard_lan.cmd` |
+
 See also: `memory/improve/SEATS.md`, `docs/ref/SOVEREIGN_STACK.md`, `watch/cursor_bridge.py`.
+
+## Peer handoffs (agent ↔ agent)
+
+When a cloud or Cursor agent files work for home PC, use **peer handoff** so every seat sees it in `shared_activity.jsonl` and the handoff queue — not chat scroll.
+
+```powershell
+# Cloud agent files instructions for home PC
+python main.py peer-handoff file ^
+  --goal "Run dashboard v3 preview" ^
+  --brief "Canvas tab, Shell compose, Trace rail" ^
+  --from cursor-cloud --track dashboard-v3 ^
+  --command ".\scripts\env_switch.ps1 use dashboard-v3" ^
+  --command ".\scripts\env_switch.ps1 run dashboard-v3" ^
+  --pr https://github.com/NachoBusiness17/Mag/pull/18
+
+# Home PC reads what the other agent said
+python main.py peer-handoff list
+python main.py peer-handoff latest
+curl -s http://127.0.0.1:8765/api/v1/coordination
+```
+
+Home PC executes via env switcher: `docs/ref/ENV_SWITCHING.md`
+
+Trail: `memory/handoff/peer_trail.jsonl` · Queue: `queue/handoff/peer-*.json`
+
+## Tripartite boot (heart · mind · body)
+
+When Mag boots multiple agents, each layer files coordination so every seat reads the same state:
+
+| Layer | Role | Files |
+|-------|------|-------|
+| **Heart** | Local sovereign — disk, state, active env track | `memory/boot/tripartite_latest.md` |
+| **Mind** | Routing — depth doctrine, peer handoffs, classify | `state/shared_activity.jsonl` |
+| **Body** | Spawned agents — dashboard, scribe, drainer, Cursor, DeepSeek | `mag_launch.py` slots |
+
+```powershell
+python main.py boot-coordination          # file heart/mind/body manifest
+python mag_launch.py --once                 # supervisor boot + tripartite
+python main.py boot --ensure                # sancho boot + tripartite
+```
+
+Every context-pack includes tripartite + peer handoffs + coordination feed — body agents see what mind routed and heart filed.
+
+### Woven into orchestrator loops (not bolt-on)
+
+Tripartite **pulses** ride existing subprocess edges — same trails as `task_lifecycle`:
+
+```text
+governor_autorun.fill_queue
+  → enqueue_routed → weave_route (mind: depth + provider filed)
+
+orchestrator.drain_once
+  → spawn_task → weave_spawn (body: pid + goal)
+  → _finalize → weave_terminal (body: done/failed/stalled)
+
+mag_launch supervisor loop (~60s)
+  → refresh_manifest_body (supervisor slots + orchestrator running tasks)
+
+governor autorun_loop tick 0
+  → maybe_boot_on_autorun_start (full manifest if stale)
+  → autorun_once end → weave_autorun_tick (heart: fill/drain/governor)
+```
+
+Read live weave state: `memory/boot/tripartite_latest.json` · `GET /api/v1/coordination`

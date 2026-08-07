@@ -24,9 +24,25 @@ def _resolve_base() -> str:
         return "http://127.0.0.1:11434"
 
 
-def _chat_http(base: str, model: str, system: str, user: str, temperature: float) -> str:
+def _chat_http(
+    base: str, model: str, system: str, user: str, temperature: float, *, num_predict: int | None = None
+) -> str:
     """Raw POST to Ollama /api/chat — no langchain required."""
-    payload = {
+    text, _body = _chat_http_ex(base, model, system, user, temperature, num_predict=num_predict)
+    return text
+
+
+def _chat_http_ex(
+    base: str,
+    model: str,
+    system: str,
+    user: str,
+    temperature: float,
+    *,
+    num_predict: int | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Raw POST to Ollama /api/chat — returns (text, full response body)."""
+    payload: dict[str, Any] = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -35,6 +51,8 @@ def _chat_http(base: str, model: str, system: str, user: str, temperature: float
         "stream": False,
         "temperature": temperature,
     }
+    if num_predict is not None:
+        payload["options"] = {"num_predict": num_predict}
     req = urllib.request.Request(
         base.rstrip("/") + "/api/chat",
         data=json.dumps(payload).encode("utf-8"),
@@ -44,7 +62,7 @@ def _chat_http(base: str, model: str, system: str, user: str, temperature: float
     with urllib.request.urlopen(req, timeout=600) as resp:
         body = json.loads(resp.read().decode("utf-8"))
     content = body.get("message", {}).get("content")
-    return str(content) if content is not None else ""
+    return (str(content) if content is not None else "", body)
 
 
 def chat(

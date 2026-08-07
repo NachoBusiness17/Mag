@@ -1,0 +1,41 @@
+schema: mag_env_tracks.v1
+tracks:
+  operational:
+    name: operational
+    branch: unify-mag-home
+    remote_tracking: origin/cursor/unify-mag-home-e2ce
+    worktree_path: mag_test_env
+    port: 8765
+    description: Operational home desk — unify Mag UI, launch_desk, day-to-day operator seat
+
+  research:
+    name: research
+    branch: cursor/mesh-comm-research-e2ce
+    remote_tracking: origin/cursor/mesh-comm-research-e2ce
+    worktree_path: null
+    port: 8766
+    description: Research stack — mesh comm, ILAP, scout spores (fullest cutting edge)
+
+  queue-lanes:
+    name: queue-lanes
+    branch: cursor/queue-lanes-behavioral-logging
+    remote_tracking: origin/cursor/queue-lanes-behavioral-logging
+    worktree_path: null
+    port: 8767
+    description: Queue lanes + behavioral logging experiments
+
+  baseline:
+    name: baseline
+    branch: master
+    remote_tracking: origin/master
+    worktree_path: null
+    port: 8770
+    description: Frozen baseline — master branch smoke / comparison
+
+  dashboard-v3:
+    name: dashboard-v3
+    branch: cursor/dashboard-v3-base-e2ce
+    remote_tracking: origin/cursor/dashboard-v3-base-e2ce
+    worktree_path: mag_env_dashboard_v3
+    port: 8765
+    description: Dashboard v3 preview — Canvas, Shell compose, Trace rail, layman Status (PR #18)

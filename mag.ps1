@@ -1,7 +1,9 @@
-# Mag launcher - project .venv only
-$ErrorActionPreference = 'Stop'
-$Root = $PSScriptRoot
-$Py = Join-Path $Root '.venv\Scripts\python.exe'
-if (-not (Test-Path $Py)) { Write-Error 'Missing Mag venv. Run scripts\ensure_venv.ps1' }
-& $Py (Join-Path $Root 'main.py') @args
+# Mag PowerShell front door — forwards to mag.cmd (PowerShell requires .\ prefix)
+param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Args
+)
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$cmd = Join-Path $root "mag.cmd"
+& $cmd @Args
 exit $LASTEXITCODE

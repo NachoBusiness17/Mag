@@ -80,3 +80,29 @@ def test_current_task_hint_falls_back_to_prose_when_absent(tmp_path):
 def test_current_task_hint_default_when_nothing(tmp_path):
     hint = inbox._current_task_hint()
     assert hint == "active agent turn"
+
+
+def test_run_turn_writes_current_on_start(tmp_path, monkeypatch):
+    """run_turn mirrors goal into state/CURRENT.md at turn start."""
+    monkeypatch.setattr(
+        agent_cli,
+        "chat_messages",
+        lambda *a, **k: {
+            "ok": True,
+            "text": "done.",
+            "tool_calls": [],
+            "message": {"role": "assistant", "content": "done."},
+        },
+    )
+    agent_cli._activity = {"step": 0, "last_tool": "-", "phase": "starting"}
+    agent_cli.run_turn(
+        "wire resume contract",
+        provider="deepseek",
+        model=None,
+        messages=[{"role": "system", "content": "test"}],
+    )
+    cur = tmp_path / "state" / "CURRENT.md"
+    assert cur.is_file()
+    txt = cur.read_text(encoding="utf-8")
+    assert "wire resume contract" in txt
+    assert "**status:** running" in txt

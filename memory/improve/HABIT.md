@@ -131,6 +131,10 @@ IJL is already on the graph. Daily upgrade means **use it + review residue**, no
   - Promote only Take/compose as practices; leave seats alone (`max_auto_pull_gb: 0`)  
   - Reference leaf: `memory/improve/evals/models/kimi-k3-2026-07-27.md`  
 - Don’t promote models you won’t pull + smoke  
+- **Tesuji shell (when something truly surprised you):**  
+  - `python main.py tesuji-shell log "what" --surprise "why" [--maps-to remedy:ID|skill:id|tesuji:path]`  
+  - Scout surfaces `kind=tesuji` candidates alongside error themes  
+  - See `docs/ref/MAG_BEHAVIORAL_COMPOUNDING.md` §10  
 
 ## Trail (mid-run continuity — opt-in)
 

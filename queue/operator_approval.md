@@ -1,0 +1,33 @@
+﻿# Operator approval queue
+
+Items that need Nachoâ€™s nod â€” **not** coding blockers. Dinner session will keep shipping non-blockers.
+
+| id | item | why wait | suggested action |
+|----|------|----------|------------------|
+| A1 | Merge `mag/roadmap-v5-vast-train-dry-â€¦` â†’ `unify-mag-home` / main | product branch policy | Feature Lab graduation review |
+| A2 | Push dinner stack | **DONE** on origin through dinner loop | — |
+| A3 | Promote more improve tickets beyond the 3 risks/tesuji | human promote law | `python main.py promote --apply c-â€¦` |
+| A4 | W0.0 X archive drop / weight R0 | operator soil | put zip in mycelial-republic/data/raw or waive |
+| A5 | Enable DeepSeek for frozen BUILD factory only | cost | explicit `--provider deepseek` on BUILD |
+| A6 | Dashboard steer over SSE (if still incomplete) | product judgment | approve design then implement |
+| A7 | Salon Slice 3 local-vs-DeepSeek | experiment window | after Feature Lab green |
+| A8 | shared_scratch / Riddler implement | wait Feature Lab | design already filed |
+
+## Auto-cleared / done by dinner loop (no approval)
+
+- Steward `queue_has_goal` import fix  
+- FS jail: sibling `mycelial-republic` read-allowed  
+- dual_progress_status.md from real MILESTONES  
+- yield-to-experiment-window playbook (already)  
+- token-chain product (already pushed)
+
+_Update this file when you approve or reject rows._
+
+## Dinner loop progress (auto)
+
+- 2026-08-06: shipped c86b7ea, 3eddf0b, 65d705f (jail, steward, token-chain UI)
+- A1â€“A8 still need you; nothing blocking Mag local work
+- dual_progress_status: docs/ref/DUAL_PROGRESS_STATUS.md
+- Token-chain: Body pane button + orchestrator tag token-chain
+
+

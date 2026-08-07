@@ -2,6 +2,14 @@
 defaults:
   tier: T2
   max_retries: 2
+  operating_protocol: personal-router-dungeon-master.v1
+  platform_agnostic: true
+  implementation_seat: deepseek
+  architect_seat: personal_router
+  frontier_role: dungeon_master_on_demand
+  model_policy: smallest_model_that_passes_task_eval
+  janitor_seat: ollama
+  evidence_required: true
 
 routes:
   list_or_read: direct

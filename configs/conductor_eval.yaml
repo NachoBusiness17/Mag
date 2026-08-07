@@ -1,0 +1,44 @@
+schema: conductor_eval_suite.v1
+gate: conductor_eval
+threshold: 1.0
+cases:
+  - id: plan_to_architect
+    goal: "[priority] plan only architecture for the next release"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: plan, suggested_seat: grok_tui, note_contains: "spec only"}
+  - id: plan_keeps_architect
+    goal: "write acceptance architecture; plan only"
+    base: {seat: grok_tui, provider: grok}
+    expect: {phase: plan, suggested_seat: null}
+  - id: vague_build_refused
+    goal: "[build] implement the feature"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: build, suggested_seat: defer, factory_gate_ok: false}
+  - id: missing_build_refused
+    goal: "[build] implement queue/handoff/BUILD-missing.md"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: build, suggested_seat: defer, factory_gate_ok: false}
+  - id: frozen_build_allowed
+    goal: "[build] execute frozen queue/handoff/BUILD-v3-deepseek-proof.md exactly"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: build, suggested_seat: agent, factory_gate_ok: true, tier: T2}
+  - id: audit_stays_inspector
+    goal: "audit only ponytail diff review"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: audit, suggested_seat: defer, note_contains: "no feature creep"}
+  - id: blocked_stays_human
+    goal: "blocked; wait_human before continuing"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: defer, suggested_seat: defer, note_contains: "do not autorun"}
+  - id: ordinary_execution_has_no_override
+    goal: "summarize the current status"
+    base: {seat: local, provider: ollama}
+    expect: {phase: execute, suggested_seat: null, note_contains: "cheapest capable"}
+  - id: planning_wins_architecture_implementation_tie
+    goal: "architecture implementation acceptance"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: plan, suggested_seat: grok_tui}
+  - id: explicit_build_wins_audit_tie
+    goal: "[build] audit only this unnamed change"
+    base: {seat: agent, provider: deepseek}
+    expect: {phase: build, suggested_seat: defer, factory_gate_ok: false}

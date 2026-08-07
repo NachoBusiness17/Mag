@@ -76,10 +76,15 @@ def record_usage(
     calls: int = 1,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
+    cache_read_tokens: int = 0,
+    cache_miss_tokens: int = 0,
     ok: bool = True,
     meta: dict | None = None,
 ) -> None:
-    total_tok = int(prompt_tokens or 0) + int(completion_tokens or 0)
+    cache_read = int(cache_read_tokens or 0)
+    cache_miss = int(cache_miss_tokens or 0)
+    billable_prompt = cache_miss if cache_miss > 0 else int(prompt_tokens or 0)
+    total_tok = billable_prompt + int(completion_tokens or 0) + cache_read
     # estimate if missing
     if total_tok <= 0 and meta and meta.get("chars"):
         total_tok = max(1, int(meta["chars"]) // 4)
@@ -119,6 +124,10 @@ def record_usage(
         prov.setdefault("period_end", end.isoformat())
     prov["calls"] = int(prov.get("calls") or 0) + calls
     prov["tokens"] = int(prov.get("tokens") or 0) + total_tok
+    prov["cache_read_tokens"] = int(prov.get("cache_read_tokens") or 0) + cache_read
+    prov["cache_miss_tokens"] = int(prov.get("cache_miss_tokens") or 0) + (
+        cache_miss if cache_miss > 0 else billable_prompt
+    )
     prov["last_model"] = model
     prov["last_ok"] = ok
     prov["last_ts"] = _now().isoformat()
@@ -130,8 +139,10 @@ def record_usage(
         "provider": provider_id,
         "model": model,
         "calls": calls,
-        "prompt_tokens": prompt_tokens,
+        "prompt_tokens": billable_prompt,
         "completion_tokens": completion_tokens,
+        "cache_read_tokens": cache_read,
+        "cache_miss_tokens": cache_miss if cache_miss > 0 else billable_prompt,
         "tokens": total_tok,
         "ok": ok,
         "meta": meta or {},

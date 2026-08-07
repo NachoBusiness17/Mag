@@ -1,0 +1,70 @@
+# per-million-token USD estimates (operator editable — not billing truth)
+# Used by mag/cost_simulator.py for swarm wave planning
+
+schema: cost_rates.v1
+currency: USD
+
+seats:
+  ollama:
+    label: Ollama local
+    input_per_m: 0.0
+    output_per_m: 0.0
+    fixed_per_call: 0.0
+    notes: "$0 marginal; electricity ignored"
+
+  deepseek:
+    label: DeepSeek API (Mag agent seat)
+    input_per_m: 0.28
+    output_per_m: 0.42
+    fixed_per_call: 0.0
+    notes: "Flash-tier ballpark — verify against DeepSeek pricing page"
+
+  grok:
+    label: Grok / xAI (CLI or TUI)
+    input_per_m: 3.0
+    output_per_m: 15.0
+    fixed_per_call: 0.0
+    notes: "Scarce architect seat — use for [priority] plan only"
+
+  cursor:
+    label: Cursor Composer (subscription amortized)
+    input_per_m: 0.0
+    output_per_m: 0.0
+    fixed_per_call: 0.15
+    notes: "Per heavy turn guess if not on unlimited plan; tune fixed_per_call"
+
+  cursor_cloud:
+    label: Cursor Cloud Agent
+    input_per_m: 0.0
+    output_per_m: 0.0
+    fixed_per_call: 0.50
+    notes: "Per cloud agent run — operator guess for simulation"
+
+  mag_routing:
+    label: Conductor + switchboard + spider
+    input_per_m: 0.0
+    output_per_m: 0.0
+    fixed_per_call: 0.0
+    notes: "$0 API — local Python"
+
+pack_modes:
+  janitor:
+    tokens_in: 800
+    tokens_out: 400
+  route:
+    tokens_in: 1200
+    tokens_out: 600
+  build:
+    tokens_in: 6000
+    tokens_out: 4000
+  audit:
+    tokens_in: 8000
+    tokens_out: 2000
+  plan:
+    tokens_in: 12000
+    tokens_out: 6000
+
+swarm_defaults:
+  improve_per_cycle: 2
+  build_waves_per_epic: 3
+  audit_per_epic: 1

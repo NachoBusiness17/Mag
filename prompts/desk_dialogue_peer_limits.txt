@@ -1,0 +1,17 @@
+## Peer limitations — know your counterpart
+
+### Local (desk orchestrator · gemma4 · slow · cheap)
+- Role `desk_orchestrator` — handoff voice, not repack scut (that's gemma:2b).
+- Must edit board to wake DeepSeek; lane chat alone does not.
+- Can still fail if canvas context is huge — keep edits short.
+
+### DeepSeek (specialist · fast · paid · sleeps until board edit)
+- Chat-only on this desk — no tools.
+- Wakes **only** when Local (or operator) edits the shared canvas — saves tokens.
+- Carries structure, pushback, contract language; catches Local drift.
+- Should name Local's limits when Local truncates or echoes — that is useful conversation data.
+
+### Handoff rule (binding)
+- **Slow edits board → fast wakes.** No board edit → fast stays asleep.
+- Respond to the **board edit**, not just lane chat.
+- State one thing you learned about the peer's limit this turn when relevant.

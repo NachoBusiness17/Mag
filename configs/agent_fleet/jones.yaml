@@ -1,0 +1,119 @@
+# Jones agent fleet manifest
+# Schema: mag_agent_fleet.v1
+# Attach: docs/ref/JONES_AGENT_FLEET_PACK.md
+
+schema: mag_agent_fleet.v1
+fleet_id: jones
+operator_codename: Jones
+as_of: "2026-08-05"
+
+activation:
+  card: docs/ref/JONES_AGENT_FLEET_PACK.md
+  errors: docs/ref/MAG_AGENT_ERROR_CATALOG.md
+  handoff: memory/handoff/ACTIVATION.md
+  pack_cmd: python main.py context-pack
+
+boot_tier0:
+  - docs/FRAMEWORK_LOAD.md
+  - docs/ref/MAG_PROJECT_PROPOSAL.md
+  - docs/ref/OPERATOR_CARD.md
+  - AGENTS.md
+
+roles:
+  plan:
+    id: JONES-PLAN
+    skill: caveman
+    seats: [grok_tui, cursor]
+    docs:
+      - docs/ref/MAG_BUILD_PIPELINE.md
+      - docs/ref/BUILD-TEMPLATE.md
+    output: queue/handoff/BUILD-{slug}.md
+    error_codes: [E02, E10, E11, E20, E34]
+
+  build:
+    id: JONES-BUILD
+    skill: ponytail
+    seats: [deepseek, agent]
+    requires: frozen_build_spec
+    docs:
+      - docs/FRAMEWORK_LOAD.md
+      - queue/handoff/BUILD-{slug}.md
+    branch_template: cursor/{slug}-e2ce
+    error_codes: [E01, E11, E20, E21, E40, E42]
+
+  audit:
+    id: JONES-AUDIT
+    skill: ponytail
+    seats: [cursor]
+    docs:
+      - docs/ref/MAG_BUILD_PIPELINE.md
+    output: memory/runs/build_audit/{slug}.json
+    commands:
+      - python main.py ponytail-audit
+      - scripts/routing_smoke.py
+    error_codes: [E12, E21, E22, E23]
+
+  v2_integrator:
+    id: JONES-V2
+    docs:
+      - HANDOFF_MAG_AGENT_TODOS.md
+      - docs/ref/MAG_v2_PLAN.md
+    merge_order: [8, 9, 10, 11]
+    ritual:
+      - mag.cmd doctor
+      - scripts/routing_smoke.py
+      - python main.py verkle-audit --dry
+      - python main.py autorun --once --dry
+    error_codes: [E01, E03, E60, E33]
+
+  v3_research:
+    id: JONES-V3
+    gate: v2_merged
+    docs:
+      - docs/ref/MAG_v3_SWARM_VISION.md
+      - docs/ref/MAG_SWITCHBOARD_VISION.md
+      - docs/ref/MAG_v3_RESEARCH_PLAN.md
+      - docs/ref/MAG_TRAINING_DATA_SPEC.md
+    cli:
+      - python main.py v3-status
+      - python main.py switchboard status
+      - python main.py training-events --stats
+    error_codes: [E60, E61, E62]
+
+  voice:
+    id: JONES-VOICE
+    gate: voice_turn_api
+    docs:
+      - docs/ref/MAG_MOBILE_VOICE_SPEC.md
+    error_codes: [E70, E71, E60]
+
+  cloud:
+    id: JONES-CLOUD
+    python: .venv/bin/python
+    platform: linux
+    assume_no_ollama: true
+    branch_template: cursor/{slug}-e2ce
+    error_codes: [E01, E03, E04, E05]
+
+training:
+  events_path: memory/training/events.jsonl
+  export_cmd: python main.py training-events --export
+  spec: docs/ref/MAG_TRAINING_DATA_SPEC.md
+  file_block_required: true
+
+waves:
+  - id: W1
+    name: v2 merge
+    role: v2_integrator
+  - id: W2
+    name: factory pilot
+    roles: [plan, build, audit]
+  - id: W3
+    name: training hooks
+    role: v3_research
+  - id: W4
+    name: mobile voice API
+    role: voice
+  - id: W5
+    name: republic export
+    role: v3_research

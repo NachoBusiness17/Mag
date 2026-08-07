@@ -64,8 +64,123 @@ QUEUE_DIR = ROOT / "memory" / "runs" / "orchestrator" / "queue"
 LOG_DIR = ROOT / "logs" / "orchestrator"
 TRAIL = ROOT / "memory" / "runs" / "orchestrator_trail.jsonl"
 DEFAULT_TIMEOUT = 900  # seconds
+IMPROVE_TIMEOUT = 420  # shorter backstop for [improve] loops (7 min)
+EXTERNAL_STALE_S = 300  # external/desktop seats without pid — reap after stale heartbeat
 
 TERMINAL = {"done", "failed", "timeout", "stalled", "killed", "died"}
+
+
+def timeout_for_goal(goal: str, *, tag: str = "", timeout: int | None = None) -> int:
+    """Pick spawn timeout — improve jobs get a shorter backstop."""
+    if timeout is not None and timeout != DEFAULT_TIMEOUT:
+        return int(timeout)
+    g = (goal or "").lower()
+    t = (tag or "").lower()
+    if "[improve]" in g or t.startswith("improve"):
+        return IMPROVE_TIMEOUT
+    return DEFAULT_TIMEOUT
+
+
+def _is_external_task(task: dict[str, Any]) -> bool:
+    src = str(task.get("source") or "")
+    if src in ("external", "desktop", "cursor", "cloud", "seat_guard", "launcher"):
+        return True
+    tid = str(task.get("task_id") or "")
+    return tid.startswith("ext-") or tid.startswith("seat-")
+
+
+def register_external(
+    goal: str = "",
+    *,
+    seat: str = "cursor",
+    platform: str = "cursor",
+    mode: str = "interactive",
+    task_id: str | None = None,
+    pid: int | None = None,
+    tag: str = "",
+    parent: str = "desktop",
+) -> dict[str, Any]:
+    """Register a desktop/cloud seat — visible in list_tasks_live + switchboard steer."""
+    _ensure_dirs()
+    task_id = (task_id or "").strip() or ("ext-" + uuid.uuid4().hex[:10])
+    task: dict[str, Any] = {
+        "task_id": task_id,
+        "tag": tag or f"{seat}-external",
+        "status": "running",
+        "source": "external",
+        "seat": seat,
+        "platform": platform,
+        "mode": mode,
+        "parent": parent,
+        "goal": (goal or "")[:500],
+        "cmd": [],
+        "created_at": _now(),
+        "started_at": _now(),
+        "ended_at": None,
+        "exit_code": None,
+        "timeout_s": None,
+        "log": "",
+        "detail": f"registered:{parent}",
+        "pid": pid,
+    }
+    _save(task)
+    _trail("register_external", task_id, seat=seat, mode=mode, parent=parent)
+    ph = _ph()
+    if ph is not None:
+        try:
+            ph.heartbeat(task_id, seat=seat, phase="registered", source=parent)
+            ph.write_status(task_id, phase="registered", seat=seat, goal=task["goal"][:200])
+        except Exception:
+            pass
+    task["ok"] = True
+    return task
+
+
+def touch_external(task_id: str, **fields: Any) -> dict[str, Any] | None:
+    """Update last_seen on an external task record."""
+    task = _load(task_id)
+    if not task:
+        return None
+    task["last_seen_at"] = _now()
+    for k, v in fields.items():
+        if v is not None and k in ("phase", "goal", "seat", "pid", "detail"):
+            task[k] = v
+    _save(task)
+    return task
+
+
+def finalize_external(task_id: str, *, status: str = "done", detail: str = "") -> dict[str, Any]:
+    """Terminal state for external seats (no process kill)."""
+    task = _load(task_id)
+    if not task:
+        return {"ok": False, "error": "no such task", "task_id": task_id}
+    if task.get("status") in TERMINAL:
+        return {"ok": True, "task": task, "note": "already terminal"}
+    task = _finalize(task_id, status, detail=detail or f"external:{status}") or task
+    return {"ok": True, "task": task}
+
+
+def list_external_tasks(*, limit: int = 50) -> list[dict[str, Any]]:
+    """Running/ recent external task records enriched with heartbeat."""
+    out: list[dict[str, Any]] = []
+    ph = _ph()
+    for t in list_tasks(limit=limit):
+        if not _is_external_task(t):
+            continue
+        tid = str(t.get("task_id") or "")
+        if ph is not None and t.get("status") in ("running", "queued"):
+            try:
+                t["heartbeat_age_s"] = ph.staleness_s(tid)
+                t["alive"] = ph.alive(tid)
+                st = ph.read_status(tid)
+                if st:
+                    t["phase"] = st.get("phase")
+            except Exception:
+                pass
+        t["peer_id"] = f"ext:{tid}"
+        t["why"] = [f"external:{t.get('parent', 'desktop')}"]
+        out.append(t)
+    return out
 
 
 def _ph() -> Any:
@@ -107,11 +222,58 @@ def _save(task: dict[str, Any]) -> None:
     )
 
 
+def _goal_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--query" in cmd:
+        i = cmd.index("--query")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])[:240]
+    return ""
+
+
+def _provider_from_cmd(cmd: list[str] | None) -> str:
+    cmd = cmd or []
+    if "--provider" in cmd:
+        i = cmd.index("--provider")
+        if i + 1 < len(cmd):
+            return str(cmd[i + 1])
+    return "deepseek"
+
+
+def _emit_task_lifecycle(phase: str, task_id: str, **extra: Any) -> None:
+    """Training hook — spawn/terminal edges for improve + seat posterior."""
+    try:
+        from mag.training_events import emit
+
+        task = _load(task_id) or {}
+        cmd = task.get("cmd") or []
+        emit(
+            "task_lifecycle",
+            join={"task_id": task_id},
+            input_data={
+                "goal": (task.get("goal") or _goal_from_cmd(cmd))[:200],
+                "provider": task.get("provider") or _provider_from_cmd(cmd),
+                "tag": task.get("tag") or "",
+            },
+            action={"phase": phase, **extra},
+            outcome={
+                "status": task.get("status"),
+                "exit_code": task.get("exit_code"),
+                "duration_s": task.get("duration_s"),
+            },
+            pattern_tags=[f"orc_{phase}"],
+        )
+    except Exception:
+        pass
+
+
 def _trail(event: str, task_id: str, **meta: Any) -> None:
     _ensure_dirs()
     entry = {"timestamp": _now(), "event": event, "task_id": task_id, **meta}
     with TRAIL.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 def _kill_tree(pid: int) -> None:
     """Terminate the process and its children (Windows process tree)."""
     if sys.platform == "win32":
@@ -184,6 +346,13 @@ def _finalize(task_id: str, status: str, exit_code: int | None = None,
             pass
     _save(task)
     _trail(status, task_id, exit_code=exit_code, detail=detail, killed=killed)
+    _emit_task_lifecycle(status, task_id, killed=killed, detail=(detail or "")[:120])
+    try:
+        from mag.tripartite_boot import weave_terminal
+
+        weave_terminal(task_id=task_id, status=status, detail=detail)
+    except Exception:
+        pass
     return task
 
 
@@ -240,6 +409,19 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
     task["started_at"] = _now()
     _save(task)
     _trail("spawn", task_id, pid=proc.pid, timeout_s=timeout)
+    _emit_task_lifecycle("spawn", task_id, pid=proc.pid, timeout_s=timeout)
+    try:
+        from mag.tripartite_boot import weave_spawn
+
+        weave_spawn(
+            task_id=task_id,
+            goal=_goal_from_cmd(cmd),
+            provider=_provider_from_cmd(cmd),
+            pid=proc.pid,
+            tag=tag,
+        )
+    except Exception:
+        pass
 
     def _monitor() -> None:
         """Supervise: exit -> finalize; stall -> nudge (!steer) then kill;
@@ -288,11 +470,33 @@ def _spawn_cmd(cmd: list[str], *, task_id: str, timeout: int,
                     except Exception:
                         pass
                 elif stall_polls >= 6:  # ~30s after the nudge threshold
-                    _kill_tree(proc.pid)
-                    log_fh.close()
-                    _finalize(task_id, "stalled", exit_code=None,
-                              detail="no heartbeat for %ss" % age, killed=True)
-                    return
+                    defer_kill = False
+                    try:
+                        from mag.run_worth import evaluate_task_hung
+
+                        hung_eval = evaluate_task_hung(task_id)
+                        defer_kill = bool(hung_eval.get("defer_kill"))
+                        if hung_eval.get("hung"):
+                            defer_kill = False
+                    except Exception:
+                        hung_eval = {}
+                    if defer_kill and stall_polls < 10:
+                        stall_polls = 4  # one grace cycle when worth uncertain
+                        _trail(
+                            "stall-defer-worth",
+                            task_id,
+                            age_s=age,
+                            verdict=(hung_eval or {}).get("verdict"),
+                        )
+                    else:
+                        _kill_tree(proc.pid)
+                        log_fh.close()
+                        detail = "no heartbeat for %ss" % age
+                        if hung_eval.get("hung"):
+                            detail = "hung: %s" % (hung_eval.get("reason") or detail)
+                        _finalize(task_id, "stalled", exit_code=None,
+                                  detail=detail, killed=True)
+                        return
             time.sleep(5.0)
 
     threading.Thread(target=_monitor, daemon=True).start()
@@ -311,8 +515,9 @@ def _running_tasks() -> list[dict[str, Any]]:
     return out
 
 
-def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = None,
-               timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
+def spawn_task(goal: str, *, provider: str = "ollama", model: str | None = None,
+               timeout: int = DEFAULT_TIMEOUT, tag: str = "",
+               require_build: str | None = None) -> dict[str, Any]:
     """Spawn a one-shot sub-agent for a goal. Returns the task record (async).
 
     Same-goal dedupe (2026-08-03): if a non-terminal task with the SAME goal
@@ -322,6 +527,76 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    from mag.factory_gate import check_frozen_build
+
+    build_gate = check_frozen_build(goal, require_build=require_build)
+    if not build_gate.get("ok"):
+        return {"ok": False, "error": build_gate.get("reason"), "factory_gate": build_gate}
+
+    if goal.lower().startswith("[steward]"):
+        try:
+            from mag.steward import execute_steward_goal
+
+            res = execute_steward_goal(goal, dry=False)
+            tid = "t-steward-" + uuid.uuid4().hex[:8]
+            status = "done" if res.get("ok") else "failed"
+            rec: dict[str, Any] = {
+                "ok": res.get("ok", False),
+                "task_id": tid,
+                "goal": goal,
+                "status": status,
+                "provider": "ollama",
+                "tag": tag or "steward",
+                "detail": str(res.get("path") or res.get("reason") or res.get("error") or "")[:300],
+                "steward_result": res,
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec)
+            _trail("steward-inline", tid, goal=goal[:120], ok=res.get("ok"))
+            return rec
+        except Exception as exc:
+            return {"ok": False, "error": f"steward: {exc}"}
+
+    # Token-chain experiment: DeepSeek plans → local exec (not a long agent tool-loop)
+    gl = goal.lower().strip()
+    if tag == "token-chain" or gl.startswith("token-chain:") or gl.startswith("[token-chain]"):
+        try:
+            from mag.token_chain import run_token_chain
+
+            g = goal
+            for prefix in ("token-chain:", "[token-chain]", "TOKEN_CHAIN:"):
+                if g.lower().startswith(prefix.lower()):
+                    g = g[len(prefix) :].strip()
+                    break
+            res = run_token_chain(goal=g or None, dry=False, live=True, planner="deepseek")
+            tid = "t-tchain-" + uuid.uuid4().hex[:8]
+            ok = bool(res.get("ok") or (res.get("execution") or {}).get("ok"))
+            rec_tc: dict[str, Any] = {
+                "ok": ok,
+                "task_id": tid,
+                "goal": goal,
+                "status": "done" if ok else "failed",
+                "provider": "deepseek+local",
+                "tag": tag or "token-chain",
+                "detail": str((res.get("token_thesis") or {}))[:300],
+                "token_chain": {
+                    "frontier_tokens": (res.get("token_thesis") or {}).get("frontier_tokens"),
+                    "artifact": res.get("artifact"),
+                    "execution_ok": (res.get("execution") or {}).get("ok"),
+                },
+                "created_at": _now(),
+                "ended_at": _now(),
+            }
+            _ensure_dirs()
+            _save(rec_tc)
+            _trail("token-chain-inline", tid, goal=goal[:120], ok=ok)
+            return rec_tc
+        except Exception as exc:
+            return {"ok": False, "error": f"token-chain: {exc}"}
+
+    timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     for t in _running_tasks():
         if t.get("goal") == goal:
             return {
@@ -331,8 +606,16 @@ def spawn_task(goal: str, *, provider: str = "deepseek", model: str | None = Non
                 "status": t.get("status"),
             }
     task_id = "t" + uuid.uuid4().hex[:10]
+    try:
+        from mag.autorun_common import refresh_context_for_goal
+
+        refresh_context_for_goal(goal)
+    except Exception:
+        pass
     cmd = [sys.executable, str(ROOT / "main.py"), "agent", "--query", goal,
            "--provider", provider]
+    if build_gate.get("required"):
+        cmd += ["--tier", str(build_gate.get("tier") or "T1")]
     if model:
         cmd += ["--model", model]
     rec = _spawn_cmd(cmd, task_id=task_id, timeout=timeout, tag=tag)
@@ -372,12 +655,42 @@ def _queue_save(q: dict[str, Any]) -> None:
         json.dumps(q, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
-            timeout: int = DEFAULT_TIMEOUT, tag: str = "") -> dict[str, Any]:
+def queue_has_goal(goal: str) -> bool:
+    """Re-export: true if goal already queued/running (steward + autorun)."""
+    from mag.governor_autorun import queue_has_goal as _qhg
+
+    return _qhg(goal)
+
+
+def enqueue(goal: str, *, provider: str = "ollama", model: str | None = None,
+            timeout: int = DEFAULT_TIMEOUT, tag: str = "",
+            require_build: str | None = None) -> dict[str, Any]:
     """Add a goal to the queue. Returns the queue entry (not yet spawned)."""
     goal = goal.strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
+    from mag.factory_gate import check_frozen_build
+
+    build_gate = check_frozen_build(goal, require_build=require_build)
+    if not build_gate.get("ok"):
+        return {"ok": False, "error": build_gate.get("reason"), "factory_gate": build_gate}
+    try:
+        from mag.loop_audit import _goal_key
+
+        norm = _goal_key(goal)
+        for q in list_queue(limit=80):
+            if q.get("status") not in ("queued", "running"):
+                continue
+            if _goal_key(str(q.get("goal") or "")) == norm:
+                return {
+                    "ok": False,
+                    "error": "duplicate goal already queued",
+                    "existing_queue_id": q.get("queue_id"),
+                    "goal": goal[:120],
+                }
+    except Exception:
+        pass
+    timeout = timeout_for_goal(goal, tag=tag, timeout=timeout)
     q = {
         "queue_id": "q" + uuid.uuid4().hex[:10],
         "goal": goal,
@@ -385,15 +698,49 @@ def enqueue(goal: str, *, provider: str = "deepseek", model: str | None = None,
         "model": model,
         "timeout": timeout,
         "tag": tag,
+        "build_spec": build_gate.get("spec_path"),
         "created_at": _now(),
         "status": "queued",   # queued -> running -> done/failed
         "task_id": None,
         "detail": "",
     }
+    try:
+        from mag.cost_ledger import task_estimate
+
+        q["task_estimate"] = task_estimate(goal, provider=provider, model=model)
+    except Exception:
+        pass
     _queue_save(q)
     _trail("queue-add", q["queue_id"], goal=goal[:120], tag=tag)
     q["ok"] = True
     return q
+
+
+def purge_failed_queue(*, also_killed: bool = True) -> dict[str, Any]:
+    """Archive failed (and optional killed) queue rows under purged/."""
+    import shutil
+    from datetime import datetime, timezone
+
+    QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    arch = ROOT / "memory" / "runs" / "orchestrator" / "purged" / f"purge-failed-{stamp}"
+    arch.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    statuses = {"failed", "killed"} if also_killed else {"failed"}
+    for p in list(QUEUE_DIR.glob("*.json")):
+        try:
+            q = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if q.get("status") not in statuses:
+            continue
+        try:
+            shutil.move(str(p), str(arch / p.name))
+            moved += 1
+        except OSError:
+            pass
+    _trail("queue-purge-failed", "batch", moved=moved, archive=str(arch))
+    return {"ok": True, "moved": moved, "archive": str(arch)}
 
 
 def list_queue(limit: int = 100) -> list[dict[str, Any]]:
@@ -476,17 +823,31 @@ def _reconcile_queue() -> int:
             q["detail"] = t.get("detail") or t.get("status")
             _queue_save(q)
             _trail("queue-end", q["queue_id"], task_status=t.get("status"))
+            try:
+                from mag.cost_ledger import emit_terminal
+
+                emit_terminal(q, t)
+            except Exception:
+                pass
             fixed += 1
     return fixed
 
 
-def drain_once() -> dict[str, Any]:
+def drain_once(*, force: bool = False) -> dict[str, Any]:
     """Spawn the next queued goal IF no task is currently running.
 
     This is the auto-advance: call it in a loop (or from a timer) and the
     queue drains one goal at a time, moving to the next the moment the
     current one finishes. Returns what happened.
     """
+    try:
+        from mag.autorun_common import autorun_pause_reason
+
+        pause = None if force else autorun_pause_reason()
+        if pause:
+            return {"ok": True, "action": "paused", "detail": pause}
+    except Exception:
+        pass
     _ensure_dirs()
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     _reconcile_queue()
@@ -496,7 +857,7 @@ def drain_once() -> dict[str, Any]:
     if nxt is None:
         return {"ok": True, "action": "empty", "detail": "no queued goals"}
     qid = nxt["queue_id"]
-    rec = spawn_task(nxt["goal"], provider=nxt.get("provider") or "deepseek",
+    rec = spawn_task(nxt["goal"], provider=nxt.get("provider") or "ollama",
                      model=nxt.get("model"), timeout=int(nxt.get("timeout") or DEFAULT_TIMEOUT),
                      tag=nxt.get("tag") or "")
     if not rec.get("ok"):
@@ -511,8 +872,20 @@ def drain_once() -> dict[str, Any]:
     q["status"] = "running"
     q["task_id"] = rec["task_id"]
     q["detail"] = "spawned"
+    q["usage_started_at"] = _now()
     _queue_save(q)
     _trail("queue-start", qid, spawned_task_id=rec["task_id"])
+    try:
+        from mag.tripartite_boot import weave_drain
+
+        weave_drain(
+            action="started",
+            goal=nxt.get("goal", ""),
+            task_id=rec.get("task_id", ""),
+            queue_id=qid,
+        )
+    except Exception:
+        pass
     return {"ok": True, "action": "started", "queue_id": qid,
             "task_id": rec["task_id"], "goal": nxt["goal"][:120]}
 
@@ -570,7 +943,9 @@ def queue_status() -> dict[str, Any]:
 def list_tasks(limit: int = 20) -> list[dict[str, Any]]:
     _ensure_dirs()
     out: list[dict[str, Any]] = []
-    for p in sorted(TASK_DIR.glob("*.json"), reverse=True)[:limit]:
+    # IDs are random and therefore not chronological. Fleet/handoff views need
+    # the records most recently written, especially when many old tasks exist.
+    for p in sorted(TASK_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime_ns, reverse=True)[:limit]:
         try:
             out.append(json.loads(p.read_text(encoding="utf-8")))
         except Exception:
@@ -658,6 +1033,23 @@ def reap_stale() -> dict[str, Any]:
         if pid and not _pid_alive(pid):
             _finalize(t["task_id"], "died", detail="pid gone (parent survived)")
             fixed += 1
+            continue
+        # External/desktop seats: no pid — reap on stale pigeonhole heartbeat
+        if not pid and _is_external_task(t):
+            ph = _ph()
+            if ph is None:
+                continue
+            try:
+                age = ph.staleness_s(t["task_id"])
+            except Exception:
+                age = None
+            if age is not None and age > EXTERNAL_STALE_S:
+                _finalize(
+                    t["task_id"],
+                    "died",
+                    detail=f"external heartbeat stale {age}s",
+                )
+                fixed += 1
     return {"ok": True, "reaped": fixed}
 
 
@@ -820,7 +1212,7 @@ def main(argv: list[str] | None = None) -> int:
         if sub == "add":
             rest = args[2:]
             goal = ""
-            provider = "deepseek"
+            provider = "ollama"
             model = None
             timeout = DEFAULT_TIMEOUT
             tag = ""
@@ -857,6 +1249,9 @@ def main(argv: list[str] | None = None) -> int:
         if sub == "status":
             print(json.dumps(queue_status(), indent=2, default=str))
             return 0
+        if sub in ("purge-failed", "purge_failed"):
+            print(json.dumps(purge_failed_queue(), indent=2, default=str))
+            return 0
         print("unknown queue subcommand: " + sub)
         return 2
     if cmd == "drain":
@@ -866,7 +1261,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "run":
         rest = args[1:]
         goal = ""
-        provider = "deepseek"
+        provider = "ollama"
         model = None
         timeout = DEFAULT_TIMEOUT
         tag = ""

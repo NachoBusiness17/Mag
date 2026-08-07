@@ -1,24 +1,17 @@
 /* Mag desk — tab shell (primary doors). */
 (function () {
-  const STORAGE = "mag_cli_wins_v7";
-  const LAYOUT_VER = 7;
-  const PRIMARY = new Set([
-    "home",
-    "sessions",
-    "diary",
-    "story",
-    "ideas",
-    "chat",
-    "status",
-    "agents",
-    "chronicle",
-  ]);
+  const STORAGE = "mag_cli_wins_v8";
+  const LAYOUT_VER = 8;
+  const PRIMARY = new Set(["sessions", "chat", "home", "ideas", "stack"]);
   const ALIAS = {
     office: "home",
     days: "sessions",
     tapestry: "sessions",
+    diary: "sessions",
+    story: "sessions",
+    chronicle: "sessions",
+    viewports: "chat",
     map: "home",
-    // story is its own pane (not diary)
   };
 
   function resolve(id) {
@@ -83,7 +76,8 @@
   }
 
   function closeWin(_id) {
-    openWin("home");
+    if (typeof window.magOpenTab === "function") window.magOpenTab("home");
+    else openWin("home");
   }
 
   function focusWin(win) {
@@ -127,6 +121,25 @@
     }
   }
 
+  function initialFocusFromUrl() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const q = (params.get("tab") || params.get("view") || "").trim().toLowerCase();
+      if (q === "desk" || q === "chat") return "chat";
+      if (q === "office" || q === "home" || q === "map") return "home";
+      if (q === "days" || q === "sessions") return "sessions";
+      if (q) return resolve(q);
+      const hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
+      if (hash === "desk" || hash === "chat") return "chat";
+      if (hash === "home" || hash === "office") return "home";
+      if (hash === "days" || hash === "sessions") return "sessions";
+      if (hash) return resolve(hash);
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
   function initWindows() {
     document.body.classList.add("cli", "desk-tabs");
     ensureTopActions();
@@ -135,11 +148,13 @@
 
     document.querySelectorAll(".win[data-win]").forEach(wireChrome);
 
-    document.querySelectorAll(".dock-btn[data-win]").forEach((btn) => {
+    document.querySelectorAll(".dock-btn[data-win], [data-dashboard-view], [data-dashboard-default]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const id = resolve(btn.dataset.win);
+        const id = resolve(btn.dataset.win || btn.dataset.dashboardView || btn.dataset.dashboardDefault);
         if (typeof window.magOpenTab === "function") window.magOpenTab(id);
         else openWin(id);
+        const more = btn.closest("details.dock-more");
+        if (more) more.open = false;
       });
     });
 
@@ -152,17 +167,15 @@
       });
     });
 
-    let focus = loadFocus();
+    let focus = initialFocusFromUrl() || loadFocus();
     if (!PRIMARY.has(focus) && !document.querySelector(`.win[data-win="${focus}"]`)) {
       focus = "home";
     }
-    // Prefer primary doors on cold start after upgrade
-    if (!PRIMARY.has(focus)) focus = "home";
+    // Semantic deep links may target a supporting view directly. Keep the
+    // primary set for persistence/navigation, but do not overwrite a real
+    // requested window during DOMContentLoaded.
     openWin(focus);
-    // app.js loads after this file; defer so magOpenTab can fetch tab data
-    queueMicrotask(() => {
-      if (typeof window.magOpenTab === "function") window.magOpenTab(focus);
-    });
+    // app.js calls setTab(parseInitialTab()) after bind — avoid double desk init/polls
   }
 
   window.magWin = {

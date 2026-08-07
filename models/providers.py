@@ -10,6 +10,31 @@ from typing import Any
 
 from config import ROOT
 
+
+def _record_chat_usage(
+    provider_id: str,
+    model: str,
+    usage: dict[str, Any] | None,
+    *,
+    ok: bool = True,
+    meta: dict[str, Any] | None = None,
+) -> None:
+    from models.cache_usage import normalize_cache_usage
+    from models.quota import record_usage
+
+    norm = normalize_cache_usage(usage)
+    record_usage(
+        provider_id,
+        model=str(model),
+        prompt_tokens=norm["prompt_tokens"],
+        completion_tokens=norm["completion_tokens"],
+        cache_read_tokens=norm["cache_read_tokens"],
+        cache_miss_tokens=norm["cache_miss_tokens"],
+        ok=ok,
+        meta={**(meta or {}), "usage_raw": usage or {}},
+    )
+
+
 _CFG: dict[str, Any] | None = None
 _CFG_MTIME: float = 0.0
 _PROVIDERS_PATH: Path | None = None
@@ -254,9 +279,13 @@ def chat_provider(
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 1024,
-    tier: str = "T2",
+    tier: str = "T1",
 ) -> dict[str, Any]:
-    """Chat a named provider; records quota usage."""
+    """Chat a named provider; records quota usage.
+
+    Callers must explicitly label public remote-safe work T2. The private T1
+    default makes omitted classification fail closed for non-local providers.
+    """
     from models.quota import pick_provider, provider_budget, record_usage
 
     pcfg = get_provider(provider_id)
@@ -339,13 +368,10 @@ def chat_provider(
                     "degenerate": True,
                 }
             usage = data.get("usage") or {}
-            pt = int(usage.get("prompt_tokens") or 0)
-            ct = int(usage.get("completion_tokens") or 0)
-            record_usage(
+            _record_chat_usage(
                 provider_id,
-                model=str(model),
-                prompt_tokens=pt,
-                completion_tokens=ct,
+                str(model),
+                usage,
                 ok=True,
                 meta={"chars": len(text), "key_idx": ki, "multi_key": len(keys) > 1},
             )
@@ -440,7 +466,7 @@ def chat_messages(
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 2048,
-    tier: str = "T2",
+    tier: str = "T1",
     tool_choice: str | dict | None = "auto",
     stream: bool = False,
     on_stream=None,
@@ -526,9 +552,6 @@ def chat_messages(
                     (p.get("text") or "") if isinstance(p, dict) else str(p) for p in text
                 )
             tool_calls = msg.get("tool_calls") or []
-            usage = data.get("usage") or {}
-            pt = int(usage.get("prompt_tokens") or 0)
-            ct = int(usage.get("completion_tokens") or 0)
             if _looks_degenerate(text or ""):
                 record_usage(
                     provider_id, model=str(model), ok=False,
@@ -541,13 +564,17 @@ def chat_messages(
                     "model": model,
                     "degenerate": True,
                 }
-            record_usage(
+            usage = data.get("usage") or {}
+            _record_chat_usage(
                 provider_id,
-                model=str(model),
-                prompt_tokens=pt,
-                completion_tokens=ct,
+                str(model),
+                usage,
                 ok=True,
-                meta={"chars": len(text or ""), "tool_calls": len(tool_calls), "key_idx": ki},
+                meta={
+                    "chars": len(text or ""),
+                    "tool_calls": len(tool_calls),
+                    "key_idx": ki,
+                },
             )
             return {
                 "ok": True,

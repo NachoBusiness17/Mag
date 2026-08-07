@@ -565,7 +565,18 @@ class Handler(BaseHTTPRequestHandler):
             return None, "body must be a JSON object"
         return data, None
 
+    def _remote_write_ok(self) -> bool:
+        from mag.distributed_surface import check_write_auth
+
+        ok, err = check_write_auth(dict(self.headers))
+        if not ok:
+            self._json(401, {"ok": False, "error": err or "unauthorized"})
+            return False
+        return True
+
     def do_POST(self) -> None:  # noqa: N802
+        if not self._remote_write_ok():
+            return
         parsed = urlparse(self.path)
         path = parsed.path
         data, err = self._read_json_body()
@@ -685,6 +696,9 @@ class Handler(BaseHTTPRequestHandler):
         def _on_stream(delta: str) -> None:
             _send({"type": "delta", "text": delta})
 
+        def _on_status(ev: dict[str, Any]) -> None:
+            _send(ev)
+
         try:
             res = api_agent_turn(
                 goal,
@@ -693,6 +707,7 @@ class Handler(BaseHTTPRequestHandler):
                 session_id=session_id,
                 reset=reset,
                 on_stream=_on_stream,
+                on_status=_on_status,
             )
         except Exception as e:  # noqa: BLE001
             _send({"type": "error", "error": str(e)})
@@ -715,6 +730,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PATCH(self) -> None:  # noqa: N802
         """RESTful partial update (ideas status, etc.)."""
+        if not self._remote_write_ok():
+            return
         parsed = urlparse(self.path)
         path = parsed.path
         data, err = self._read_json_body()
@@ -734,16 +751,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Mag-Token")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
 
 def run(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
+    from config import print_bind_banner
+
     STATIC.mkdir(parents=True, exist_ok=True)
     httpd = ThreadingHTTPServer((host, port), Handler)
-    url = f"http://{host}:{port}/"
-    print(f"Mag dashboard → {url}")
+    print_bind_banner(host=host, port=port)
     print(f"  biography: {BIO}")
     print(f"  ingest:    {INGEST}")
     print("Ctrl+C to stop.")

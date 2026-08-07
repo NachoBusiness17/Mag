@@ -1,10 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-REM Mag agent (default brain: DeepSeek) - icon: mag_agent.ico
-REM For local Ollama: launch_agent_local.cmd
-REM Explicit DeepSeek: launch_agent_deepseek.cmd
-REM Ensures backend + dashboard are up, then launches with its own session id.
+REM Mag agent — INTERACTIVE REPL (operator typing). For queued/restful work use:
+REM   launch_agent_queue.cmd "goal"
+REM   python watch/cursor_bridge.py task "goal" --mode queue
 
 set "MAG_ROOT=%~dp0"
 set "MAG_ROOT=%MAG_ROOT:~0,-1%"
@@ -12,11 +11,18 @@ set "PY=%MAG_ROOT%\.venv\Scripts\python.exe"
 set "PROVIDER=deepseek"
 set "TITLE=Mag agent"
 set "ARGS=main.py agent --provider %PROVIDER% %*"
+set "MAG_ALLOW_REPL=1"
 
+echo.
+echo   NOTE: Interactive REPL. For improve/background use launch_agent_queue.cmd
 echo.
 echo   Mag agent ^| %PROVIDER% + local tools
 echo  Ensuring backend + dashboard are up...
-call "%~dp0ensure_services.cmd"
+if /I "%MAG_INTEGRAL_LAB%"=="1" (
+  call "%~dp0ensure_backend.cmd"
+) else (
+  call "%~dp0ensure_services.cmd"
+)
 if %ERRORLEVEL% neq 0 (
   echo [ERROR] Could not ensure services. See messages above.
   pause

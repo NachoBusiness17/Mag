@@ -138,6 +138,7 @@ def _launch(task_id: str, provider: str, model: str | None) -> subprocess.Popen:
         cmd += ["--model", model]
     env = dict(os.environ)
     env["MAG_TASK_ID"] = task_id
+    env["MAG_ALLOW_REPL"] = "1"  # supervised interactive seat — not restful one-shot
     flags = 0
     if sys.platform == "win32":
         flags = subprocess.CREATE_NEW_PROCESS_GROUP  # Ctrl+C hits guard only
@@ -172,6 +173,20 @@ def run_seat(*, provider: str = 'deepseek', model: str | None = None,
     last_status_ts = None
     print(_dim('[seat-guard] supervising seat %s (provider=%s)' % (task_id, provider)), flush=True)
     _trail('guard_start', task_id, provider=provider)
+    try:
+        from mag.seat_registry import register as register_seat
+
+        register_seat(
+            seat="agent",
+            goal=f"supervised seat ({provider})",
+            mode="interactive",
+            task_id=task_id,
+            pid=None,
+            tag="seat-guard",
+            parent="seat_guard",
+        )
+    except Exception:
+        pass
     proc = _launch(task_id, provider, model)
     rec['pid'] = proc.pid
     rec['spawned_at'] = _now()

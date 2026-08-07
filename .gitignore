@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+agents/pytest-*/
 .mypy_cache/
 .ruff_cache/
 *.bak
@@ -18,6 +19,7 @@ __pycache__/
 !.env.example
 
 # runtime state
+.mag_active_env
 state/
 state/**/*
 !state/.gitkeep
@@ -59,6 +61,17 @@ memory/improve/**
 !memory/improve/HABIT.md
 !memory/improve/SEATS.md
 !memory/improve/MIRROR.md
+!memory/improve/pins/
+!memory/improve/pins/spine_posts.json
+!memory/improve/releases/
+!memory/improve/releases/README.md
+memory/improve/releases/gates.jsonl
+!memory/improve/growth/
+!memory/improve/growth/steer.yaml.example
+memory/improve/growth/steer.yaml
+memory/improve/growth/*.jsonl
+memory/improve/growth/*-growth.md
+memory/improve/growth/*-model-snapshot.json
 memory/ideas/**
 !memory/ideas/.gitkeep
 memory/boot/**
@@ -69,12 +82,19 @@ memory/story/**
 memory/runs/**
 !memory/runs/.gitkeep
 !memory/runs/README.md
+memory/factory/**
+memory/steward/**
+memory/training/**
+!memory/training/README.md
 memory/handoff/**
 !memory/handoff/.gitkeep
 !memory/handoff/ACTIVATION.md
 !memory/handoff/DEEPSEEK_START.md
 memory/remedies/**
 !memory/remedies/.gitkeep
+!memory/remedies/rem-write-file-shape.md
+memory/failure_kb/**
+!memory/failure_kb/.gitkeep
 memory/working/**
 memory/working_*.py
 memory/portable_bags/**
@@ -118,11 +138,15 @@ watch/mag.pid
 
 _tmp*
 *.tmp.txt
+scripts/_*.py
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local reference clones (third-party inspiration — see reference/README.md)
+reference/gstdcoin/
 
 # Android build artifacts (source tracked; builds not)
 android/**/build/

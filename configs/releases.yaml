@@ -1,0 +1,173 @@
+# Mag release registry — machine truth
+# Schema: mag_releases.v1
+# Operator semantics (Nacho 2026-08-05):
+#   v1-v2 = hand-built by operator (Grok origin → this repo)
+#   v3-v10 = loop-trained curriculum (one pass + gate + training event + distill each)
+# Full arc: configs/version_roadmap.yaml
+# Compass: docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md
+
+schema: mag_releases.v1
+as_of: "2026-08-06"
+version_roadmap: configs/version_roadmap.yaml
+compass_path: docs/ref/MAG_MYCELIAL_REPUBLIC_COMPASS.md
+
+operator_definitions:
+  v1: "Grok version / X constitution that spawned Mag"
+  v2: "Database + project completely in projects folder (this repo)"
+  v3: "Shipped substrate — orchestrator, behavioral router, frozen factory contracts, and DeepSeek proof"
+
+witness_spine: docs/ref/releases/WITNESS_SPINE.md
+strike_origin: docs/ref/strike_origin.md
+
+releases:
+  - id: v1
+    commitment: mag-release-v1-001
+    status: shipped
+    era: grok_x_origin
+    notes_path: docs/ref/releases/RELEASE_NOTES_v1.md
+    parent: null
+    witness_posts:
+      - id: "2028342347361141030"
+        url: https://x.com/NachoQuixotic/status/2028342347361141030
+        role: genesis_napkin
+      - id: "2066827806923792465"
+        url: https://x.com/NachoQuixotic/status/2066827806923792465
+        role: v1_v2_bridge
+      - id: "2071315275354390775"
+        url: https://x.com/NachoQuixotic/status/2071315275354390775
+        role: product_shape_witness
+    gates: []
+
+  - id: v2
+    commitment: mag-release-v2-001
+    status: shipped
+    graduation_note: "RUN A, autorun_card, and tier_refuse gates recorded green on home PC by 2026-08-06"
+    era: projects_folder_repo
+    notes_path: docs/ref/releases/RELEASE_NOTES_v2.md
+    plan_path: docs/ref/MAG_v2_PLAN.md
+    repo_path: local_sovereign_agent
+    parent: v1
+    witness_posts:
+      - id: "2083551644239683672"
+        url: https://x.com/NachoQuixotic/status/2083551644239683672
+        role: toward_v3
+    merge_prs: ["#8", "#9", "#10", "#11"]
+    gates:
+      - id: run_a
+        description: Merge #8-#11 + home PC lattice ritual green
+        verify:
+          - mag.cmd doctor
+          - scripts/routing_smoke.py
+          - main.py verkle-audit --dry
+          - main.py autorun --once --dry
+      - id: autorun_card
+        description: Dashboard autorun card + GET /api/v1/autorun
+      - id: tier_refuse
+        description: T0/T1 never hit remote providers (tests)
+
+  - id: v3
+    commitment: mag-release-v3-001
+    status: shipped
+    graduation_note: "factory_pilot, freeze_gate, chat_preflight, deepseek_run, and witness_filed green; v2 run_a prerequisite green"
+    era: planned_substrate
+    notes_path: docs/ref/releases/RELEASE_NOTES_v3.md
+    direction_path: docs/ref/MAG_DIRECTION_ARTIFACT_v2.md
+    run_sheet_path: docs/ref/MAG_NEXT_CODING_RUN.md
+    parent: v2
+    branches: ["cursor/v3-swarm-vision-e2ce", "cursor/v3-deepseek-run-e2ce"]
+    gates:
+      - id: run_a
+        description: v2 lattice gate (prerequisite)
+        requires: v2.run_a
+      - id: factory_pilot
+        description: RUN B — first build_audit.v1 JSON on disk
+      - id: freeze_gate
+        description: RUN D — no build without frozen BUILD
+      - id: chat_preflight
+        description: CHAT-1–4 — preflight strip live
+      - id: deepseek_run
+        description: v3_deepseek_run.cmd completes once
+      - id: witness_filed
+        description: Latest v3 witness post ingested or linked
+
+  - id: v4
+    commitment: mag-release-v4-001
+    status: shipped
+    era: mold
+    notes_path: docs/ref/releases/RELEASE_NOTES_v4.md
+    mold_path: docs/ref/MAG_V4_CONDUCTOR_LOOP_DRAFT.md
+    parent: v3
+    gates:
+      - id: conductor_eval
+      - id: steward_daily
+      - id: cost_ledger
+      - id: training_export
+
+  - id: v5
+    commitment: mag-release-v5-001
+    status: planned
+    era: forest_pipe
+    notes_path: docs/ref/releases/RELEASE_NOTES_v5.md
+    pipe_path: docs/ref/MAG_v5_PIPE.md
+    parent: v4
+    tracks:
+      - id: v5-GSTD
+        path: docs/ref/MAG_v5_GSTD_FOREST.md
+      - id: v5-VAST
+        path: docs/ref/MAG_v5_VAST_TRAINING.md
+      - id: v5-XRPL
+        path: docs/ref/MAG_v5_XRPL.md
+    gates:
+      - id: gstd_t0_probe
+      - id: vast_train_dry
+      - id: xrpl_read_tools
+
+  - id: v6
+    commitment: mag-release-v6-001
+    status: curriculum_tbd
+    era: loop_self_build
+    notes_path: docs/ref/releases/RELEASE_NOTES_v6.md
+    parent: v5
+    meaning: First Mag-built Mag — loop produces next version without hand-merge
+    gates: TBD
+
+  - id: v7
+    commitment: mag-release-v7-001
+    status: curriculum_tbd
+    era: steward_autonomy
+    notes_path: docs/ref/releases/RELEASE_NOTES_v7.md
+    parent: v6
+    meaning: Daily steward soil — catalog, digest, cleanup without operator ask
+    gates: TBD
+
+  - id: v8
+    commitment: mag-release-v8-001
+    status: curriculum_tbd
+    era: mesh_peer_handoff
+    notes_path: docs/ref/releases/RELEASE_NOTES_v8.md
+    parent: v7
+    meaning: Peer handoff at scale — mesh comm seats, spores
+    gates: TBD
+
+  - id: v9
+    commitment: mag-release-v9-001
+    status: curriculum_tbd
+    era: service_packaging
+    notes_path: docs/ref/releases/RELEASE_NOTES_v9.md
+    parent: v8
+    meaning: Install → offline desk → honest operator onboarding
+    gates: TBD
+
+  - id: v10
+    commitment: mag-release-v10-001
+    status: curriculum_tbd
+    era: mycelial_republic
+    notes_path: docs/ref/releases/RELEASE_NOTES_v10.md
+    parent: v9
+    meaning: Pennies/day service, GSTD join, device fuels peer network
+    gates: TBD
+
+behavioral:
+  gates_log: memory/improve/releases/gates.jsonl
+  training_pattern: release_milestone
+  decisions_log: memory/decisions_log.jsonl

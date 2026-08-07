@@ -160,3 +160,15 @@ scout (HF signal)
 ```
 
 Scout noise stays noise. **The leaf is the product.**
+
+---
+
+## Cross-domain leaves
+
+Not every tesuji is a HuggingFace model card. **Orientation / plain-speech** and other cross-domain contracts use the same skeleton (Identity → Same → Differs → Tesuji → Take → Leave → Mag map → One line) but fill Identity from audience and domain, not params and license.
+
+| Kind | Example | Grove (`memory/improve/…`) | Git-tracked (`docs/ref/tesuji/`) |
+|------|---------|----------------------------|----------------------------------|
+| orientation / plain-speech | Amish barn-raising Mag explainer | `evals/models/zeitgeist-amish-plain-2026-08-05.md` | [zeitgeist-amish-plain-2026-08-05.md](../ref/tesuji/zeitgeist-amish-plain-2026-08-05.md) |
+
+**Rule:** mirror durable cross-domain tesuji to `docs/ref/tesuji/`; grove copy stays gitignored. See `docs/ref/MAG_STEAL_AUTOPILOT.md` for zeitgeist filter + cross-domain contract theft.

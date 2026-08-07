@@ -120,8 +120,18 @@ def read_activity(*, limit: int = 40) -> list[dict[str, Any]]:
                 rows.append(o)
         except json.JSONDecodeError:
             continue
-    rows.reverse()
-    return rows
+    # Latest appended row per activity id wins. File order is the authoritative
+    # tie-breaker because Windows can emit identical timestamps for fast events.
+    by_id: dict[str, dict[str, Any]] = {}
+    ordered: list[dict[str, Any]] = []
+    for r in reversed(rows):
+        aid = str(r.get("id") or "")
+        key = aid or f"_row_{len(by_id)}"
+        if key in by_id:
+            continue
+        by_id[key] = r
+        ordered.append(r)
+    return ordered[:limit]
 
 
 def activity_summary(*, limit: int = 12) -> dict[str, Any]:
@@ -170,108 +180,9 @@ def format_activity_excerpt(*, limit: int = 6, max_chars: int = 900) -> str:
 
 def classify_depth(goal: str, *, depth: str | None = None) -> dict[str, Any]:
     """Classify work depth and recommended seat (token-aware)."""
-    if depth and depth in VALID_DEPTHS:
-        route = dict(DEPTH_ROUTES[depth])
-        return {
-            "ok": True,
-            "schema": "depth_class.v1",
-            "depth": depth,
-            "goal": _clip(goal, 300),
-            "forced": True,
-            **route,
-        }
+    from mag.router import classify_depth as _classify
 
-    g = (goal or "").lower()
-    n = len(goal or "")
-
-    if any(
-        k in g
-        for k in (
-            "big picture",
-            "interlink",
-            "ecosystem map",
-            "how does",
-            "relate to",
-            "overview",
-            "two houses",
-            "republic chain",
-            "architecture map",
-            "full stack",
-        )
-    ):
-        depth = "overview"
-    elif any(
-        k in g
-        for k in (
-            "plan ",
-            "design ",
-            "tradeoff",
-            "strategy",
-            "roadmap",
-            "architecture for",
-            "how should we",
-            "code planning",
-        )
-    ):
-        depth = "plan"
-    elif any(
-        k in g
-        for k in (
-            "doctor",
-            "health",
-            "multi-smoke",
-            "status",
-            "what was i",
-            "brief",
-            "bonds",
-            "list ",
-            "show ",
-            "ls ",
-        )
-    ) or (n < 80 and "?" in g):
-        depth = "scut"
-    elif any(
-        k in g
-        for k in (
-            "rename",
-            "typo",
-            "one line",
-            "single file",
-            "add import",
-            "fix lint",
-            "small fix",
-        )
-    ) or (n < 120 and any(k in g for k in ("fix ", "patch ", "tweak "))):
-        depth = "simple_code"
-    elif any(
-        k in g
-        for k in (
-            "implement",
-            "refactor",
-            "multi-file",
-            "orchestrat",
-            "write tests",
-            "migrate",
-            "build feature",
-            "heavy",
-            "tool loop",
-        )
-    ) or n > 350:
-        depth = "heavy_code"
-    elif any(k in g for k in ("implement", "refactor", "add ", "create ", "update ")):
-        depth = "simple_code" if n < 200 else "heavy_code"
-    else:
-        depth = "simple_code" if n < 180 else "plan"
-
-    route = dict(DEPTH_ROUTES[depth])
-    return {
-        "ok": True,
-        "schema": "depth_class.v1",
-        "depth": depth,
-        "goal": _clip(goal, 300),
-        "forced": False,
-        **route,
-    }
+    return _classify(goal, depth=depth)
 
 
 def coordinate(
@@ -285,13 +196,23 @@ def coordinate(
     session_id: str | None = None,
 ) -> dict[str, Any]:
     """Classify depth, log activity, optionally launch the appropriate worker."""
+    from mag.router import route
+
     goal = (goal or "").strip()
     if not goal:
         return {"ok": False, "error": "empty goal"}
 
-    classified = classify_depth(goal, depth=depth)
-    d = str(classified["depth"])
-    route = DEPTH_ROUTES[d]
+    routed = route(goal, depth=depth)
+    if not routed.get("ok"):
+        return {
+            "ok": False,
+            "error": routed.get("error") or "unroutable",
+            "hint": routed.get("hint"),
+            "route": routed,
+        }
+
+    classified = routed.get("classification") or {}
+    d = str(routed.get("depth") or classified.get("depth"))
     caller = (actor or seat or "mag").strip() or "mag"
     act = log_activity(
         seat=seat,
@@ -299,7 +220,7 @@ def coordinate(
         goal=goal,
         status="queued" if launch else "planned",
         actor=caller,
-        detail=classified.get("token_hint") or "",
+        detail=routed.get("hint") or classified.get("token_hint") or "",
     )
 
     out: dict[str, Any] = {
@@ -307,6 +228,7 @@ def coordinate(
         "schema": "coordinate.v1",
         "activity_id": act["id"],
         "classification": classified,
+        "route": routed,
         "launched": False,
     }
 
@@ -314,43 +236,62 @@ def coordinate(
         out["action"] = "classified_only"
         return out
 
-    if d in ("overview", "plan"):
-        try:
-            from mag.context_pack import build_context_pack, format_context_pack_text
+    if not routed.get("executable"):
+        if d in ("overview", "plan"):
+            try:
+                from mag.context_pack import build_context_pack, format_context_pack_text
 
-            pack = build_context_pack(max_brief=700, max_live=300)
-            text = format_context_pack_text(pack, max_chars=2400)
-        except Exception as e:
-            text = f"(pack failed: {e})"
-        log_activity(
-            seat="grok_tui",
-            depth=d,
-            goal=goal,
-            status="planned",
-            actor=caller,
-            detail="Awaiting Grok TUI with context pack",
-            activity_id=act["id"],
-        )
-        out.update(
-            {
-                "action": "file_for_grok",
-                "seat": "grok_tui",
-                "hint": classified.get("token_hint"),
-                "pack_excerpt": text[:2400],
-                "commands": {
-                    "pack": "python main.py context-pack",
-                    "grok": "Paste ACTIVATION + pack into Grok TUI with [priority]",
-                },
-            }
-        )
-        return out
+                pack = build_context_pack(max_brief=700, max_live=300)
+                text = format_context_pack_text(pack, max_chars=2400)
+            except Exception as e:
+                text = f"(pack failed: {e})"
+            log_activity(
+                seat="grok_tui",
+                depth=d,
+                goal=goal,
+                status="planned",
+                actor=caller,
+                detail="Awaiting Grok TUI with context pack",
+                activity_id=act["id"],
+            )
+            out.update(
+                {
+                    "action": "file_for_grok",
+                    "seat": "grok_tui",
+                    "hint": routed.get("hint"),
+                    "pack_excerpt": text[:2400],
+                    "commands": {
+                        "pack": "python main.py context-pack",
+                        "grok": "Paste ACTIVATION + pack into Grok TUI with [priority]",
+                    },
+                }
+            )
+            return out
+        if routed.get("seat") == "cursor":
+            out.update(
+                {
+                    "action": "defer_to_cursor",
+                    "seat": "cursor",
+                    "hint": routed.get("hint"),
+                }
+            )
+            return out
+        return {
+            "ok": False,
+            "error": routed.get("error") or "not_executable",
+            "hint": routed.get("hint"),
+            "route": routed,
+            "activity_id": act["id"],
+        }
 
-    mode = route["mode"]
+    mode = str(routed.get("mode") or "dispatch")
     if d == "heavy_code" and background:
         mode = "queue"
+    route_seat = str(routed.get("seat") or "local")
+    provider = routed.get("provider") or "deepseek"
 
     log_activity(
-        seat=route["seat"],
+        seat=route_seat,
         depth=d,
         goal=goal,
         status="running",
@@ -364,11 +305,11 @@ def coordinate(
 
             task = enqueue(
                 goal=goal,
-                provider=route.get("provider") or "deepseek",
+                provider=provider,
                 tag=f"coord-{d}",
             )
             log_activity(
-                seat=route["seat"],
+                seat=route_seat,
                 depth=d,
                 goal=goal,
                 status="queued",
@@ -386,11 +327,11 @@ def coordinate(
             sid = session_id or f"{seat}-coord"
             res = api_agent_turn(
                 goal,
-                provider=route.get("provider") or "deepseek",
+                provider=provider,
                 session_id=sid,
             )
             log_activity(
-                seat=route["seat"],
+                seat=route_seat,
                 depth=d,
                 goal=goal,
                 status="done" if res.get("ok") else "failed",
@@ -404,9 +345,14 @@ def coordinate(
         if mode == "dispatch":
             from mag.dispatch import dispatch
 
-            res = dispatch(goal, execute=True, force_seat=route.get("seat"))
+            res = dispatch(
+                goal,
+                execute=True,
+                force_seat=route_seat if route_seat != "remote" else None,
+                force_provider=provider if route_seat == "remote" else None,
+            )
             log_activity(
-                seat=route.get("seat") or "local",
+                seat=route_seat,
                 depth=d,
                 goal=goal,
                 status="done" if res.get("ok", True) else "failed",
@@ -419,7 +365,7 @@ def coordinate(
 
     except Exception as e:
         log_activity(
-            seat=route.get("seat") or seat,
+            seat=route_seat,
             depth=d,
             goal=goal,
             status="failed",
@@ -427,6 +373,6 @@ def coordinate(
             detail=str(e)[:200],
             activity_id=act["id"],
         )
-        return {"ok": False, "error": str(e), "activity_id": act["id"], "classification": classified}
+        return {"ok": False, "error": str(e), "activity_id": act["id"], "classification": classified, "route": routed}
 
     return out

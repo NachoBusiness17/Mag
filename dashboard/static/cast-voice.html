@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Mag Voice</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0a0e14; color: #e6edf3; }
+    body { margin: 0; padding: 1rem; max-width: 36rem; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+    .muted { color: #8b949e; font-size: 0.88rem; }
+    .bubble { margin: 0.75rem 0; padding: 0.65rem 0.75rem; border-radius: 8px; line-height: 1.4; }
+    .you { background: #161b22; border: 1px solid #30363d; }
+    .mag { background: #0d2818; border: 1px solid #238636; }
+    button {
+      font: inherit; border: 1px solid #30363d; background: #21262d; color: #e6edf3;
+      border-radius: 999px; padding: 0.85rem 1.2rem; margin: 0.35rem 0.25rem 0.35rem 0;
+      touch-action: manipulation;
+    }
+    button.primary { background: #238636; border-color: #2ea043; }
+    button:active, button.listening { background: #9e6a03; border-color: #bb8009; }
+    button:disabled { opacity: 0.45; }
+    #status { min-height: 1.2rem; margin: 0.5rem 0; }
+    a { color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <h1>Mag Voice</h1>
+  <div class="muted">Hold to talk · DeepSeek answers · <a href="/">cast view</a></div>
+  <div id="status" class="muted">Checking speech support…</div>
+  <div id="transcript" class="bubble you" hidden></div>
+  <div id="answer" class="bubble mag" hidden></div>
+  <div>
+    <button type="button" class="primary" id="btnTalk">Hold to talk</button>
+    <button type="button" id="btnSpeak">Repeat answer</button>
+  </div>
+  <script>
+    const statusEl = document.getElementById("status");
+    const transcriptEl = document.getElementById("transcript");
+    const answerEl = document.getElementById("answer");
+    const btnTalk = document.getElementById("btnTalk");
+    const btnSpeak = document.getElementById("btnSpeak");
+    let sessionId = localStorage.getItem("magVoiceSession");
+    if (!sessionId) {
+      sessionId = "voice-" + Math.random().toString(36).slice(2, 12);
+      localStorage.setItem("magVoiceSession", sessionId);
+    }
+    let lastAnswer = "";
+    let recognition = null;
+    let listening = false;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const ttsOk = "speechSynthesis" in window;
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function pickVoice() {
+      const voices = speechSynthesis.getVoices() || [];
+      return voices.find((v) => /en/i.test(v.lang)) || voices[0] || null;
+    }
+
+    function speak(text) {
+      if (!ttsOk || !text) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.slice(0, 1200));
+      u.voice = pickVoice();
+      u.rate = 1;
+      speechSynthesis.speak(u);
+    }
+
+    async function sendTurn(text) {
+      setStatus("Thinking…");
+      btnTalk.disabled = true;
+      try {
+        const r = await fetch("/api/v1/voice/turn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, session_id: sessionId, channel: "cast" }),
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || "voice turn failed");
+        lastAnswer = j.answer || "";
+        answerEl.hidden = false;
+        answerEl.textContent = lastAnswer;
+        setStatus("Tap Repeat or hold to talk again");
+        if (j.speak !== false) speak(lastAnswer);
+      } catch (e) {
+        setStatus(String(e.message || e));
+      } finally {
+        btnTalk.disabled = false;
+      }
+    }
+
+    function startListen() {
+      if (!recognition || listening) return;
+      listening = true;
+      btnTalk.classList.add("listening");
+      btnTalk.textContent = "Listening…";
+      setStatus("Speak now");
+      try {
+        recognition.start();
+      } catch (_) {
+        listening = false;
+        btnTalk.classList.remove("listening");
+        btnTalk.textContent = "Hold to talk";
+      }
+    }
+
+    function stopListen() {
+      if (!recognition || !listening) return;
+      try { recognition.stop(); } catch (_) {}
+    }
+
+    if (!SpeechRecognition) {
+      setStatus("Speech recognition needs Chrome/Safari on phone — try Android Chrome");
+      btnTalk.disabled = true;
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (ev) => {
+        const text = ev.results[0][0].transcript.trim();
+        if (!text) return;
+        transcriptEl.hidden = false;
+        transcriptEl.textContent = "You: " + text;
+        sendTurn(text);
+      };
+      recognition.onerror = (ev) => {
+        setStatus("Mic error: " + (ev.error || "unknown"));
+        listening = false;
+        btnTalk.classList.remove("listening");
+        btnTalk.textContent = "Hold to talk";
+      };
+      recognition.onend = () => {
+        listening = false;
+        btnTalk.classList.remove("listening");
+        btnTalk.textContent = "Hold to talk";
+      };
+      setStatus(ttsOk ? "Ready — hold button and speak" : "Ready (text only — no TTS)");
+    }
+
+    btnTalk.addEventListener("mousedown", startListen);
+    btnTalk.addEventListener("mouseup", stopListen);
+    btnTalk.addEventListener("mouseleave", stopListen);
+    btnTalk.addEventListener("touchstart", (e) => { e.preventDefault(); startListen(); });
+    btnTalk.addEventListener("touchend", (e) => { e.preventDefault(); stopListen(); });
+
+    btnSpeak.addEventListener("click", () => speak(lastAnswer));
+
+    if (ttsOk) {
+      speechSynthesis.onvoiceschanged = pickVoice;
+    }
+  </script>
+</body>
+</html>

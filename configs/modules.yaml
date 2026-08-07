@@ -110,6 +110,61 @@ modules:
     retrocausal: false
     note: "Topic-shaped continuity — L1 for workspace/avatars; not idea_flow seat economics"
 
+  router:
+    path: mag/router.py
+    layer: harness
+    provides: [route.v2, depth_classifier, seat_matrix]
+    depends_on: [context_pack]
+    upgrade: "Single route() law; legacy mag/route.py superseded"
+
+  conductor:
+    path: mag/conductor.py
+    layer: harness
+    provides: [phase_overlay, l_conductor_trail]
+    depends_on: [router]
+    upgrade: "L-conductor heuristic; trained weights v4+"
+    note: "Trail: memory/runs/conductor_trail.jsonl — not desk conductor"
+
+  desk_conductor:
+    path: mag/desk_conductor.py
+    also: [mag/desk_dialogue.py, mag/coding_session_orchestrator.py]
+    layer: harness
+    provides: [conductor_tick, seat_fidelity, desk_handoff]
+    depends_on: [desk_dialogue, local_scheduler]
+    note: "Trail: memory/runs/desk_conductor_trail.jsonl"
+
+  orchestrator:
+    path: mag/orchestrator.py
+    layer: harness
+    provides: [spawn, queue, drain, pigeonhole_tasks]
+    depends_on: [router, pigeonhole]
+
+  switchboard:
+    path: mag/switchboard.py
+    layer: meta
+    provides: [steer_drop, mesh_peers, arena_bias]
+    depends_on: [orchestrator, pigeonhole]
+
+  spider:
+    path: mag/spider.py
+    layer: harness
+    provides: [meta_supervisor, stall_steer]
+    depends_on: [orchestrator, failure_kb]
+
+  build_audit:
+    path: mag/build_audit.py
+    layer: harness
+    provides: [build_audit.v1, factory_cycle_emit]
+    depends_on: [training_events]
+    note: "RUN B pilot — memory/runs/build_audit/"
+
+  handoff_inbox:
+    path: mag/handoff_inbox.py
+    also: [mag/peer_handoff.py, mag/improve_loop.py]
+    layer: viewport
+    provides: [unified_handoff_queue, scrum_snapshot]
+    depends_on: [orchestrator, coding_session_orchestrator]
+
   seats_lanes:
     path: configs/lanes.yaml
     also: [configs/providers.yaml, memory/improve/SEATS.md]

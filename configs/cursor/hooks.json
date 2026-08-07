@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".venv/Scripts/python.exe watch/cursor_session_boot.py"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": ".venv/Scripts/python.exe watch/cursor_hook.py"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".venv/Scripts/python.exe watch/cursor_hook.py"
+      }
+    ],
+    "composerStop": [
+      {
+        "command": ".venv/Scripts/python.exe watch/cursor_hook.py"
+      }
+    ]
+  }
+}

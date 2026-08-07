@@ -1,0 +1,52 @@
+# TextArena game → capability probe map (ILAP arena steal)
+# game_id: TextArena env_id (ta.make)
+# probe_type: feeds arena_learning + switchboard routing_hint
+# routing_task: task class for route_intent bias
+
+schema: arena_probes.v1
+
+games:
+  TicTacToe-v0:
+    probe_type: structured_handoff
+    routing_task: schema
+    seats: 2
+  ConnectFour-v0:
+    probe_type: structured_handoff
+    routing_task: canvas_move
+    seats: 2
+  Chess-v0:
+    probe_type: structured_handoff
+    routing_task: canvas_move
+    seats: 2
+  Negotiation-v0:
+    probe_type: communication
+    routing_task: conductor_steer
+    seats: 2
+  Trading-v0:
+    probe_type: communication
+    routing_task: user_dialogue
+    seats: 2
+  Codenames-v0:
+    probe_type: semantic_alignment
+    routing_task: pack_composition
+    seats: 2
+  Wordle-v0:
+    probe_type: semantic_alignment
+    routing_task: resonance
+    seats: 1
+  SpellingBee-v0:
+    probe_type: semantic_alignment
+    routing_task: resonance
+    seats: 2
+  SecretMafia-v0:
+    probe_type: coordination
+    routing_task: mesh_handoff
+    seats: 4
+  Battleship-v0-easy:
+    probe_type: structured_handoff
+    routing_task: schema
+    seats: 2
+  Hangman-v0:
+    probe_type: reasoning_depth
+    routing_task: deep_priority
+    seats: 1
